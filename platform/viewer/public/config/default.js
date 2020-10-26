@@ -6,12 +6,26 @@ window.config = {
   filterQueryParam: false,
   servers: {
     dicomWeb: [
+      // {
+      //   name: 'DCM4CHEE',
+      //   wadoUriRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/wado',
+      //   qidoRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/rs',
+      //   wadoRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/rs',
+      //   qidoSupportsIncludeField: true,
+      //   imageRendering: 'wadors',
+      //   thumbnailRendering: 'wadors',
+      //   enableStudyLazyLoad: true,
+      //   supportsFuzzyMatching: true,
+      // },
       {
-        name: 'DCM4CHEE',
-        wadoUriRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/wado',
-        qidoRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/rs',
-        wadoRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/rs',
-        qidoSupportsIncludeField: true,
+        name: 'orthanc',
+        // see the orthanc-proxy utility (it's in a top-level folder in this project)
+        wadoUriRoot: 'http://localhost:8899/wado',
+        qidoRoot: 'http://localhost:8899/dicom-web',
+        wadoRoot: 'http://localhost:8899/dicom-web',
+        blackfordAcceptRoot: 'http://localhost:8899/accept',
+        blackfordRejectRoot: 'http://localhost:8899/reject',
+        qidoSupportsIncludeField: false,
         imageRendering: 'wadors',
         thumbnailRendering: 'wadors',
         enableStudyLazyLoad: true,
