@@ -59,7 +59,7 @@ const _promoteStudyDisplaySet = (study, studyMetadata, filters) => {
   const shouldPromoteToFront = queryParamsLength > 0;
 
   if (shouldPromoteToFront) {
-    const { seriesInstanceUID } = filters;
+    const { seriesInstanceUID, sopInstanceUID } = filters;
 
     const _seriesLookup = (valueToCompare, displaySet) => {
       return displaySet.SeriesInstanceUID === valueToCompare;
@@ -71,6 +71,11 @@ const _promoteStudyDisplaySet = (study, studyMetadata, filters) => {
     );
 
     study.displaySets = promotedResponse.data;
+    study.displaySets.forEach(ds => {
+      if (ds.SeriesInstanceUID === seriesInstanceUID)
+        ds.SOPInstanceUID = sopInstanceUID;
+    });
+
     promoted = promotedResponse.promoted;
   }
 
@@ -208,6 +213,7 @@ function ViewerRetrieveStudyData({
   server,
   studyInstanceUIDs,
   seriesInstanceUIDs,
+  sopInstanceUIDs,
   clearViewportSpecificData,
   setStudyData,
 }) {
@@ -331,10 +337,12 @@ function ViewerRetrieveStudyData({
       const filters = {};
       // Use the first, discard others
       const seriesInstanceUID = seriesInstanceUIDs && seriesInstanceUIDs[0];
+      const sopInstanceUID = sopInstanceUIDs && sopInstanceUIDs[0];
       const retrieveParams = [server, studyInstanceUIDs];
 
-      if (seriesInstanceUID) {
+      if (seriesInstanceUID || sopInstanceUID) {
         filters.seriesInstanceUID = seriesInstanceUID;
+        filters.sopInstanceUID = sopInstanceUID;
         // Query param filtering controlled by appConfig property
         if (isFilterStrategy) {
           retrieveParams.push(filters);
@@ -426,6 +434,7 @@ function ViewerRetrieveStudyData({
 ViewerRetrieveStudyData.propTypes = {
   studyInstanceUIDs: PropTypes.array.isRequired,
   seriesInstanceUIDs: PropTypes.array,
+  sopInstanceUID: PropTypes.string,
   server: PropTypes.object,
   clearViewportSpecificData: PropTypes.func.isRequired,
   setStudyData: PropTypes.func.isRequired,

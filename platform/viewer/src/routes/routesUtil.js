@@ -34,7 +34,8 @@ const reload = () => window.location.reload();
 const ROUTES_DEF = {
   default: {
     viewer: {
-      path: '/viewer/:studyInstanceUIDs',
+      // path: '/viewer/:studyInstanceUIDs/',
+      path: '/viewer/:studyInstanceUIDs/:seriesInstanceUIDs?/:SOPInstanceUIDs?',
       component: ViewerRouting,
     },
     standaloneViewer: {
@@ -54,7 +55,7 @@ const ROUTES_DEF = {
     },
     IHEInvokeImageDisplay: {
       path: '/IHEInvokeImageDisplay',
-      component: IHEInvokeImageDisplay
+      component: IHEInvokeImageDisplay,
     },
   },
   gcloud: {

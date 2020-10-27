@@ -19,6 +19,13 @@ const getSeriesInstanceUIDs = (seriesInstanceUIDs, routeLocation) => {
 
   return UrlUtil.paramString.parseParam(_seriesInstanceUIDs);
 };
+const getSOPInstanceUIDs = (SOPInstanceUIDs, routeLocation) => {
+  const queryFilters = UrlUtil.queryString.getQueryFilters(routeLocation);
+  const querySOPUIDs = queryFilters && queryFilters['SOPInstanceUID'];
+  const _sopInstanceUIDs = SOPInstanceUIDs || querySOPUIDs;
+
+  return UrlUtil.paramString.parseParam(_sopInstanceUIDs);
+};
 
 function ViewerRouting({ match: routeMatch, location: routeLocation }) {
   const {
@@ -28,6 +35,7 @@ function ViewerRouting({ match: routeMatch, location: routeLocation }) {
     dicomStore,
     studyInstanceUIDs,
     seriesInstanceUIDs,
+    SOPInstanceUIDs,
   } = routeMatch.params;
 
   // Set the user's default authToken for outbound DICOMWeb requests.
@@ -44,12 +52,14 @@ function ViewerRouting({ match: routeMatch, location: routeLocation }) {
   const server = useServer({ project, location, dataset, dicomStore });
   const studyUIDs = UrlUtil.paramString.parseParam(studyInstanceUIDs);
   const seriesUIDs = getSeriesInstanceUIDs(seriesInstanceUIDs, routeLocation);
+  const sopInstanceUIDs = getSOPInstanceUIDs(SOPInstanceUIDs, routeLocation);
 
   if (server && studyUIDs) {
     return (
       <ConnectedViewerRetrieveStudyData
         studyInstanceUIDs={studyUIDs}
         seriesInstanceUIDs={seriesUIDs}
+        sopInstanceUIDs={sopInstanceUIDs}
       />
     );
   }
