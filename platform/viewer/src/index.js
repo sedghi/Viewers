@@ -23,6 +23,7 @@ import ReactDOM from 'react-dom';
  * by using the exported `App` component, and passing in your extensions as props using
  * the defaultExtensions property.
  */
+import AlirezaCobbAngle from '@ohif/extension-alireza-cobb-angle';
 import OHIFVTKExtension from '@ohif/extension-vtk';
 import OHIFDicomHtmlExtension from '@ohif/extension-dicom-html';
 import OHIFDicomSegmentationExtension from '@ohif/extension-dicom-segmentation';
@@ -48,6 +49,7 @@ if (window) {
 const appProps = {
   config,
   defaultExtensions: [
+    AlirezaCobbAngle,
     OHIFVTKExtension,
     OHIFDicomHtmlExtension,
     OHIFDicomMicroscopyExtension,
