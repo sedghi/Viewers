@@ -1,5 +1,6 @@
 import csTools from 'cornerstone-tools';
 import cornerstone from 'cornerstone-core';
+import { getIntersection } from './utils';
 const BaseAnnotationTool = csTools.importInternal('base/BaseAnnotationTool');
 const getNewContext = csTools.importInternal('drawing/getNewContext');
 const draw = csTools.importInternal('drawing/draw');
@@ -130,7 +131,9 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
 
     return (
       lineSegDistance(element, data.handles.start, data.handles.end, coords) <
-      25
+        25 ||
+      lineSegDistance(element, data.handles.start2, data.handles.end2, coords) <
+        25
     );
   }
 
@@ -141,7 +144,6 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
       data.handles.end2.x === data.handles.start2.x &&
       data.handles.end2.y === data.handles.start2.y
     ) {
-      console.log('inside123');
       var dBx = data.handles.end.x - data.handles.start.x;
       var dBy = data.handles.end.y - data.handles.start.y;
       angle = Math.atan2(dBy, dBx);
@@ -220,7 +222,6 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
           data.handles.end,
           lineOptions
         );
-        // Draw the measurement line
 
         drawLine(
           context,
@@ -229,6 +230,38 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
           data.handles.end2,
           lineOptions
         );
+
+        if (this.finishedFirstLine) {
+          const intersection = getIntersection(data.handles);
+          // dashed line
+          const firstLineMiddleStart = {
+            x: (data.handles.start.x + data.handles.end.x) / 2,
+            y: (data.handles.start.y + data.handles.end.y) / 2,
+          };
+          const secondLineMiddleStart = {
+            x: (data.handles.start2.x + data.handles.end2.x) / 2,
+            y: (data.handles.start2.y + data.handles.end2.y) / 2,
+          };
+
+          lineOptions.lineDash = lineDash;
+
+          drawLine(
+            context,
+            element,
+            firstLineMiddleStart,
+            intersection,
+            lineOptions
+          );
+
+          drawLine(
+            context,
+            element,
+            secondLineMiddleStart,
+            intersection,
+            lineOptions
+          );
+        }
+
         // }
 
         // Draw the handles
