@@ -43,8 +43,8 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
     };
 
     super(props, defaultProps);
-    this.finishedFirstLine = false;
-    this.annotationID = 0;
+    // this.finishedFirstLine = false;
+    // this.annotationID = 0;
     this.throttledUpdateCachedStats = throttle(this.updateCachedStats, 110);
   }
 
@@ -67,6 +67,8 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
       active: true,
       color: undefined,
       invalidated: true,
+      finalized: false,
+      firstLineDrawn: false,
       handles: {
         start: {
           x,
@@ -159,15 +161,10 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
     }
     var degree_angle = angle * (180 / Math.PI);
 
-    // let angle =
-    //   (Math.atan2(
-    //     data.handles.end.y - data.handles.start.y,
-    //     data.handles.start.x - data.handles.end.x
-    //   ) *
-    //     180) /
-    //   Math.PI;
-
-    data.rAngle = roundToDecimal(degree_angle, 2);
+    data.rAngle = roundToDecimal(
+      degree_angle > 90 ? 180 - degree_angle : degree_angle,
+      2
+    );
     data.invalidated = false;
   }
 
@@ -230,8 +227,7 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
           data.handles.end2,
           lineOptions
         );
-
-        if (this.finishedFirstLine) {
+        if (data.finalized) {
           const intersection = getIntersection(data.handles);
           // dashed line
           const firstLineMiddleStart = {
@@ -362,9 +358,55 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
 
     const eventData = evt.detail;
     const element = evt.detail.element;
-    let measurementData;
+    let measurementData = csTools.getToolState(element, this.name);
 
-    if (!this.finishedFirstLine) {
+    if (typeof measurementData == 'undefined') {
+      measurementData = [];
+    } else {
+      measurementData = measurementData.data.filter(
+        mes => mes.finalized == false
+      );
+    }
+
+    if (measurementData.length) {
+      measurementData = measurementData[0];
+      measurementData.handles.start2 = {
+        x: eventData.currentPoints.image.x,
+        y: eventData.currentPoints.image.y,
+      };
+      moveNewHandle(
+        eventData,
+        this.name,
+        measurementData,
+        measurementData.handles.end2,
+        this.options,
+        interactionType,
+        success => {
+          measurementData.active = false;
+          if (!success) {
+            removeToolState(element, this.name, measurementData);
+            return;
+          }
+          measurementData.handles.end2.active = true;
+          cornerstone.updateImage(element);
+          // this.finishedFirstLine = false;
+          // this.annotationID += 1;
+          measurementData.finalized = true;
+        }
+      );
+      const modifiedEventData = {
+        toolName: this.name,
+        toolType: this.name, // Deprecation notice: toolType will be replaced by toolName
+        element,
+        measurementData,
+      };
+
+      triggerEvent(
+        element,
+        csTools.EVENTS.MEASUREMENT_COMPLETED,
+        modifiedEventData
+      );
+    } else {
       measurementData = this.createNewMeasurement(eventData);
       // Associate this data with this imageId so we can render it and manipulate it
       csTools.addToolState(element, this.name, measurementData);
@@ -387,48 +429,10 @@ export default class AlirezaCobbAngleTool extends BaseAnnotationTool {
           measurementData.handles.end.active = true;
 
           cornerstone.updateImage(element);
-          this.finishedFirstLine = true;
+          measurementData.firstLineDrawn = true;
         }
       );
-    } else {
-      measurementData = csTools.getToolState(element, this.name).data[
-        this.annotationID
-      ];
-      measurementData.handles.start2 = {
-        x: eventData.currentPoints.image.x,
-        y: eventData.currentPoints.image.y,
-      };
-      moveNewHandle(
-        eventData,
-        this.name,
-        measurementData,
-        measurementData.handles.end2,
-        this.options,
-        interactionType,
-        success => {
-          measurementData.active = false;
-          if (!success) {
-            removeToolState(element, this.name, measurementData);
-            return;
-          }
-          measurementData.handles.end2.active = true;
-          cornerstone.updateImage(element);
-          this.finishedFirstLine = false;
-          this.annotationID += 1;
-        }
-      );
-      const modifiedEventData = {
-        toolName: this.name,
-        toolType: this.name, // Deprecation notice: toolType will be replaced by toolName
-        element,
-        measurementData,
-      };
-
-      triggerEvent(
-        element,
-        csTools.EVENTS.MEASUREMENT_COMPLETED,
-        modifiedEventData
-      );
+      console.log('this123');
     }
   }
 }
