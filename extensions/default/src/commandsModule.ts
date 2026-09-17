@@ -55,6 +55,7 @@ const commandsModule = ({
     viewportGridService,
     displaySetService,
     multiMonitorService,
+    cineService,
   } = servicesManager.services;
 
   // Define a context menu controller for use with any context menus
@@ -354,7 +355,12 @@ const commandsModule = ({
         const hpInfo = hangingProtocolService.getState();
         reuseCachedLayouts(state, hangingProtocolService);
         const { hangingProtocolStageIndexMap } = useHangingProtocolStageIndexStore.getState();
-        const { displaySetSelectorMap } = useDisplaySetSelectorStore.getState();
+        const { displaySetSelectorMap: rawSelectorMap } = useDisplaySetSelectorStore.getState();
+        const displaySetSelectorMap = Object.fromEntries(
+          Object.entries(rawSelectorMap).filter(
+            ([, value]) => Array.isArray(value) && value.length > 0
+          )
+        );
 
         if (!protocolId) {
           // Reuse the previous protocol id, and optionally stage
@@ -855,6 +861,380 @@ const commandsModule = ({
      * @param workflowId - command option to force a specific workflow (mode id)
      *   instead of the default/first applicable one
      */
+    hangDisplaySetOnViewport: ({
+      viewportId,
+      displaySetInstanceUID,
+      seriesNumber,
+      modality,
+    }: {
+      viewportId?: string;
+      displaySetInstanceUID?: string;
+      seriesNumber?: string | number;
+      modality?: string;
+    }) => {
+      const { activeViewportId, isHangingProtocolLayout } = viewportGridService.getState();
+      const targetViewportId = viewportId || activeViewportId;
+      const displaySet = findDisplaySetBySeries(displaySetService, {
+        displaySetInstanceUID,
+        seriesNumber,
+        modality,
+      });
+      if (!targetViewportId || !displaySet) {
+        uiNotificationService.show({
+          title: 'Open series',
+          message: 'No matching series was found for that series number and modality.',
+          type: 'info',
+          duration: 3000,
+        });
+        return false;
+      }
+
+      let updatedViewports = [];
+      try {
+        updatedViewports = hangingProtocolService.getViewportsRequireUpdate(
+          targetViewportId,
+          displaySet.displaySetInstanceUID,
+          isHangingProtocolLayout
+        );
+      } catch (error) {
+        console.warn(error);
+        updatedViewports = [
+          {
+            viewportId: targetViewportId,
+            displaySetInstanceUIDs: [displaySet.displaySetInstanceUID],
+          },
+        ];
+      }
+
+      if (!updatedViewports?.length) {
+        updatedViewports = [
+          {
+            viewportId: targetViewportId,
+            displaySetInstanceUIDs: [displaySet.displaySetInstanceUID],
+          },
+        ];
+      }
+
+      commandsManager.run('setDisplaySetsForViewports', {
+        viewportsToUpdate: updatedViewports,
+      });
+      const studyUID = displaySet.StudyInstanceUID;
+      if (studyUID) {
+        useDisplaySetSelectorStore
+          .getState()
+          .setDisplaySetSelector(`${studyUID}:activeDisplaySet:0`, [
+            displaySet.displaySetInstanceUID,
+          ]);
+      }
+      setTimeout(() => actions.scrollActiveThumbnailIntoView(), 0);
+      return true;
+    },
+
+    controlCine: ({
+      mode,
+    }: {
+      mode: 'play' | 'pause' | 'faster' | 'slower' | 'close';
+    }) => {
+      if (!cineService) {
+        return false;
+      }
+      const viewportId = viewportGridService.getActiveViewportId();
+      if (!viewportId) {
+        uiNotificationService.show({
+          title: 'Cine',
+          message: 'No active viewport to play cine on.',
+          type: 'info',
+          duration: 3000,
+        });
+        return false;
+      }
+
+      const state = cineService.getState?.() || {};
+      const current = state.cines?.[viewportId] || {};
+      let frameRate = Number(current.frameRate) || 24;
+      let isPlaying = Boolean(current.isPlaying);
+
+      if (mode === 'play') {
+        cineService.setIsCineEnabled(true);
+        isPlaying = true;
+      } else if (mode === 'pause') {
+        isPlaying = false;
+      } else if (mode === 'close') {
+        cineService.setCine({ id: viewportId, isPlaying: false, frameRate });
+        cineService.setIsCineEnabled(false);
+        cineService.setViewportCineClosed?.(viewportId);
+        return frameRate;
+      } else if (mode === 'faster') {
+        cineService.setIsCineEnabled(true);
+        isPlaying = true;
+        frameRate = Math.min(90, frameRate + 6);
+      } else if (mode === 'slower') {
+        cineService.setIsCineEnabled(true);
+        isPlaying = true;
+        frameRate = Math.max(1, frameRate - 6);
+      } else {
+        return false;
+      }
+
+      cineService.setCine({ id: viewportId, isPlaying, frameRate });
+      return frameRate;
+    },
+
+    closeLeftPanel: () => {
+      const { panelService } = servicesManager.services;
+      panelService.setPanelClosed('left', true);
+      return true;
+    },
+
+    openLeftPanel: () => {
+      const { panelService } = servicesManager.services;
+      panelService.setPanelClosed('left', false);
+      return true;
+    },
+
+    exitOneUp: () => {
+      const { layout } = viewportGridService.getState();
+      const { toggleOneUpViewportGridStore } = useToggleOneUpViewportGridStore.getState();
+      if (layout.numCols === 1 && layout.numRows === 1 && toggleOneUpViewportGridStore) {
+        commandsManager.run('toggleOneUp');
+        return true;
+      }
+      if (layout.numCols === 1 && layout.numRows === 1) {
+        return actions.applyHangingProtocolPreset({ protocolId: 'mpr' });
+      }
+      return true;
+    },
+
+    invertActiveViewport: () => {
+      commandsManager.run('invertViewport');
+      return true;
+    },
+
+    goToWorklist: () => {
+      const { pathname } = window.location;
+      const dataSourceIdx = pathname.indexOf('/', 1);
+      const params = new URLSearchParams();
+      if (dataSourceIdx !== -1) {
+        const dataSourceName = pathname.substring(dataSourceIdx + 1).split(/[/?#]/)[0];
+        if (dataSourceName) {
+          params.set('datasources', dataSourceName);
+        }
+      }
+      const search = params.toString();
+      history.navigate(search ? `/?${search}` : '/');
+      return true;
+    },
+
+    maximizeOrientation: ({ orientation }: { orientation?: string }) => {
+      const want = normalizePlaneName(orientation) || 'sagittal';
+      const viewportGridState = viewportGridService.getState();
+      const { viewports, layout } = viewportGridState;
+      const { cornerstoneViewportService } = servicesManager.services;
+      let matchId: string | undefined;
+      for (const viewportId of viewports.keys()) {
+        const infoOrientation = cornerstoneViewportService.getOrientation?.(viewportId);
+        const optionOrientation = viewports.get(viewportId)?.viewportOptions?.orientation;
+        const haystack = `${viewportId} ${infoOrientation || ''} ${optionOrientation || ''}`;
+        if (normalizePlaneName(haystack) === want || haystack.toLowerCase().includes(want)) {
+          matchId = viewportId;
+          break;
+        }
+      }
+      if (!matchId) {
+        return false;
+      }
+
+      if (layout.numRows === 1 && layout.numCols === 1) {
+        commandsManager.run('setViewportOrientation', {
+          viewportId: matchId,
+          orientation: want,
+        });
+        return true;
+      }
+
+      const { displaySetInstanceUIDs, displaySetOptions, viewportOptions } = viewports.get(matchId);
+      const { setToggleOneUpViewportGridStore } = useToggleOneUpViewportGridStore.getState();
+      setToggleOneUpViewportGridStore(viewportGridState);
+      viewportGridService.setLayout({
+        numRows: 1,
+        numCols: 1,
+        activeViewportId: matchId,
+        findOrCreateViewport: () => ({
+          displaySetInstanceUIDs,
+          displaySetOptions,
+          viewportOptions,
+        }),
+        isHangingProtocolLayout: true,
+      });
+      return true;
+    },
+
+    overlayDisplaySetOnViewport: ({
+      displaySetInstanceUID,
+      seriesNumber,
+      modality,
+      description,
+    }: {
+      displaySetInstanceUID?: string;
+      seriesNumber?: string | number;
+      modality?: string;
+      description?: string;
+    }) => {
+      const { activeViewportId } = viewportGridService.getState();
+      const displaySet = findDisplaySetBySeries(displaySetService, {
+        displaySetInstanceUID,
+        seriesNumber,
+        modality,
+        description,
+      });
+      if (!activeViewportId || !displaySet) {
+        return false;
+      }
+      commandsManager.run('addDisplaySetAsLayer', {
+        viewportId: activeViewportId,
+        displaySetInstanceUID: displaySet.displaySetInstanceUID,
+      });
+      return true;
+    },
+
+    jumpViewportSlice: ({
+      slicePreset,
+      sliceNumber,
+    }: {
+      slicePreset?: 'first' | 'middle' | 'last';
+      sliceNumber?: number;
+    }) => {
+      try {
+        if (slicePreset === 'first') {
+          commandsManager.run('jumpToImage', { imageIndex: 0 });
+          return true;
+        }
+        if (slicePreset === 'last') {
+          commandsManager.run('jumpToImage', { imageIndex: -1 });
+          return true;
+        }
+        if (slicePreset === 'middle') {
+          const { cornerstoneViewportService } = servicesManager.services;
+          const viewportId = viewportGridService.getActiveViewportId();
+          const viewport = cornerstoneViewportService.getCornerstoneViewport?.(viewportId);
+          let numberOfSlices = 0;
+          try {
+            numberOfSlices = viewport?.getImageIds?.().length || 0;
+          } catch {
+            numberOfSlices = 0;
+          }
+          if (!numberOfSlices) {
+            const uids = viewportGridService.getDisplaySetsUIDsForViewport(viewportId) || [];
+            const displaySet = displaySetService.getDisplaySetByUID(uids[0]);
+            numberOfSlices = Number(displaySet?.numImageFrames) || Number(displaySet?.images?.length) || 0;
+          }
+          const last = Math.max(numberOfSlices - 1, 0);
+          const imageIndex = last % 2 === 0 ? last / 2 : (last + 1) / 2;
+          commandsManager.run('jumpToImage', { imageIndex });
+          return true;
+        }
+        if (typeof sliceNumber === 'number') {
+          commandsManager.run('jumpToImage', { imageIndex: Math.max(0, sliceNumber - 1) });
+          return true;
+        }
+      } catch {
+        return false;
+      }
+      return false;
+    },
+
+    adjustOverlayAppearance: ({
+      opacity,
+      opacityDelta,
+      threshold,
+      reset,
+      modality = 'PT',
+    }: {
+      opacity?: number;
+      opacityDelta?: number;
+      threshold?: number;
+      reset?: boolean;
+      modality?: string;
+    }) => {
+      const viewportId = viewportGridService.getActiveViewportId();
+      if (!viewportId) {
+        return false;
+      }
+      const uids = viewportGridService.getDisplaySetsUIDsForViewport(viewportId) || [];
+      const sets = uids.map(uid => displaySetService.getDisplaySetByUID(uid)).filter(Boolean);
+      const overlay =
+        sets.find(displaySet => displaySet.Modality === modality) ||
+        (sets.length > 1 ? sets[sets.length - 1] : sets[0]);
+      if (!overlay) {
+        return false;
+      }
+      return commandsManager.run('controlOverlayAppearance', {
+        opacity,
+        opacityDelta,
+        threshold,
+        reset,
+        modality,
+      });
+    },
+
+    applyHangingProtocolPreset: ({ protocolId }: { protocolId: string }) => {
+      const protocol = hangingProtocolService.getProtocolById(protocolId);
+      if (!protocol) {
+        uiNotificationService.show({
+          title: 'Hanging protocol',
+          message: `Protocol ${protocolId} was not found.`,
+          type: 'info',
+          duration: 3000,
+        });
+        return false;
+      }
+
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const activeUIDs = viewports.get(activeViewportId)?.displaySetInstanceUIDs || [];
+      const activeDisplaySet = activeUIDs
+        .map(uid => displaySetService.getDisplaySetByUID(uid))
+        .find(Boolean);
+      const needsReconstructable = Object.values(protocol.displaySetSelectors || {}).some(selector =>
+        selector?.seriesMatchingRules?.some(
+          rule => rule.attribute === 'isReconstructable' && rule.required
+        )
+      );
+
+      let displaySet = activeDisplaySet;
+      if (needsReconstructable && !displaySet?.isReconstructable) {
+        displaySet = displaySetService
+          .getActiveDisplaySets()
+          .find(item => item.isReconstructable && (!displaySet?.Modality || item.Modality === displaySet.Modality))
+          || displaySetService.getActiveDisplaySets().find(item => item.isReconstructable);
+      }
+
+      if (needsReconstructable && !displaySet?.isReconstructable) {
+        uiNotificationService.show({
+          title: 'MPR',
+          message: 'MPR needs a reconstructable volume series. Hang a CT or MR stack first.',
+          type: 'info',
+          duration: 4000,
+        });
+        return false;
+      }
+
+      const studyUID =
+        hangingProtocolService.getState()?.activeStudyUID || displaySet?.StudyInstanceUID;
+      if (studyUID && displaySet?.displaySetInstanceUID) {
+        useDisplaySetSelectorStore
+          .getState()
+          .setDisplaySetSelector(`${studyUID}:activeDisplaySet:0`, [
+            displaySet.displaySetInstanceUID,
+          ]);
+      }
+
+      return actions.setHangingProtocol({
+        protocolId,
+        activeStudyUID: studyUID,
+        reset: true,
+      });
+    },
+
     launchDefaultMode: ({ study, workflows = [], defaultWorkflow, workflowId }) => {
       const workflow = workflowId
         ? workflows.find(w => w.id === workflowId)
@@ -898,6 +1278,18 @@ const commandsModule = ({
     addDisplaySetAsLayer: actions.addDisplaySetAsLayer,
     removeDisplaySetLayer: actions.removeDisplaySetLayer,
     createStoreFunction: actions.createStoreFunction,
+    hangDisplaySetOnViewport: actions.hangDisplaySetOnViewport,
+    applyHangingProtocolPreset: actions.applyHangingProtocolPreset,
+    controlCine: actions.controlCine,
+    closeLeftPanel: actions.closeLeftPanel,
+    openLeftPanel: actions.openLeftPanel,
+    exitOneUp: actions.exitOneUp,
+    invertActiveViewport: actions.invertActiveViewport,
+    goToWorklist: actions.goToWorklist,
+    maximizeOrientation: actions.maximizeOrientation,
+    overlayDisplaySetOnViewport: actions.overlayDisplaySetOnViewport,
+    jumpViewportSlice: actions.jumpViewportSlice,
+    adjustOverlayAppearance: actions.adjustOverlayAppearance,
     launchDefaultMode: {
       commandFn: actions.launchDefaultMode,
       context: 'WORKLIST',
@@ -910,5 +1302,86 @@ const commandsModule = ({
     defaultContext: 'DEFAULT',
   };
 };
+
+function normalizeModality(value: unknown): string {
+  const token = String(value ?? '')
+    .toUpperCase()
+    .trim();
+  if (token === 'MRI') {
+    return 'MR';
+  }
+  if (token === 'PET') {
+    return 'PT';
+  }
+  return token;
+}
+
+function normalizePlaneName(value: string | undefined): 'axial' | 'sagittal' | 'coronal' | undefined {
+  const text = String(value || '').toLowerCase();
+  if (/sagg?itt?al|sagital/.test(text)) {
+    return 'sagittal';
+  }
+  if (text.includes('coronal')) {
+    return 'coronal';
+  }
+  if (text.includes('axial') || text.includes('transaxial')) {
+    return 'axial';
+  }
+  return undefined;
+}
+
+function findDisplaySetBySeries(
+  displaySetService: { getActiveDisplaySets: () => any[]; getDisplaySetByUID?: (uid: string) => any },
+  {
+    displaySetInstanceUID,
+    seriesNumber,
+    modality,
+    description,
+  }: {
+    displaySetInstanceUID?: string;
+    seriesNumber?: string | number;
+    modality?: string;
+    description?: string;
+  }
+) {
+  if (displaySetInstanceUID && displaySetService.getDisplaySetByUID) {
+    const exact = displaySetService.getDisplaySetByUID(displaySetInstanceUID);
+    if (exact) {
+      return exact;
+    }
+  }
+
+  const sets = displaySetService.getActiveDisplaySets?.() ?? [];
+  const wantNumber = seriesNumber == null || seriesNumber === '' ? '' : String(seriesNumber);
+  const wantModality = normalizeModality(modality);
+  const wantDescription = String(description || '').trim().toLowerCase();
+  const scored = sets
+    .map(displaySet => {
+      let score = 0;
+      if (wantNumber && String(displaySet.SeriesNumber) === wantNumber) {
+        score += 2;
+      } else if (wantNumber) {
+        return { displaySet, score: 0 };
+      }
+      if (wantModality && normalizeModality(displaySet.Modality) === wantModality) {
+        score += 2;
+      } else if (wantModality) {
+        return { displaySet, score: 0 };
+      }
+      const seriesDescription = String(displaySet.SeriesDescription || '').toLowerCase();
+      if (wantDescription && seriesDescription.includes(wantDescription)) {
+        score += 3;
+      } else if (wantDescription) {
+        const tokens = wantDescription.split(/\s+/).filter(Boolean);
+        if (tokens.some(token => seriesDescription.includes(token))) {
+          score += 1;
+        }
+      }
+      return { displaySet, score };
+    })
+    .filter(entry => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.displaySet ?? null;
+}
 
 export default commandsModule;

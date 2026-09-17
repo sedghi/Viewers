@@ -104,6 +104,8 @@ export default function PanelStudyBrowserTracking({
           dragData: {
             type: 'displayset',
             displaySetInstanceUID,
+            seriesNumber: ds.SeriesNumber,
+            modality: ds.Modality,
           },
           isTracked: trackedSeries.includes(ds.SeriesInstanceUID),
           isHydratedForDerivedDisplaySet: ds.isHydrated,

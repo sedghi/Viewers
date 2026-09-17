@@ -71,6 +71,20 @@ const toggleSyncFunctions = {
 
 const { segmentation: segmentationUtils } = cstUtils;
 
+function opacityScalar(opacityVal: unknown): number | undefined {
+  if (opacityVal === undefined || opacityVal === null) {
+    return undefined;
+  }
+  if (Array.isArray(opacityVal)) {
+    return opacityVal.reduce((max: number, point) => {
+      const value = typeof point === 'number' ? point : (point?.opacity ?? 0);
+      return Math.max(max, value);
+    }, 0);
+  }
+  const value = Number(opacityVal);
+  return Number.isFinite(value) ? value : undefined;
+}
+
 const getLabelmapTools = ({ toolGroupService }) => {
   const labelmapTools = [];
   const toolGroupIds = toolGroupService.getToolGroupIds();
@@ -1230,7 +1244,15 @@ function commandsModule({
     },
 
     /** Jumps the active viewport or the specified one to the given slice index */
-    jumpToImage: ({ imageIndex, viewport: gridViewport }): void => {
+    jumpToImage: ({
+      imageIndex,
+      preset,
+      viewport: gridViewport,
+    }: {
+      imageIndex?: number;
+      preset?: 'first' | 'middle' | 'last';
+      viewport?: { id: string };
+    }): void => {
       // Get current active viewport (return if none active)
       let viewport;
       if (!gridViewport) {
@@ -1255,7 +1277,17 @@ function commandsModule({
         throw new Error('Unsupported viewport type');
       }
 
-      const jumpIndex = imageIndex < 0 ? numberOfSlices + imageIndex : imageIndex;
+      const lastSliceIndex = numberOfSlices - 1;
+      let jumpIndex = 0;
+      if (preset === 'first') {
+        jumpIndex = 0;
+      } else if (preset === 'last') {
+        jumpIndex = lastSliceIndex;
+      } else if (preset === 'middle') {
+        jumpIndex = lastSliceIndex % 2 === 0 ? lastSliceIndex / 2 : (lastSliceIndex + 1) / 2;
+      } else if (typeof imageIndex === 'number') {
+        jumpIndex = imageIndex < 0 ? numberOfSlices + imageIndex : imageIndex;
+      }
       if (jumpIndex >= numberOfSlices || jumpIndex < 0) {
         throw new Error(`Can't jump to ${imageIndex}`);
       }
@@ -1318,6 +1350,62 @@ function commandsModule({
       if (immediate) {
         viewport.render();
       }
+    },
+    controlOverlayAppearance: ({
+      opacity,
+      opacityDelta,
+      threshold,
+      reset,
+      modality = 'PT',
+    }: {
+      opacity?: number;
+      opacityDelta?: number;
+      threshold?: number;
+      reset?: boolean;
+      modality?: string;
+    }) => {
+      const viewportId = viewportGridService.getActiveViewportId();
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+      if (!viewport) {
+        return false;
+      }
+      const uids = viewportGridService.getDisplaySetsUIDsForViewport(viewportId) || [];
+      const sets = uids
+        .map(uid => displaySetService.getDisplaySetByUID(uid))
+        .filter(Boolean);
+      const overlay =
+        sets.find(displaySet => displaySet.Modality === modality) ||
+        (sets.length > 1 ? sets[sets.length - 1] : sets[0]);
+      if (!overlay) {
+        return false;
+      }
+      const adapter = getViewportAdapter(viewport);
+      const displaySetInstanceUID = overlay.displaySetInstanceUID;
+      const current = adapter.getColormap(displaySetInstanceUID) || {};
+      const currentOpacity = opacityScalar(current.opacity);
+      if (reset) {
+        adapter.setLayerThreshold(displaySetInstanceUID, 0);
+        adapter.setLayerOpacity(displaySetInstanceUID, currentOpacity ?? 0.5);
+        viewport.render();
+        return true;
+      }
+      if (typeof threshold === 'number') {
+        adapter.setLayerThreshold(displaySetInstanceUID, threshold);
+        if (currentOpacity != null) {
+          adapter.setLayerOpacity(displaySetInstanceUID, currentOpacity);
+        }
+      }
+      if (typeof opacity === 'number') {
+        adapter.setLayerOpacity(displaySetInstanceUID, Math.max(0, Math.min(1, opacity)));
+      } else if (typeof opacityDelta === 'number') {
+        const base = currentOpacity ?? 1;
+        adapter.setLayerOpacity(
+          displaySetInstanceUID,
+          Math.max(0, Math.min(1, base + opacityDelta))
+        );
+      }
+      viewport.render();
+      return true;
     },
     changeActiveViewport: ({ direction = 1 }) => {
       const { activeViewportId, viewports } = viewportGridService.getState();
@@ -2574,6 +2662,7 @@ function commandsModule({
     setViewportColormap: {
       commandFn: actions.setViewportColormap,
     },
+    controlOverlayAppearance: actions.controlOverlayAppearance,
     setViewportForToolConfiguration: {
       commandFn: actions.setViewportForToolConfiguration,
     },

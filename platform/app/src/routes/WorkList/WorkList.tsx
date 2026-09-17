@@ -50,9 +50,6 @@ export default function WorkList({
   const { sorting, pagination, filters, setSorting, setPagination, setFilters } =
     useStudyListStateSync();
 
-  // Default sorting if no URL state exists
-  const defaultSorting = useMemo(() => [{ id: 'studyDateTime', desc: true }], []);
-
   const [selected, setSelected] = useState<StudyRow | null>(null);
 
   // Persist the preview panel open/closed state so it survives navigating
@@ -100,14 +97,31 @@ export default function WorkList({
     );
   }, [customizationService]);
 
-  const logoComponent = appConfig?.whiteLabeling?.createLogoComponentFn?.(React) ?? (
+  const Dictation = customizationService.getCustomization('workList.dictation') as
+    | React.ComponentType<{ page: 'worklist'; children?: React.ReactNode }>
+    | undefined;
+  const logoMark = appConfig?.whiteLabeling?.createLogoComponentFn?.(React) ?? (
     <Icons.OHIFLogoHorizontal
       aria-label="OHIF logo"
       className="h-[22px] w-[232px]"
     />
   );
+  const logoComponent =
+    typeof Dictation === 'function' ? (
+      <Dictation page="worklist">{logoMark}</Dictation>
+    ) : (
+      logoMark
+    );
 
   const toolbarActions = useWorkListToolbarActions(servicesManager, dataSource, onRefresh);
+  const WorklistSession = customizationService.getCustomization('workList.session') as
+    | React.ComponentType<{
+        studies: StudyRow[];
+        commandsManager: typeof commandsManager;
+        onApplyFilters: (filters: { id: string; value: unknown }[]) => void;
+        onApplySorting: (sorting: { id: string; desc: boolean }[]) => void;
+      }>
+    | undefined;
 
   const previewDefaultSize = useMemo(() => {
     if (typeof window !== 'undefined' && window.innerWidth > 0) {
@@ -141,7 +155,7 @@ export default function WorkList({
             <StudyList.Table
               columns={columns}
               data={data as StudyRow[]}
-              sorting={sorting.length > 0 ? sorting : defaultSorting}
+              sorting={sorting}
               pagination={pagination}
               filters={filters}
               onSortingChange={setSorting}
@@ -162,7 +176,25 @@ export default function WorkList({
               onStudyDoubleClick={studyDoubleClickCommand ? onStudyDoubleClick : undefined}
               onSelectionChange={sel => setSelected((sel as StudyRow[])[0] ?? null)}
               toolbarLeftComponent={logoComponent}
-              toolbarRightActionsComponent={toolbarActions}
+              toolbarRightActionsComponent={
+                WorklistSession || toolbarActions ? (
+                  <div className="flex items-center gap-1">
+                    {typeof WorklistSession === 'function' ? (
+                      <WorklistSession
+                        studies={data as StudyRow[]}
+                        commandsManager={commandsManager}
+                        onApplyFilters={next => {
+                          setIsFilterPending(true);
+                          setFilters(next);
+                          setPagination(current => ({ ...current, pageIndex: 0 }));
+                        }}
+                        onApplySorting={setSorting}
+                      />
+                    ) : null}
+                    {toolbarActions}
+                  </div>
+                ) : undefined
+              }
               toolbarRightComponent={
                 !isPreviewOpen ? (
                   <div className="relative -top-px mt-1 ml-2 flex items-center gap-1">

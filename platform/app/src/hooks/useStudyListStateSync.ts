@@ -48,9 +48,12 @@ export function useStudyListStateSync() {
   const [filters, setFilters] = useState<ColumnFiltersState>(
     sessionState.filters || parseFiltersFromURL(searchParams)
   );
-  const [sorting, setSorting] = useState<SortingState>(
-    sessionState.sorting || parseSortingFromURL(searchParams)
-  );
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const fromSessionOrUrl = sessionState.sorting || parseSortingFromURL(searchParams);
+    return fromSessionOrUrl.length > 0
+      ? fromSessionOrUrl
+      : [{ id: COLUMN_IDS.STUDY_DATE_TIME, desc: true }];
+  });
 
   const dataSources = sessionState.dataSources || getUrlParam(searchParams, URL_KEYS.dataSources);
 

@@ -1,4 +1,6 @@
 import { StudyList } from '@ohif/ui-next';
+import TypeSafeDictation from '../Components/TypeSafeDictation';
+import TypeSafeWorklistSession from '../Components/TypeSafeWorklistSession';
 
 /**
  * Default customization values for the WorkList study-list route.
@@ -90,6 +92,12 @@ import { StudyList } from '@ohif/ui-next';
  *   built-in StudyList.Table double-click behavior applies.
  *   Currently only applies when `workList.variant` is `'default'`.
  *
+ * - `workList.session`: React component (default: `TypeSafeWorklistSession`)
+ *   Headless worklist binder for voice commands. Receives `{ studies,
+ *   commandsManager, onApplyFilters, onApplySorting }`. Set to a falsy value
+ *   to disable worklist voice actions. Currently only applies when
+ *   `workList.variant` is `'default'`.
+ *
  * - `workList.settingsMenuItems`: `(defaults) => SettingsMenuItem[]` (default: identity)
  *   Builds the items in the WorkList settings popover. Receives the default
  *   items (`about`, `userPreferences`, and `logout` when OIDC is configured)
@@ -106,6 +114,8 @@ export default function getWorkListCustomization() {
     'workList.columns': StudyList.defaultColumns,
     'workList.renderPreviewContent': undefined,
     'workList.onStudyDoubleClick': { commandName: 'launchDefaultMode' },
+    'workList.session': TypeSafeWorklistSession,
+    'workList.dictation': TypeSafeDictation,
     'workList.settingsMenuItems': (defaults: unknown) => defaults,
   };
 }

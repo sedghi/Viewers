@@ -498,7 +498,8 @@ function _mapDisplaySets(displaySets, displaySetLoadingState, thumbnailImageSrcM
         dragData: {
           type: 'displayset',
           displaySetInstanceUID,
-          // .. Any other data to pass
+          seriesNumber: ds.SeriesNumber,
+          modality: ds.Modality,
         },
         isHydratedForDerivedDisplaySet: ds.isHydrated,
       });

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, Header, Icons, useModal } from '@ohif/ui-next';
 import { useSystem } from '@ohif/core';
 import { Toolbar } from '../Toolbar/Toolbar';
+import TypeSafeDictation from '../Components/TypeSafeDictation';
 import HeaderPatientInfo from './HeaderPatientInfo';
 import { PatientInfoVisibility } from './HeaderPatientInfo/HeaderPatientInfo';
 import { preserveQueryParameters } from '@ohif/app';
@@ -103,7 +104,15 @@ function ViewerHeader({ appConfig }: withAppTypes<{ appConfig: AppTypes.Config }
       menuOptions={menuOptions}
       isReturnEnabled={!!appConfig.showStudyList}
       onClickReturnButton={onClickReturnButton}
-      WhiteLabeling={appConfig.whiteLabeling}
+      WhiteLabeling={{
+        createLogoComponentFn: (ReactRef, headerProps) => (
+          <TypeSafeDictation page="viewer">
+            {appConfig.whiteLabeling?.createLogoComponentFn?.(ReactRef, headerProps) || (
+              <Icons.OHIFLogo />
+            )}
+          </TypeSafeDictation>
+        ),
+      }}
       Secondary={<Toolbar buttonSection="secondary" />}
       PatientInfo={
         appConfig.showPatientInfo !== PatientInfoVisibility.DISABLED && (

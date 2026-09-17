@@ -209,6 +209,11 @@ module.exports = (env, argv) => {
           context: ['/dicomweb'],
           target: 'http://localhost:5000',
         },
+        {
+          context: ['/api'],
+          target: process.env.TYPESAFE_WORKER_ORIGIN || 'http://localhost:8787',
+          changeOrigin: true,
+        },
       ],
       static: [
         {
@@ -237,7 +242,6 @@ module.exports = (env, argv) => {
   });
 
   if (hasProxy) {
-    mergedConfig.devServer.proxy = mergedConfig.devServer.proxy || {};
     mergedConfig.devServer.proxy = [
       {
         context: [PROXY_PATH_REWRITE_FROM || '/dicomweb'],
@@ -246,6 +250,11 @@ module.exports = (env, argv) => {
         pathRewrite: {
           [`^${PROXY_PATH_REWRITE_FROM}`]: PROXY_PATH_REWRITE_TO,
         },
+      },
+      {
+        context: ['/api'],
+        target: process.env.TYPESAFE_WORKER_ORIGIN || 'http://localhost:8787',
+        changeOrigin: true,
       },
     ];
   }

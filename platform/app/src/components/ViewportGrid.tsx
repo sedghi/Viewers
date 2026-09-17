@@ -149,23 +149,37 @@ function ViewerViewportGrid(props: withAppTypes) {
     }
   }, [viewportGridService, generateLayoutHash]);
 
-  const onDropHandler = (viewportId, { displaySetInstanceUID }) => {
+  const onDropHandler = (viewportId, droppedItem = {}) => {
     const { viewportGridService } = servicesManager.services;
+    const { displaySetInstanceUID, seriesNumber, modality } = droppedItem as {
+      displaySetInstanceUID?: string;
+      seriesNumber?: string | number;
+      modality?: string;
+    };
     const customOnDropHandler = customizationService.getCustomization('customOnDropHandler');
     const dropHandlerPromise = customOnDropHandler({
       ...props,
       viewportId,
       displaySetInstanceUID,
+      seriesNumber,
+      modality,
       appConfig,
     });
     dropHandlerPromise.then(({ handled }) => {
       if (!handled) {
-        const updatedViewports = _getUpdatedViewports(viewportId, displaySetInstanceUID);
-
-        commandsManager.run('setDisplaySetsForViewports', { viewportsToUpdate: updatedViewports });
+        commandsManager.run('hangDisplaySetOnViewport', {
+          viewportId,
+          displaySetInstanceUID,
+          seriesNumber,
+          modality,
+        });
       }
     });
-    viewportGridService.publishViewportOnDropHandled({ displaySetInstanceUID });
+    viewportGridService.publishViewportOnDropHandled({
+      displaySetInstanceUID,
+      seriesNumber,
+      modality,
+    });
   };
 
   const getViewportPanes = useCallback(() => {

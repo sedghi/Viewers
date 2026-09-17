@@ -196,6 +196,9 @@ export default defineConfig({
       '/dicomweb': {
         target: 'http://localhost:5000',
       },
+      '/api': {
+        target: process.env.TYPESAFE_WORKER_ORIGIN || 'http://localhost:8787',
+      },
       // Add conditional proxy based on env vars
       ...(PROXY_TARGET && PROXY_DOMAIN
         ? {

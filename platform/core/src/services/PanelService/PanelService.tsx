@@ -194,6 +194,14 @@ export default class PanelService extends PubSubService {
     this._broadcastEvent(EVENTS.ACTIVATE_PANEL, { panelId, forceActive });
   }
 
+  public setPanelClosed(position: PanelPosition | 'left' | 'right', closed: boolean): void {
+    const isLeft = position === PanelPosition.Left || position === 'left';
+    this._broadcastEvent(EVENTS.PANELS_CHANGED, {
+      position: isLeft ? PanelPosition.Left : PanelPosition.Right,
+      options: isLeft ? { leftPanelClosed: closed } : { rightPanelClosed: closed },
+    });
+  }
+
   /**
    * Adds a mapping of events (activatePanelTriggers.sourceEvents) broadcast by
    * activatePanelTrigger.sourcePubSubService that

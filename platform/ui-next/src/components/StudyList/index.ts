@@ -16,6 +16,7 @@ import { WorkflowsProvider } from './components/WorkflowsProvider';
 
 // Types
 export * from './types/types';
+export { useWorkflows } from './components/WorkflowsProvider';
 export type { Workflow } from './components/WorkflowsProvider';
 export type { OnStudyDoubleClick } from './components/Table';
 
