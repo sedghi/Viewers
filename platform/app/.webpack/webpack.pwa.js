@@ -151,7 +151,15 @@ module.exports = (env, argv) => {
             to: DIST_DIR,
             toType: 'dir',
             globOptions: {
-              ignore: ['**/config/**', '**/html-templates/**', '.DS_Store'],
+              // Local ONNX models under public/models are served by the dev server only.
+              // Production deploys point `edgeTam.modelBaseUrl` at object storage instead,
+              // because individual model files exceed the 25 MiB per-asset upload limit.
+              ignore: [
+                '**/config/**',
+                '**/html-templates/**',
+                '.DS_Store',
+                ...(isProdBuild ? ['**/models/**'] : []),
+              ],
             },
           },
           {

@@ -21,6 +21,8 @@ import {
 import * as cornerstoneTools from '@cornerstonejs/tools';
 import * as labelmapInterpolation from '@cornerstonejs/labelmap-interpolation';
 import { ONNXSegmentationController } from '@cornerstonejs/ai';
+import { edgeTamSegmentAtPoint } from './utils/edgeTam/edgeTamSegment';
+import { getLastPointer, startPointerTracking } from './utils/edgeTam/pointerTracker';
 
 import { Types as OhifTypes, utils } from '@ohif/core';
 import {
@@ -70,6 +72,8 @@ const toggleSyncFunctions = {
 };
 
 const { segmentation: segmentationUtils } = cstUtils;
+
+startPointerTracking();
 
 function opacityScalar(opacityVal: unknown): number | undefined {
   if (opacityVal === undefined || opacityVal === null) {
@@ -1349,6 +1353,83 @@ function commandsModule({
 
       if (immediate) {
         viewport.render();
+      }
+    },
+    /**
+     * Segments the structure under the given world point (default: the last hovered
+     * position) through the whole stack with in-browser EdgeTAM, writing into the active
+     * labelmap or a new one.
+     */
+    edgeTamSegmentAtPoint: async ({
+      worldPoint,
+      viewportId,
+      maxSlicesPerDirection,
+    }: {
+      worldPoint?: CoreTypes.Point3;
+      viewportId?: string;
+      maxSlicesPerDirection?: number;
+    } = {}) => {
+      const { uiNotificationService } = servicesManager.services;
+      const pointer = getLastPointer();
+      const targetViewportId =
+        viewportId || pointer?.viewportId || viewportGridService.getActiveViewportId();
+      const point =
+        worldPoint || (pointer && pointer.viewportId === targetViewportId ? pointer.worldPoint : null);
+      if (!targetViewportId || !point) {
+        uiNotificationService.show({
+          title: 'Segment here',
+          message: 'Move the mouse over the image you want to segment first.',
+          type: 'info',
+          duration: 3000,
+        });
+        return false;
+      }
+      const edgeTamConfig =
+        (
+          window as {
+            config?: {
+              edgeTam?: {
+                modelBaseUrl?: string;
+                maxSlicesPerDirection?: number;
+                provider?: 'webgpu' | 'wasm';
+              };
+            };
+          }
+        ).config?.edgeTam || {};
+      const modelBaseUrl = new URL(edgeTamConfig.modelBaseUrl || 'models/edgetam/', document.baseURI)
+        .href;
+      const sliceLimit = maxSlicesPerDirection ?? edgeTamConfig.maxSlicesPerDirection;
+      uiNotificationService.show({
+        title: 'EdgeTAM',
+        message: 'Segmenting through the stack...',
+        type: 'info',
+        duration: 2500,
+      });
+      try {
+        const result = await edgeTamSegmentAtPoint({
+          servicesManager,
+          viewportId: targetViewportId,
+          worldPoint: point,
+          modelBaseUrl,
+          maxSlicesPerDirection: sliceLimit,
+          provider: edgeTamConfig.provider,
+        });
+        uiNotificationService.show({
+          title: 'EdgeTAM',
+          message: `Segmented ${result.slices} slices on ${result.provider}.`,
+          type: 'success',
+          duration: 3000,
+        });
+        return result;
+      } catch (error) {
+        console.warn('EdgeTAM segmentation failed', error);
+        uiNotificationService.show({
+          title: 'EdgeTAM',
+          message: error instanceof Error ? error.message : 'Segmentation failed.',
+          type: 'error',
+          duration: 5000,
+        });
+        return false;
       }
     },
     controlOverlayAppearance: ({
@@ -2663,6 +2744,7 @@ function commandsModule({
       commandFn: actions.setViewportColormap,
     },
     controlOverlayAppearance: actions.controlOverlayAppearance,
+    edgeTamSegmentAtPoint: actions.edgeTamSegmentAtPoint,
     setViewportForToolConfiguration: {
       commandFn: actions.setViewportForToolConfiguration,
     },
