@@ -13,6 +13,7 @@
 window.config = {
   name: 'config/dev.js',
   routerBasename: null,
+  investigationalUseDialog: { option: 'never' },
   // whiteLabeling: {},
   extensions: [],
   modes: [],
