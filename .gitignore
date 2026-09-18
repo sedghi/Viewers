@@ -81,3 +81,11 @@ worker-configuration.d.ts
 
 # Agent tooling state
 .grok/
+
+# Model export workspaces (venv, upstream clone, checkpoints, exported models)
+ai-models/**/.venv/
+ai-models/**/upstream/
+ai-models/**/out/
+
+# Local copies of exported ONNX models served by the dev server (prod uses R2)
+platform/app/public/models/
