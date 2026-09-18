@@ -78,3 +78,6 @@ auth.json
 .dev.vars
 worker/.dev.vars
 worker-configuration.d.ts
+
+# Agent tooling state
+.grok/
