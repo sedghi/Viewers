@@ -56,8 +56,14 @@ export function snapshotViewerState(
   const { toggleOneUpViewportGridStore } = useToggleOneUpViewportGridStore.getState();
   const isSingle = layout.numRows === 1 && layout.numCols === 1;
 
-  const activeProtocol = hangingProtocolService.getActiveProtocol?.() || {};
-  const protocolState = hangingProtocolService.getState?.() || {};
+  const activeProtocol = (hangingProtocolService.getActiveProtocol?.() || {}) as {
+    protocol?: { id?: string; stages?: unknown[] };
+    stageIndex?: number;
+  };
+  const protocolState = (hangingProtocolService.getState?.() || {}) as {
+    protocolId?: string;
+    stageIndex?: number;
+  };
 
   return {
     layout: { numRows: layout.numRows, numCols: layout.numCols },

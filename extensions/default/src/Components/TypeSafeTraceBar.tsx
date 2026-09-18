@@ -58,6 +58,8 @@ export function TypeSafeTraceBar({ page }: Props) {
       className="ts-trace"
       role="status"
       aria-live="polite"
+      onClick={event => event.stopPropagation()}
+      onPointerDown={event => event.stopPropagation()}
     >
       <div className="ts-trace-row">
         <section className={cls('ts-trace-card', listening && 'is-active')}>

@@ -156,6 +156,7 @@ const VIEWER_COMMANDS = [
   { phrase: 'Close it / reset that', does: 'Acts on whatever you last changed' },
   { phrase: 'Bigger / smaller', does: 'Opacity, cine speed, layout, or zoom depending on context' },
   { phrase: 'Zoom in / zoom out / reset view', does: 'Adjust the active viewport' },
+  { phrase: 'Segment here / segment this', does: 'EdgeTAM 3D segmentation from the pointer' },
   {
     phrase: 'Next / previous',
     does: 'Next stage when the protocol has stages, otherwise next series',
@@ -348,6 +349,10 @@ export function TypeSafeDictation({ page, children }: Props) {
             modality: action.seriesModality,
           });
           return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'segment_here') {
+          const started = run('edgeTamSegmentAtPoint');
+          return { ok: started !== false, message: action.label };
         }
         if (action.type === 'zoom_in' || action.type === 'zoom_out') {
           run('scaleViewport', { direction: action.type === 'zoom_in' ? 1 : -1 });
@@ -778,7 +783,11 @@ export function TypeSafeDictation({ page, children }: Props) {
           }
         }}
       >
-        <DialogContent className="ts-intro max-w-[34rem] gap-0 p-0">
+        <DialogContent
+          className="ts-intro max-w-[34rem] gap-0 p-0"
+          onClick={event => event.stopPropagation()}
+          onPointerDown={event => event.stopPropagation()}
+        >
           <DialogHeader className="ts-intro-head space-y-0 text-left">
             <span
               className="ts-intro-keycap"
