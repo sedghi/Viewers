@@ -72,6 +72,7 @@ export type TypesafeAction = {
     | 'zoom_out'
     | 'reset_viewport'
     | 'cine_reset'
+    | 'segment_here'
     | 'none';
   label: string;
   studyInstanceUid?: string;
@@ -168,6 +169,7 @@ const CONTROL_BY_ACTION: Record<string, string> = {
   zoom_in: 'zoom',
   zoom_out: 'zoom',
   reset_viewport: 'viewport',
+  segment_here: 'segmentation',
 };
 
 /** Which viewer control a voice action touched, so "reset that" and "bigger" can refer back to it. */

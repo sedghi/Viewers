@@ -135,6 +135,7 @@ export type AskResponse = {
       | 'zoom_out'
       | 'reset_viewport'
       | 'cine_reset'
+      | 'segment_here'
       | 'none';
     label: string;
     studyInstanceUid?: string;
@@ -1232,6 +1233,20 @@ function buildViewerQuestions(
           not_for: 'Requests that say previous series, previous stage, or go back to the worklist',
           examples: ['Previous', 'Back', 'Go back', 'Previous one', 'Back one'],
         },
+        segment_here: {
+          what: 'Segment the structure under the mouse pointer through the whole stack in 3D (EdgeTAM): "segment here", "segment this", "grab this lesion", "outline this".',
+          not_for: 'Worklist filters, PET SUV thresholds, hanging a series, zooming, or cine',
+          examples: [
+            'Segment here',
+            'Segment this',
+            'Segment that',
+            'Grab this lesion',
+            'Select this region',
+            'Segment this tumor',
+            'Outline this',
+            'Segment the structure under the cursor',
+          ],
+        },
         none: {
           what: 'No viewer action can be taken',
           not_for: 'A request that maps to protocol, layout, overlay, slice, cine, or panels',
@@ -1584,6 +1599,10 @@ function composeViewerAction(
   const contextual = resolveContextualAction(action, viewerState);
   if (contextual) {
     return contextual;
+  }
+
+  if (action === 'segment_here') {
+    return { type: 'segment_here', label: 'Segmenting at the pointer' };
   }
 
   if (action === 'set_hanging_protocol' || (wantsMpr && action === 'none')) {
