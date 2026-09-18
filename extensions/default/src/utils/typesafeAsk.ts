@@ -19,6 +19,25 @@ export type WorklistFilters = {
   endDate?: string;
 };
 
+export type ViewerStateSnapshot = {
+  layout: { numRows: number; numCols: number };
+  isOneUp: boolean;
+  canRestoreLayout: boolean;
+  activeViewport: {
+    id: string;
+    orientation: string;
+    modalities: string[];
+    layerCount: number;
+    viewportType: string;
+  } | null;
+  overlay: { modality: string; description: string } | null;
+  cine: { enabled: boolean; isPlaying: boolean; frameRate: number };
+  leftPanelClosed: boolean | null;
+  protocol: { id: string; stageIndex: number; stageCount: number };
+  seriesCount: number;
+  lastAction: { type: string; control: string; label: string; secondsAgo: number } | null;
+};
+
 export type TypesafeAction = {
   type:
     | 'open'
@@ -49,6 +68,10 @@ export type TypesafeAction = {
     | 'set_opacity'
     | 'set_threshold'
     | 'reset_overlay'
+    | 'zoom_in'
+    | 'zoom_out'
+    | 'reset_viewport'
+    | 'cine_reset'
     | 'none';
   label: string;
   studyInstanceUid?: string;
@@ -69,8 +92,24 @@ export type TypesafeAction = {
   threshold?: number;
 };
 
+export type AskDebugAnswer = {
+  id: string;
+  type: string;
+  choice: string;
+  choiceLabel?: string;
+  confidence: number;
+  top: Array<{ key: string; p: number }>;
+};
+
+export type AskDebug = {
+  ms: number;
+  questionCount: number;
+  answers: AskDebugAnswer[];
+};
+
 export type AskResponse = {
   model: string;
+  debug?: AskDebug;
   action: TypesafeAction;
   error?: string;
   message?: string;
@@ -102,6 +141,53 @@ export function snapshotStudies(
   }));
 }
 
+const CONTROL_BY_ACTION: Record<string, string> = {
+  set_opacity: 'opacity',
+  set_threshold: 'threshold',
+  reset_overlay: 'overlay',
+  overlay_series: 'overlay',
+  play_cine: 'cine',
+  pause_cine: 'cine',
+  cine_faster: 'cine',
+  cine_slower: 'cine',
+  cine_reset: 'cine',
+  close_cine: 'cine',
+  open_left_panel: 'panel',
+  close_left_panel: 'panel',
+  set_layout: 'layout',
+  set_hanging_protocol: 'layout',
+  maximize_viewport: 'layout',
+  exit_one_up: 'layout',
+  next_stage: 'layout',
+  previous_stage: 'layout',
+  open_series: 'series',
+  next_series: 'series',
+  previous_series: 'series',
+  invert: 'invert',
+  jump_slice: 'slice',
+  zoom_in: 'zoom',
+  zoom_out: 'zoom',
+  reset_viewport: 'viewport',
+};
+
+/** Which viewer control a voice action touched, so "reset that" and "bigger" can refer back to it. */
+export function controlForAction(type: TypesafeAction['type']): string {
+  return CONTROL_BY_ACTION[type] || 'none';
+}
+
+/** One-line description of a command call for the trace bar, e.g. "controlCine mode=pause". */
+export function describeCall(name: string, options?: Record<string, unknown>): string {
+  const args = Object.entries(options || {})
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(
+      ([key, value]) =>
+        `${key}=${typeof value === 'object' ? JSON.stringify(value) : String(value)}`
+    )
+    .join(' ');
+  const text = args ? `${name} ${args}` : name;
+  return text.length > 90 ? `${text.slice(0, 87)}...` : text;
+}
+
 export function splitSpokenCommands(text: string): string[] {
   return text
     .split(/\s*(?:,|;|\.|then|and then|after that)\s+/i)
@@ -120,6 +206,7 @@ export async function typesafeAsk(body: {
     modality: string;
     description: string;
   }>;
+  viewerState?: ViewerStateSnapshot;
 }): Promise<AskResponse> {
   const response = await fetch('/api/ask', {
     method: 'POST',

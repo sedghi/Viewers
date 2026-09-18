@@ -933,7 +933,7 @@ const commandsModule = ({
     controlCine: ({
       mode,
     }: {
-      mode: 'play' | 'pause' | 'faster' | 'slower' | 'close';
+      mode: 'play' | 'pause' | 'faster' | 'slower' | 'close' | 'reset';
     }) => {
       if (!cineService) {
         return false;
@@ -972,6 +972,9 @@ const commandsModule = ({
         cineService.setIsCineEnabled(true);
         isPlaying = true;
         frameRate = Math.max(1, frameRate - 6);
+      } else if (mode === 'reset') {
+        cineService.setIsCineEnabled(true);
+        frameRate = 24;
       } else {
         return false;
       }
@@ -1026,29 +1029,34 @@ const commandsModule = ({
     },
 
     maximizeOrientation: ({ orientation }: { orientation?: string }) => {
-      const want = normalizePlaneName(orientation) || 'sagittal';
+      const want = normalizePlaneName(orientation);
       const viewportGridState = viewportGridService.getState();
-      const { viewports, layout } = viewportGridState;
+      const { viewports, layout, activeViewportId } = viewportGridState;
       const { cornerstoneViewportService } = servicesManager.services;
-      let matchId: string | undefined;
-      for (const viewportId of viewports.keys()) {
-        const infoOrientation = cornerstoneViewportService.getOrientation?.(viewportId);
-        const optionOrientation = viewports.get(viewportId)?.viewportOptions?.orientation;
-        const haystack = `${viewportId} ${infoOrientation || ''} ${optionOrientation || ''}`;
-        if (normalizePlaneName(haystack) === want || haystack.toLowerCase().includes(want)) {
-          matchId = viewportId;
-          break;
+      // No orientation named: maximize whichever viewport is active.
+      let matchId: string | undefined = want ? undefined : activeViewportId;
+      if (want) {
+        for (const viewportId of viewports.keys()) {
+          const infoOrientation = cornerstoneViewportService.getOrientation?.(viewportId);
+          const optionOrientation = viewports.get(viewportId)?.viewportOptions?.orientation;
+          const haystack = `${viewportId} ${infoOrientation || ''} ${optionOrientation || ''}`;
+          if (normalizePlaneName(haystack) === want || haystack.toLowerCase().includes(want)) {
+            matchId = viewportId;
+            break;
+          }
         }
       }
-      if (!matchId) {
+      if (!matchId || !viewports.get(matchId)) {
         return false;
       }
 
       if (layout.numRows === 1 && layout.numCols === 1) {
-        commandsManager.run('setViewportOrientation', {
-          viewportId: matchId,
-          orientation: want,
-        });
+        if (want) {
+          commandsManager.run('setViewportOrientation', {
+            viewportId: matchId,
+            orientation: want,
+          });
+        }
         return true;
       }
 

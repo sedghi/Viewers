@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Button,
   Dialog,
@@ -14,12 +15,16 @@ import {
 } from '@ohif/ui-next';
 import { useSystem } from '@ohif/core';
 import {
+  controlForAction,
+  describeCall,
   snapshotStudies,
   splitSpokenCommands,
   typesafeAsk,
   type TypesafeAction,
 } from '../utils/typesafeAsk';
+import { snapshotViewerState, summarizeViewerState } from '../utils/snapshotViewerState';
 import { runWorklistAction, useTypeSafeSessionStore } from '../stores/useTypeSafeSessionStore';
+import { TypeSafeTraceBar } from './TypeSafeTraceBar';
 import './TypeSafeDictation.css';
 
 type SpeechRecognitionLike = {
@@ -147,6 +152,14 @@ const VIEWER_COMMANDS = [
   { phrase: 'Close the left panel / hide thumbnails', does: 'Collapse the study browser' },
   { phrase: 'Go back to worklist', does: 'Return to the study list' },
   { phrase: 'Two up / four up', does: 'Change viewport grid layout' },
+  { phrase: 'Toggle / stop / start', does: 'Play or pause cine based on its current state' },
+  { phrase: 'Close it / reset that', does: 'Acts on whatever you last changed' },
+  { phrase: 'Bigger / smaller', does: 'Opacity, cine speed, layout, or zoom depending on context' },
+  { phrase: 'Zoom in / zoom out / reset view', does: 'Adjust the active viewport' },
+  {
+    phrase: 'Next / previous',
+    does: 'Next stage when the protocol has stages, otherwise next series',
+  },
 ];
 
 const COMMAND_GROUPS = [
@@ -171,6 +184,8 @@ type Props = {
 
 export function TypeSafeDictation({ page, children }: Props) {
   const { commandsManager, servicesManager } = useSystem();
+  const traceHidden = useTypeSafeSessionStore(state => state.traceHidden);
+  const setTraceHidden = useTypeSafeSessionStore(state => state.setTraceHidden);
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showIntro, setShowIntro] = useState(() => {
@@ -188,142 +203,170 @@ export function TypeSafeDictation({ page, children }: Props) {
   const busyRef = useRef(false);
 
   const runViewerAction = useCallback(
-    (action: TypesafeAction): { ok: boolean; message: string } => {
-      if (action.type === 'set_hanging_protocol' && action.protocolId) {
-        const applied = commandsManager.run('applyHangingProtocolPreset', {
-          protocolId: action.protocolId,
-        });
-        return { ok: applied !== false, message: action.label };
-      }
-      if (
-        action.type === 'set_layout' &&
-        typeof action.numRows === 'number' &&
-        typeof action.numCols === 'number'
-      ) {
-        commandsManager.run('setViewportGridLayout', {
-          numRows: action.numRows,
-          numCols: action.numCols,
-        });
-        return { ok: true, message: action.label };
-      }
-      if (action.type === 'next_stage') {
-        commandsManager.run('nextStage');
-        return { ok: true, message: action.label };
-      }
-      if (action.type === 'previous_stage') {
-        commandsManager.run('previousStage');
-        return { ok: true, message: action.label };
-      }
-      if (action.type === 'open_series') {
-        const hung = commandsManager.run('hangDisplaySetOnViewport', {
-          displaySetInstanceUID: action.displaySetInstanceUID,
-          seriesNumber: action.seriesNumber,
-          modality: action.seriesModality,
-        });
-        return { ok: hung !== false, message: action.label };
-      }
-      if (action.type === 'play_cine') {
-        const ok = commandsManager.run('controlCine', { mode: 'play' });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'pause_cine') {
-        const ok = commandsManager.run('controlCine', { mode: 'pause' });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'cine_faster') {
-        const fps = commandsManager.run('controlCine', { mode: 'faster' });
-        return {
-          ok: fps !== false,
-          message: typeof fps === 'number' ? `Cine ${fps} FPS` : action.label,
-        };
-      }
-      if (action.type === 'cine_slower') {
-        const fps = commandsManager.run('controlCine', { mode: 'slower' });
-        return {
-          ok: fps !== false,
-          message: typeof fps === 'number' ? `Cine ${fps} FPS` : action.label,
-        };
-      }
-      if (action.type === 'close_cine') {
-        const ok = commandsManager.run('controlCine', { mode: 'close' });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'close_left_panel') {
-        const ok = commandsManager.run('closeLeftPanel');
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'open_left_panel') {
-        const ok = commandsManager.run('openLeftPanel');
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'exit_one_up') {
-        const ok = commandsManager.run('exitOneUp');
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'next_series') {
-        const ok = commandsManager.run('updateViewportDisplaySet', {
-          direction: 1,
-          excludeNonImageModalities: true,
-        });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'previous_series') {
-        const ok = commandsManager.run('updateViewportDisplaySet', {
-          direction: -1,
-          excludeNonImageModalities: true,
-        });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'invert') {
-        const ok = commandsManager.run('invertActiveViewport');
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'maximize_viewport') {
-        const ok = commandsManager.run('maximizeOrientation', {
-          orientation: action.orientation,
-        });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'go_to_worklist') {
-        const rest = queueRef.current.splice(0);
-        useTypeSafeSessionStore.getState().setPendingQueries(rest);
-        const ok = commandsManager.run('goToWorklist');
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'overlay_series') {
-        const ok = commandsManager.run('overlayDisplaySetOnViewport', {
-          displaySetInstanceUID: action.displaySetInstanceUID,
-          seriesNumber: action.seriesNumber,
-          modality: action.seriesModality,
-          description: action.seriesDescription,
-        });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'jump_slice') {
-        const ok = commandsManager.run('jumpViewportSlice', {
-          slicePreset: action.slicePreset,
-          sliceNumber: action.sliceNumber,
-        });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'set_opacity') {
-        const ok = commandsManager.run('adjustOverlayAppearance', {
-          opacity: action.opacity,
-          opacityDelta: action.opacityDelta,
-        });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'set_threshold') {
-        const ok = commandsManager.run('adjustOverlayAppearance', {
-          threshold: action.threshold,
-        });
-        return { ok: ok !== false, message: action.label };
-      }
-      if (action.type === 'reset_overlay') {
-        const ok = commandsManager.run('adjustOverlayAppearance', { reset: true });
-        return { ok: ok !== false, message: action.label };
-      }
-      return { ok: false, message: action.label };
+    (action: TypesafeAction): { ok: boolean; message: string; api: string } => {
+      const calls: string[] = [];
+      const run = (name: string, options?: Record<string, unknown>) => {
+        calls.push(describeCall(name, options));
+        return commandsManager.run(name, options);
+      };
+      const result = ((): { ok: boolean; message: string } => {
+        if (action.type === 'set_hanging_protocol' && action.protocolId) {
+          const applied = run('applyHangingProtocolPreset', {
+            protocolId: action.protocolId,
+          });
+          return { ok: applied !== false, message: action.label };
+        }
+        if (
+          action.type === 'set_layout' &&
+          typeof action.numRows === 'number' &&
+          typeof action.numCols === 'number'
+        ) {
+          run('setViewportGridLayout', {
+            numRows: action.numRows,
+            numCols: action.numCols,
+          });
+          return { ok: true, message: action.label };
+        }
+        if (action.type === 'next_stage') {
+          run('nextStage');
+          return { ok: true, message: action.label };
+        }
+        if (action.type === 'previous_stage') {
+          run('previousStage');
+          return { ok: true, message: action.label };
+        }
+        if (action.type === 'open_series') {
+          const hung = run('hangDisplaySetOnViewport', {
+            displaySetInstanceUID: action.displaySetInstanceUID,
+            seriesNumber: action.seriesNumber,
+            modality: action.seriesModality,
+          });
+          return { ok: hung !== false, message: action.label };
+        }
+        if (action.type === 'play_cine') {
+          const ok = run('controlCine', { mode: 'play' });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'pause_cine') {
+          const ok = run('controlCine', { mode: 'pause' });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'cine_faster') {
+          const fps = run('controlCine', { mode: 'faster' });
+          return {
+            ok: fps !== false,
+            message: typeof fps === 'number' ? `Cine ${fps} FPS` : action.label,
+          };
+        }
+        if (action.type === 'cine_slower') {
+          const fps = run('controlCine', { mode: 'slower' });
+          return {
+            ok: fps !== false,
+            message: typeof fps === 'number' ? `Cine ${fps} FPS` : action.label,
+          };
+        }
+        if (action.type === 'close_cine') {
+          const ok = run('controlCine', { mode: 'close' });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'close_left_panel') {
+          const ok = run('closeLeftPanel');
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'open_left_panel') {
+          const ok = run('openLeftPanel');
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'exit_one_up') {
+          const ok = run('exitOneUp');
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'next_series') {
+          const ok = run('updateViewportDisplaySet', {
+            direction: 1,
+            excludeNonImageModalities: true,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'previous_series') {
+          const ok = run('updateViewportDisplaySet', {
+            direction: -1,
+            excludeNonImageModalities: true,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'invert') {
+          const ok = run('invertActiveViewport');
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'maximize_viewport') {
+          const ok = run('maximizeOrientation', {
+            orientation: action.orientation,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'go_to_worklist') {
+          const rest = queueRef.current.splice(0);
+          useTypeSafeSessionStore.getState().setPendingQueries(rest);
+          const ok = run('goToWorklist');
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'overlay_series') {
+          const ok = run('overlayDisplaySetOnViewport', {
+            displaySetInstanceUID: action.displaySetInstanceUID,
+            seriesNumber: action.seriesNumber,
+            modality: action.seriesModality,
+            description: action.seriesDescription,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'jump_slice') {
+          const ok = run('jumpViewportSlice', {
+            slicePreset: action.slicePreset,
+            sliceNumber: action.sliceNumber,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'set_opacity') {
+          const ok = run('adjustOverlayAppearance', {
+            opacity: action.opacity,
+            opacityDelta: action.opacityDelta,
+            modality: action.seriesModality,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'set_threshold') {
+          const ok = run('adjustOverlayAppearance', {
+            threshold: action.threshold,
+            modality: action.seriesModality,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'reset_overlay') {
+          const ok = run('adjustOverlayAppearance', {
+            reset: true,
+            modality: action.seriesModality,
+          });
+          return { ok: ok !== false, message: action.label };
+        }
+        if (action.type === 'zoom_in' || action.type === 'zoom_out') {
+          run('scaleViewport', { direction: action.type === 'zoom_in' ? 1 : -1 });
+          return { ok: true, message: action.label };
+        }
+        if (action.type === 'reset_viewport') {
+          run('resetViewport');
+          return { ok: true, message: action.label };
+        }
+        if (action.type === 'cine_reset') {
+          const fps = run('controlCine', { mode: 'reset' });
+          return {
+            ok: fps !== false,
+            message: typeof fps === 'number' ? `Cine ${fps} FPS` : action.label,
+          };
+        }
+        return { ok: false, message: action.label };
+      })();
+      return { ...result, api: calls.join(' · ') || 'none' };
     },
     [commandsManager]
   );
@@ -343,21 +386,70 @@ export function TypeSafeDictation({ page, children }: Props) {
             })
           )
         : [];
-    const currentWorklist = useTypeSafeSessionStore.getState().worklist;
+    const session = useTypeSafeSessionStore.getState();
+    const { setTrace } = session;
+    const currentWorklist = session.worklist;
+    const viewerState =
+      page === 'viewer'
+        ? snapshotViewerState(servicesManager, session.lastViewerAction, session.leftPanelClosed)
+        : undefined;
+    const stateSummary =
+      page === 'viewer'
+        ? summarizeViewerState(viewerState)
+        : `${currentWorklist?.studies.length ?? 0} studies as text`;
+    setTrace({
+      phase: 'thinking',
+      context: page,
+      transcript: query,
+      interim: false,
+      queued: queueRef.current.length,
+      stateSummary,
+      model: null,
+      result: null,
+    });
+    const started = performance.now();
     const payload = await typesafeAsk({
       query,
       context: page,
       studies: page === 'worklist' && currentWorklist ? snapshotStudies(currentWorklist.studies) : [],
       hangingProtocols,
       series,
+      viewerState,
     });
+    setTrace({
+      model: {
+        name: payload.model,
+        ms: payload.debug?.ms ?? Math.round(performance.now() - started),
+        questions: payload.debug?.questionCount ?? 0,
+        answers: payload.debug?.answers ?? [],
+        action: { type: payload.action.type, label: payload.action.label },
+      },
+    });
+    const finish = (result: { ok: boolean; message: string; api?: string }, to: string) => {
+      setTrace({
+        phase: 'done',
+        queued: queueRef.current.length,
+        result: { ok: result.ok, did: result.message, to, api: result.api || 'none' },
+      });
+      return result;
+    };
     if (page === 'viewer') {
-      return runViewerAction(payload.action);
+      const result = runViewerAction(payload.action);
+      if (result.ok && payload.action.type !== 'none') {
+        useTypeSafeSessionStore.getState().setLastViewerAction({
+          type: payload.action.type,
+          control: controlForAction(payload.action.type),
+          label: payload.action.label,
+          at: Date.now(),
+        });
+      }
+      return finish(result, viewerState?.activeViewport?.id || 'viewer');
     }
     if (!currentWorklist) {
-      return { ok: false, message: 'Worklist is not ready' };
+      return finish({ ok: false, message: 'Worklist is not ready' }, 'worklist');
     }
-    return runWorklistAction(payload.action, currentWorklist);
+    const result = runWorklistAction(payload.action, currentWorklist);
+    return finish({ ...result, api: `worklist.${payload.action.type}` }, 'worklist');
   };
 
   const drain = useCallback(async () => {
@@ -375,12 +467,17 @@ export function TypeSafeDictation({ page, children }: Props) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Voice command failed';
       console.error(message);
+      useTypeSafeSessionStore.getState().setTrace({
+        phase: 'error',
+        queued: queueRef.current.length,
+        result: { ok: false, did: message, to: page, api: 'none' },
+      });
     } finally {
       busyRef.current = false;
       setBusy(false);
       void drain();
     }
-  }, []);
+  }, [page]);
 
   const enqueue = useCallback((text: string) => {
     const commands = splitSpokenCommands(text);
@@ -388,6 +485,7 @@ export function TypeSafeDictation({ page, children }: Props) {
       return;
     }
     queueRef.current.push(...commands);
+    useTypeSafeSessionStore.getState().setTrace({ queued: queueRef.current.length });
     void drain();
   }, [drain]);
 
@@ -401,6 +499,9 @@ export function TypeSafeDictation({ page, children }: Props) {
       startTimer.current = null;
     }
     setListening(false);
+    useTypeSafeSessionStore
+      .getState()
+      .setTrace(busyRef.current ? { listening: false } : { listening: false, phase: 'idle', interim: false });
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
     if (recognition) {
@@ -429,11 +530,22 @@ export function TypeSafeDictation({ page, children }: Props) {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.onresult = event => {
+      let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript.trim();
-        if (transcript && event.results[i].isFinal) {
-          enqueueRef.current(transcript);
+        if (!transcript) {
+          continue;
         }
+        if (event.results[i].isFinal) {
+          enqueueRef.current(transcript);
+        } else {
+          interim = interim ? `${interim} ${transcript}` : transcript;
+        }
+      }
+      if (interim) {
+        useTypeSafeSessionStore
+          .getState()
+          .setTrace({ phase: 'listening', transcript: interim, interim: true });
       }
     };
     recognition.onerror = event => {
@@ -460,13 +572,16 @@ export function TypeSafeDictation({ page, children }: Props) {
     };
     recognitionRef.current = recognition;
     setListening(true);
+    useTypeSafeSessionStore
+      .getState()
+      .setTrace({ phase: 'listening', listening: true, context: page });
     try {
       recognition.start();
     } catch {
       toast.error('Could not start dictation.');
       stopListening();
     }
-  }, [stopListening]);
+  }, [page, stopListening]);
 
   useEffect(() => {
     if (page !== 'worklist') {
@@ -478,6 +593,29 @@ export function TypeSafeDictation({ page, children }: Props) {
       void drain();
     }
   }, [drain, page]);
+
+  useEffect(() => {
+    if (page !== 'viewer') {
+      return;
+    }
+    const store = useTypeSafeSessionStore.getState();
+    store.setLastViewerAction(null);
+    const { panelService } = servicesManager.services;
+    if (!panelService?.subscribe) {
+      return;
+    }
+    const { unsubscribe } = panelService.subscribe(
+      panelService.EVENTS.PANELS_CHANGED,
+      ({ options }: { options?: { leftPanelClosed?: boolean } }) => {
+        if (options?.leftPanelClosed !== undefined) {
+          useTypeSafeSessionStore.getState().setLeftPanelClosed(options.leftPanelClosed);
+        }
+      }
+    );
+    return () => {
+      unsubscribe();
+    };
+  }, [page, servicesManager]);
 
   useEffect(() => {
     startShiftTracking();
@@ -622,6 +760,13 @@ export function TypeSafeDictation({ page, children }: Props) {
                 </li>
               ))}
             </ul>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground mt-3 text-xs underline"
+              onClick={() => setTraceHidden(!traceHidden)}
+            >
+              {traceHidden ? 'Show trace bar' : 'Hide trace bar'}
+            </button>
           </PopoverContent>
         </Popover>
       </div>
@@ -711,6 +856,9 @@ export function TypeSafeDictation({ page, children }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {typeof document !== 'undefined'
+        ? createPortal(<TypeSafeTraceBar page={page} />, document.body)
+        : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { StudyRow } from '@ohif/ui-next';
-import type { TypesafeAction, WorklistFilters } from '../utils/typesafeAsk';
+import type { AskDebugAnswer, TypesafeAction, WorklistFilters } from '../utils/typesafeAsk';
 
 type WorklistHandlers = {
   studies: StudyRow[];
@@ -9,18 +9,77 @@ type WorklistHandlers = {
   openStudy: (studyInstanceUid: string) => boolean;
 };
 
+export type LastViewerAction = {
+  type: string;
+  control: string;
+  label: string;
+  at: number;
+};
+
+export type TraceState = {
+  phase: 'idle' | 'listening' | 'thinking' | 'done' | 'error';
+  listening: boolean;
+  context: 'worklist' | 'viewer';
+  transcript: string;
+  interim: boolean;
+  queued: number;
+  stateSummary: string;
+  model: {
+    name: string;
+    ms: number;
+    questions: number;
+    answers: AskDebugAnswer[];
+    action: { type: string; label: string };
+  } | null;
+  result: { ok: boolean; did: string; to: string; api: string } | null;
+};
+
+const EMPTY_TRACE: TraceState = {
+  phase: 'idle',
+  listening: false,
+  context: 'viewer',
+  transcript: '',
+  interim: false,
+  queued: 0,
+  stateSummary: '',
+  model: null,
+  result: null,
+};
+
+const TRACE_HIDDEN_KEY = 'ohif-jev-trace-hidden';
+
+function readTraceHidden(): boolean {
+  try {
+    return localStorage.getItem(TRACE_HIDDEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 type TypeSafeSessionStore = {
   worklist: WorklistHandlers | null;
   pendingQueries: string[];
+  lastViewerAction: LastViewerAction | null;
+  leftPanelClosed: boolean | null;
+  trace: TraceState;
+  traceHidden: boolean;
   setWorklist: (worklist: WorklistHandlers) => void;
   clearWorklist: () => void;
   setPendingQueries: (queries: string[]) => void;
   takePendingQueries: () => string[];
+  setLastViewerAction: (action: LastViewerAction | null) => void;
+  setLeftPanelClosed: (closed: boolean | null) => void;
+  setTrace: (patch: Partial<TraceState>) => void;
+  setTraceHidden: (hidden: boolean) => void;
 };
 
 export const useTypeSafeSessionStore = create<TypeSafeSessionStore>((set, get) => ({
   worklist: null,
   pendingQueries: [],
+  lastViewerAction: null,
+  leftPanelClosed: null,
+  trace: EMPTY_TRACE,
+  traceHidden: readTraceHidden(),
   setWorklist: worklist => set({ worklist }),
   clearWorklist: () => set({ worklist: null }),
   setPendingQueries: queries => set({ pendingQueries: queries }),
@@ -28,6 +87,17 @@ export const useTypeSafeSessionStore = create<TypeSafeSessionStore>((set, get) =
     const queries = get().pendingQueries;
     set({ pendingQueries: [] });
     return queries;
+  },
+  setLastViewerAction: action => set({ lastViewerAction: action }),
+  setLeftPanelClosed: closed => set({ leftPanelClosed: closed }),
+  setTrace: patch => set(state => ({ trace: { ...state.trace, ...patch } })),
+  setTraceHidden: hidden => {
+    try {
+      localStorage.setItem(TRACE_HIDDEN_KEY, hidden ? '1' : '0');
+    } catch {
+      // Ignore storage failures.
+    }
+    set({ traceHidden: hidden });
   },
 }));
 

@@ -29,12 +29,32 @@ type SeriesSnapshot = {
   description: string;
 };
 
+type ViewerStateSnapshot = {
+  layout: { numRows: number; numCols: number };
+  isOneUp: boolean;
+  canRestoreLayout: boolean;
+  activeViewport: {
+    id: string;
+    orientation: string;
+    modalities: string[];
+    layerCount: number;
+    viewportType: string;
+  } | null;
+  overlay: { modality: string; description: string } | null;
+  cine: { enabled: boolean; isPlaying: boolean; frameRate: number };
+  leftPanelClosed: boolean | null;
+  protocol: { id: string; stageIndex: number; stageCount: number };
+  seriesCount: number;
+  lastAction: { type: string; control: string; label: string; secondsAgo: number } | null;
+};
+
 type AskRequest = {
   query?: unknown;
   context?: unknown;
   studies?: unknown;
   hangingProtocols?: unknown;
   series?: unknown;
+  viewerState?: unknown;
 };
 
 type ChoiceAnswer = {
@@ -63,8 +83,24 @@ export type WorklistFilters = {
   endDate?: string;
 };
 
+export type AskDebugAnswer = {
+  id: string;
+  type: string;
+  choice: string;
+  choiceLabel?: string;
+  confidence: number;
+  top: Array<{ key: string; p: number }>;
+};
+
+export type AskDebug = {
+  ms: number;
+  questionCount: number;
+  answers: AskDebugAnswer[];
+};
+
 export type AskResponse = {
   model: string;
+  debug?: AskDebug;
   action: {
     type:
       | 'open'
@@ -95,6 +131,10 @@ export type AskResponse = {
       | 'set_opacity'
       | 'set_threshold'
       | 'reset_overlay'
+      | 'zoom_in'
+      | 'zoom_out'
+      | 'reset_viewport'
+      | 'cine_reset'
       | 'none';
     label: string;
     studyInstanceUid?: string;
@@ -216,7 +256,7 @@ function noulOf(answer: unknown): number {
 }
 
 function withNone(criteria: Record<string, string>): Record<string, string> {
-  const next = {
+  const next: Record<string, string> = {
     none: 'Do not use this field for the request.',
     ...criteria,
   };
@@ -224,6 +264,43 @@ function withNone(criteria: Record<string, string>): Record<string, string> {
     next.unspecified = 'No value is available on the current worklist.';
   }
   return next;
+}
+
+/** Compact per-question view of the classifier output for the on-screen trace bar. */
+function summarizeAnswers(
+  answers: TypeSafeResponse['answers'],
+  questions: Record<string, { criteria?: Record<string, unknown> }>
+): AskDebugAnswer[] {
+  const round = (value: number) => Math.round((Number(value) || 0) * 1000) / 1000;
+  return Object.entries(answers || {}).map(([id, answer]) => {
+    const criteria = questions[id]?.criteria || {};
+    if (isChoice(answer)) {
+      const label = criteria[answer.choice];
+      const top = Object.entries(answer.probabilities || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([key, p]) => ({ key: key.slice(0, 60), p: round(p) }));
+      return {
+        id,
+        type: 'choice',
+        choice: String(answer.choice ?? '').slice(0, 80),
+        choiceLabel: typeof label === 'string' ? label.slice(0, 80) : undefined,
+        confidence: round(answer.confidence),
+        top,
+      };
+    }
+    if (isNoul(answer)) {
+      const yes = answer.noul >= 0.5;
+      return {
+        id,
+        type: 'noul',
+        choice: yes ? 'yes' : 'no',
+        confidence: round(yes ? answer.noul : 1 - answer.noul),
+        top: [],
+      };
+    }
+    return { id, type: 'unknown', choice: '', confidence: 0, top: [] };
+  });
 }
 
 function isChoice(answer: unknown): answer is ChoiceAnswer {
@@ -594,6 +671,203 @@ function parseHangingProtocols(input: unknown): HangingProtocolSnapshot[] {
   return protocols;
 }
 
+function parseViewerState(input: unknown): ViewerStateSnapshot | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+  const value = input as Record<string, unknown>;
+  const obj = (field: unknown): Record<string, unknown> | null =>
+    field && typeof field === 'object' ? (field as Record<string, unknown>) : null;
+  const str = (field: unknown, max = 80): string => String(field ?? '').slice(0, max);
+  const layout = obj(value.layout) || {};
+  const active = obj(value.activeViewport);
+  const overlay = obj(value.overlay);
+  const cine = obj(value.cine) || {};
+  const protocol = obj(value.protocol) || {};
+  const last = obj(value.lastAction);
+  return {
+    layout: { numRows: Number(layout.numRows) || 1, numCols: Number(layout.numCols) || 1 },
+    isOneUp: Boolean(value.isOneUp),
+    canRestoreLayout: Boolean(value.canRestoreLayout),
+    activeViewport: active
+      ? {
+          id: str(active.id),
+          orientation: str(active.orientation, 20).toLowerCase(),
+          modalities: Array.isArray(active.modalities)
+            ? active.modalities.slice(0, 5).map(item => str(item, 8).toUpperCase())
+            : [],
+          layerCount: Number(active.layerCount) || 0,
+          viewportType: str(active.viewportType, 20),
+        }
+      : null,
+    overlay: overlay
+      ? { modality: str(overlay.modality, 8).toUpperCase(), description: str(overlay.description) }
+      : null,
+    cine: {
+      enabled: Boolean(cine.enabled),
+      isPlaying: Boolean(cine.isPlaying),
+      frameRate: Number(cine.frameRate) || 24,
+    },
+    leftPanelClosed: typeof value.leftPanelClosed === 'boolean' ? value.leftPanelClosed : null,
+    protocol: {
+      id: str(protocol.id, 40),
+      stageIndex: Number(protocol.stageIndex) || 0,
+      stageCount: Number(protocol.stageCount) || 1,
+    },
+    seriesCount: Number(value.seriesCount) || 0,
+    lastAction: last
+      ? {
+          type: str(last.type, 40),
+          control: str(last.control, 20),
+          label: str(last.label),
+          secondsAgo: Number(last.secondsAgo) || 0,
+        }
+      : null,
+  };
+}
+
+function overlayModalityFor(viewerState: ViewerStateSnapshot | null): string | undefined {
+  if (!viewerState) {
+    return undefined;
+  }
+  if (viewerState.overlay?.modality) {
+    return viewerState.overlay.modality;
+  }
+  if (viewerState.activeViewport?.modalities.includes('PT')) {
+    return 'PT';
+  }
+  return undefined;
+}
+
+function isSingleViewport(viewerState: ViewerStateSnapshot | null): boolean {
+  return Boolean(viewerState && viewerState.layout.numRows * viewerState.layout.numCols === 1);
+}
+
+function activeOrientation(
+  viewerState: ViewerStateSnapshot | null
+): 'axial' | 'sagittal' | 'coronal' | undefined {
+  return orientationFromQuery(viewerState?.activeViewport?.orientation || '', '');
+}
+
+/**
+ * Turns contextual actions (toggle, close it, reset that, bigger, next) into the
+ * concrete action the client can run, using the viewer state that came with the query.
+ */
+function resolveContextualAction(
+  action: string,
+  viewerState: ViewerStateSnapshot | null
+): AskResponse['action'] | undefined {
+  const control = viewerState?.lastAction?.control || '';
+  const overlayModality = overlayModalityFor(viewerState);
+  const canRestore = Boolean(viewerState?.isOneUp || viewerState?.canRestoreLayout);
+
+  switch (action) {
+    case 'toggle_cine':
+      return viewerState?.cine.isPlaying
+        ? { type: 'pause_cine', label: 'Paused cine' }
+        : { type: 'play_cine', label: 'Playing cine' };
+    case 'cine_reset':
+      return { type: 'cine_reset', label: 'Cine back to 24 FPS' };
+    case 'close_it': {
+      if (viewerState?.cine.enabled) {
+        return { type: 'close_cine', label: 'Closing cine' };
+      }
+      if (control === 'panel' && viewerState?.leftPanelClosed === false) {
+        return { type: 'close_left_panel', label: 'Closing left panel' };
+      }
+      if (canRestore) {
+        return { type: 'exit_one_up', label: 'Restoring layout' };
+      }
+      if (viewerState?.leftPanelClosed === false) {
+        return { type: 'close_left_panel', label: 'Closing left panel' };
+      }
+      return { type: 'none', label: 'Nothing is open to close' };
+    }
+    case 'reset_that': {
+      if (control === 'opacity' || control === 'threshold' || control === 'overlay') {
+        return { type: 'reset_overlay', label: 'Reset overlay', seriesModality: overlayModality };
+      }
+      if (control === 'cine') {
+        return { type: 'cine_reset', label: 'Cine back to 24 FPS' };
+      }
+      if (control === 'panel') {
+        return viewerState?.leftPanelClosed
+          ? { type: 'open_left_panel', label: 'Opening left panel' }
+          : { type: 'close_left_panel', label: 'Closing left panel' };
+      }
+      if (control === 'layout') {
+        if (canRestore) {
+          return { type: 'exit_one_up', label: 'Restoring layout' };
+        }
+        return {
+          type: 'set_hanging_protocol',
+          label: 'Hanging protocol: default',
+          protocolId: 'default',
+        };
+      }
+      if (control === 'series') {
+        return { type: 'previous_series', label: 'Previous series' };
+      }
+      return { type: 'reset_viewport', label: 'Reset viewport' };
+    }
+    case 'bigger': {
+      if (control === 'opacity') {
+        return {
+          type: 'set_opacity',
+          label: 'Increasing overlay opacity',
+          opacityDelta: 0.2,
+          seriesModality: overlayModality,
+        };
+      }
+      if (control === 'cine') {
+        return { type: 'cine_faster', label: 'Increasing cine speed' };
+      }
+      if (viewerState && !isSingleViewport(viewerState)) {
+        const orientation = activeOrientation(viewerState);
+        return {
+          type: 'maximize_viewport',
+          label: orientation ? `Maximize ${orientation}` : 'Maximize active viewport',
+          orientation,
+        };
+      }
+      return { type: 'zoom_in', label: 'Zoom in' };
+    }
+    case 'smaller': {
+      if (control === 'opacity') {
+        return {
+          type: 'set_opacity',
+          label: 'Decreasing overlay opacity',
+          opacityDelta: -0.2,
+          seriesModality: overlayModality,
+        };
+      }
+      if (control === 'cine') {
+        return { type: 'cine_slower', label: 'Decreasing cine speed' };
+      }
+      if (canRestore && isSingleViewport(viewerState)) {
+        return { type: 'exit_one_up', label: 'Restoring layout' };
+      }
+      return { type: 'zoom_out', label: 'Zoom out' };
+    }
+    case 'zoom_in':
+      return { type: 'zoom_in', label: 'Zoom in' };
+    case 'zoom_out':
+      return { type: 'zoom_out', label: 'Zoom out' };
+    case 'reset_viewport':
+      return { type: 'reset_viewport', label: 'Reset viewport' };
+    case 'next':
+      return (viewerState?.protocol.stageCount ?? 1) > 1
+        ? { type: 'next_stage', label: 'Next hanging protocol stage' }
+        : { type: 'next_series', label: 'Next series' };
+    case 'previous':
+      return (viewerState?.protocol.stageCount ?? 1) > 1
+        ? { type: 'previous_stage', label: 'Previous hanging protocol stage' }
+        : { type: 'previous_series', label: 'Previous series' };
+    default:
+      return undefined;
+  }
+}
+
 function parseSeries(input: unknown): SeriesSnapshot[] {
   if (!Array.isArray(input)) {
     return [];
@@ -623,7 +897,8 @@ function parseSeries(input: unknown): SeriesSnapshot[] {
 
 function buildViewerQuestions(
   protocols: HangingProtocolSnapshot[],
-  series: SeriesSnapshot[]
+  series: SeriesSnapshot[],
+  viewerState: ViewerStateSnapshot | null
 ) {
   const protocolAliases: Record<string, string> = {
     mpr: [
@@ -652,12 +927,13 @@ function buildViewerQuestions(
     protocolCriteria.mpr = `MPR hanging protocol (${protocolAliases.mpr})`;
   }
 
-  return {
+  const questions = {
     action: {
       type: 'choice',
       instructions: {
         question: 'Which viewer action should run for `query`?',
-        focus: 'Pick one action the application can execute immediately.',
+        focus:
+          'Pick one action the application can execute immediately. `viewerState` describes the current viewer (layout, cine, overlay, left panel, last voice action). Use the contextual actions (toggle_cine, close_it, reset_that, bigger, smaller, next, previous) only when `query` does not name its target.',
       },
       criteria: {
         set_hanging_protocol: {
@@ -901,6 +1177,61 @@ function buildViewerQuestions(
             'Reset opacity',
           ],
         },
+        toggle_cine: {
+          what: 'Toggle cine between playing and paused without naming which: bare "toggle", "stop", "start", "pause it", "resume". Resolved from viewerState.cine.isPlaying.',
+          not_for: 'Requests that explicitly say play cine or pause cine',
+          examples: ['Toggle', 'Stop', 'Start', 'Pause it', 'Resume', 'Play it', 'Toggle cine', 'Stop it'],
+        },
+        cine_reset: {
+          what: 'Reset cine speed back to the default frame rate',
+          not_for: 'Pausing or closing cine',
+          examples: ['Reset cine speed', 'Normal speed', 'Default frame rate', 'Reset the frame rate'],
+        },
+        close_it: {
+          what: 'Close or dismiss whatever is currently open or was last touched, without naming it. Resolved from viewerState (cine open, left panel open, maximized layout, lastAction).',
+          not_for: 'Requests that name what to close, such as close cine or close the left panel',
+          examples: ['Close it', 'Close that', 'Dismiss', 'Get rid of it', 'Close', 'Hide it', 'Make it go away'],
+        },
+        reset_that: {
+          what: 'Reset or undo the thing that was last changed, without naming it. Resolved from viewerState.lastAction.',
+          not_for: 'Requests that name what to reset, such as reset the threshold or reset the viewport',
+          examples: ['Reset that', 'Reset it', 'Put it back', 'Undo that', 'Revert', 'Go back to how it was'],
+        },
+        bigger: {
+          what: 'Make the current thing bigger or more, without naming it. Resolved from viewerState.lastAction (opacity, cine speed) or layout (maximize when in a grid, otherwise zoom in).',
+          not_for: 'Requests that name the target, such as zoom in, increase opacity, or maximize sagittal',
+          examples: ['Bigger', 'Larger', 'Make it bigger', 'More', 'Up a bit', 'Enlarge', 'A little more'],
+        },
+        smaller: {
+          what: 'Make the current thing smaller or less, without naming it. Resolved from viewerState.lastAction (opacity, cine speed) or layout (restore grid when maximized, otherwise zoom out).',
+          not_for: 'Requests that name the target, such as zoom out, decrease opacity, or exit one up',
+          examples: ['Smaller', 'Make it smaller', 'Less', 'Down a bit', 'Shrink', 'A little less'],
+        },
+        zoom_in: {
+          what: 'Zoom the active viewport in (magnify the image)',
+          not_for: 'Maximizing a viewport to fill the grid or changing overlay opacity',
+          examples: ['Zoom in', 'Magnify', 'Zoom in a little', 'Closer'],
+        },
+        zoom_out: {
+          what: 'Zoom the active viewport out',
+          not_for: 'Exiting one-up or changing overlay opacity',
+          examples: ['Zoom out', 'Zoom out a bit', 'Further away', 'Shrink the image'],
+        },
+        reset_viewport: {
+          what: 'Reset the active viewport camera: zoom, pan, and window level back to defaults',
+          not_for: 'Resetting PET overlay threshold or opacity, or restoring the grid layout',
+          examples: ['Reset view', 'Reset the viewport', 'Reset zoom', 'Fit to window', 'Reset the image'],
+        },
+        next: {
+          what: 'Go forward to the next thing without naming it: bare "next", "forward", "go on". Resolved from viewerState.protocol.stageCount (next stage if the protocol has several, otherwise next series).',
+          not_for: 'Requests that say next series, next stage, or next slice',
+          examples: ['Next', 'Forward', 'Go on', 'Next one', 'Continue'],
+        },
+        previous: {
+          what: 'Go back to the previous thing without naming it: bare "previous", "back", "go back".',
+          not_for: 'Requests that say previous series, previous stage, or go back to the worklist',
+          examples: ['Previous', 'Back', 'Go back', 'Previous one', 'Back one'],
+        },
         none: {
           what: 'No viewer action can be taken',
           not_for: 'A request that maps to protocol, layout, overlay, slice, cine, or panels',
@@ -987,6 +1318,32 @@ function buildViewerQuestions(
       }),
     },
   };
+
+  const criteria = questions.action.criteria as Record<
+    string,
+    { what: string; not_for: string; examples: string[] }
+  >;
+  if (viewerState) {
+    if (!overlayModalityFor(viewerState)) {
+      for (const key of ['set_opacity', 'set_threshold', 'reset_overlay']) {
+        criteria[key].what +=
+          ' No overlay is loaded on the active viewport right now, so prefer overlay_series when the user wants to add one.';
+      }
+    }
+    if (viewerState.activeViewport?.orientation) {
+      criteria.maximize_viewport.what += ` The active viewport is ${viewerState.activeViewport.orientation}; a bare "maximize" means that one.`;
+    }
+    if (viewerState.cine.enabled) {
+      criteria.toggle_cine.what += viewerState.cine.isPlaying
+        ? ' Cine is currently playing, so bare "stop" or "pause" means pause.'
+        : ' Cine is open but paused, so bare "start", "go", or "play" means play.';
+    }
+    if (isSingleViewport(viewerState) && !viewerState.canRestoreLayout) {
+      criteria.exit_one_up.what += ' The layout is already a single viewport with nothing to restore.';
+    }
+  }
+
+  return questions;
 }
 
 function normalizeSpokenModality(token: string): string | undefined {
@@ -1175,7 +1532,8 @@ function newestStudyForPatient(studies: StudySnapshot[], patientName: string): S
 function composeViewerAction(
   answers: TypeSafeResponse['answers'],
   series: SeriesSnapshot[],
-  query: string
+  query: string,
+  viewerState: ViewerStateSnapshot | null
 ): AskResponse['action'] {
   const action = choiceOf(answers.action).choice;
   const protocolId = choiceOf(answers.hangingProtocol).choice;
@@ -1184,11 +1542,21 @@ function composeViewerAction(
   const wantsMpr = noulOf(answers.wantsMpr) >= 0.55;
   const suvThreshold = suvThresholdFromQuery(query);
 
+  const overlayModality = overlayModalityFor(viewerState);
+  const noOverlay: AskResponse['action'] = {
+    type: 'none',
+    label: 'No overlay on the active viewport. Say "overlay PET" first.',
+  };
+
   if (suvThreshold != null && action !== 'reset_overlay') {
+    if (viewerState && !overlayModality) {
+      return noOverlay;
+    }
     return {
       type: 'set_threshold',
       label: `PET threshold ${suvThreshold} SUV`,
       threshold: suvThreshold,
+      seriesModality: overlayModality,
     };
   }
 
@@ -1211,6 +1579,11 @@ function composeViewerAction(
   }
   if (/\b(previous|prior|last) series\b/.test(spoken) && !/\bstage\b/.test(spoken)) {
     return { type: 'previous_series', label: 'Previous series' };
+  }
+
+  const contextual = resolveContextualAction(action, viewerState);
+  if (contextual) {
+    return contextual;
   }
 
   if (action === 'set_hanging_protocol' || (wantsMpr && action === 'none')) {
@@ -1236,6 +1609,13 @@ function composeViewerAction(
     if (!next) {
       return { type: 'none', label: 'No layout to apply' };
     }
+    if (
+      viewerState &&
+      next.numRows === viewerState.layout.numRows &&
+      next.numCols === viewerState.layout.numCols
+    ) {
+      return { type: 'none', label: `Layout is already ${layout}` };
+    }
     return {
       type: 'set_layout',
       label: `Layout ${layout}`,
@@ -1255,6 +1635,9 @@ function composeViewerAction(
     return { type: 'play_cine', label: 'Playing cine' };
   }
   if (action === 'pause_cine') {
+    if (viewerState && !viewerState.cine.isPlaying) {
+      return { type: 'none', label: 'Cine is not playing' };
+    }
     return { type: 'pause_cine', label: 'Paused cine' };
   }
   if (action === 'cine_faster') {
@@ -1267,12 +1650,21 @@ function composeViewerAction(
     return { type: 'close_cine', label: 'Closing cine' };
   }
   if (action === 'close_left_panel') {
+    if (viewerState?.leftPanelClosed === true) {
+      return { type: 'none', label: 'Left panel is already closed' };
+    }
     return { type: 'close_left_panel', label: 'Closing left panel' };
   }
   if (action === 'open_left_panel') {
+    if (viewerState?.leftPanelClosed === false) {
+      return { type: 'none', label: 'Left panel is already open' };
+    }
     return { type: 'open_left_panel', label: 'Opening left panel' };
   }
   if (action === 'exit_one_up') {
+    if (viewerState && !viewerState.canRestoreLayout && !isSingleViewport(viewerState)) {
+      return { type: 'none', label: 'Layout is not maximized' };
+    }
     return { type: 'exit_one_up', label: 'Restoring layout' };
   }
   if (action === 'next_series') {
@@ -1304,10 +1696,11 @@ function composeViewerAction(
   }
 
   if (action === 'maximize_viewport') {
-    const orientation = orientationFromQuery(orientationChoice, query) || 'sagittal';
+    const orientation =
+      orientationFromQuery(orientationChoice, query) || activeOrientation(viewerState);
     return {
       type: 'maximize_viewport',
-      label: `Maximize ${orientation}`,
+      label: orientation ? `Maximize ${orientation}` : 'Maximize active viewport',
       orientation,
     };
   }
@@ -1339,14 +1732,19 @@ function composeViewerAction(
   }
 
   if (action === 'set_opacity') {
+    if (viewerState && !overlayModality) {
+      return noOverlay;
+    }
+    const overlayName = overlayModality || 'PET';
     const q = query.toLowerCase();
     const numeric = firstNumber(query);
     if (numeric != null && !/increase|decrease|more|less/.test(q)) {
       const opacity = numeric > 1 ? numeric / 100 : numeric;
       return {
         type: 'set_opacity',
-        label: `PET opacity ${Math.round(opacity * 100)}%`,
+        label: `${overlayName} opacity ${Math.round(opacity * 100)}%`,
         opacity,
+        seriesModality: overlayModality,
       };
     }
     const opacityDelta = /increase|more opaque|higher/.test(q)
@@ -1356,12 +1754,17 @@ function composeViewerAction(
         : 0.2;
     return {
       type: 'set_opacity',
-      label: opacityDelta > 0 ? 'Increasing PET opacity' : 'Decreasing PET opacity',
+      label:
+        opacityDelta > 0 ? `Increasing ${overlayName} opacity` : `Decreasing ${overlayName} opacity`,
       opacityDelta,
+      seriesModality: overlayModality,
     };
   }
 
   if (action === 'set_threshold') {
+    if (viewerState && !overlayModality) {
+      return noOverlay;
+    }
     const threshold = firstNumber(query);
     if (threshold == null) {
       return { type: 'none', label: 'No SUV threshold given' };
@@ -1370,11 +1773,15 @@ function composeViewerAction(
       type: 'set_threshold',
       label: `PET threshold ${threshold} SUV`,
       threshold,
+      seriesModality: overlayModality,
     };
   }
 
   if (action === 'reset_overlay') {
-    return { type: 'reset_overlay', label: 'Reset overlay' };
+    if (viewerState && !overlayModality) {
+      return noOverlay;
+    }
+    return { type: 'reset_overlay', label: 'Reset overlay', seriesModality: overlayModality };
   }
 
   return { type: 'none', label: 'No viewer action for that request' };
@@ -1407,13 +1814,17 @@ async function handleAsk(request: Request, env: Env): Promise<Response> {
   const studies = parseStudies(body.studies);
   const hangingProtocols = parseHangingProtocols(body.hangingProtocols);
   const series = parseSeries(body.series);
+  const viewerState = context === 'viewer' ? parseViewerState(body.viewerState) : null;
   const questions =
     context === 'viewer'
-      ? buildViewerQuestions(hangingProtocols, series)
+      ? buildViewerQuestions(hangingProtocols, series, viewerState)
       : buildQuestions(studies);
   const state =
-    context === 'viewer' ? { query, hangingProtocols, series } : { query, studies };
+    context === 'viewer'
+      ? { query, hangingProtocols, series, ...(viewerState ? { viewerState } : {}) }
+      : { query, studies };
 
+  const started = Date.now();
   const tsResponse = await fetch(TYPESAFE_URL, {
     method: 'POST',
     headers: {
@@ -1449,9 +1860,17 @@ async function handleAsk(request: Request, env: Env): Promise<Response> {
   const payload = (await tsResponse.json()) as TypeSafeResponse;
   const result: AskResponse = {
     model: payload.model,
+    debug: {
+      ms: Date.now() - started,
+      questionCount: Object.keys(questions).length,
+      answers: summarizeAnswers(
+        payload.answers,
+        questions as unknown as Record<string, { criteria?: Record<string, unknown> }>
+      ),
+    },
     action:
       context === 'viewer'
-        ? composeViewerAction(payload.answers, series, query)
+        ? composeViewerAction(payload.answers, series, query, viewerState)
         : composeAction(payload.answers, studies, query),
   };
 
