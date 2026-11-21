@@ -1,6 +1,7 @@
 import { vec3 } from 'gl-matrix';
 import { PubSubService } from '@ohif/core';
 import { Types as OhifTypes } from '@ohif/core';
+import type { PlanarViewport, ECGViewport } from '@cornerstonejs/core';
 import {
   RenderingEngine,
   Types,
@@ -67,7 +68,7 @@ const MIN_VOLUME_VIEWPORTS_TO_ENQUEUE_RESIZE = 6;
 // setVolumes() teardown blanks MPR during SEG hydration.
 const VOLUME_ACTOR_CLASS_NAMES = new Set(['vtkVolume', 'vtkImageSlice']);
 
-function getVolumeActorReferencedIds(viewport: Types.IVolumeViewport): string[] {
+function getVolumeActorReferencedIds(viewport: PlanarViewport): string[] {
   const actors = viewport.getActors?.() ?? [];
   return actors
     .filter(ac => VOLUME_ACTOR_CLASS_NAMES.has(ac.actor?.getClassName?.() ?? ''))
@@ -315,9 +316,7 @@ class CornerstoneViewportService
   }
 
   public setPresentations(viewportId: string, presentations: Presentations): void {
-    const viewport = this.getCornerstoneViewport(viewportId) as
-      | Types.IStackViewport
-      | Types.IVolumeViewport;
+    const viewport = this.getCornerstoneViewport(viewportId) as PlanarViewport | PlanarViewport;
 
     if (!viewport || !presentations) {
       return;
@@ -433,9 +432,7 @@ class CornerstoneViewportService
   }
 
   private _getLutPresentation(viewportId: string): LutPresentation {
-    const csViewport = this.getCornerstoneViewport(viewportId) as
-      | Types.IStackViewport
-      | Types.IVolumeViewport;
+    const csViewport = this.getCornerstoneViewport(viewportId) as PlanarViewport | PlanarViewport;
 
     if (!csViewport) {
       return;
@@ -459,7 +456,7 @@ class CornerstoneViewportService
       : cleanProperties(getViewportAdapter(csViewport).getPresentation());
 
     if (properties instanceof Map) {
-      const volumeIds = (csViewport as Types.IBaseVolumeViewport).getAllVolumeIds();
+      const volumeIds = (csViewport as PlanarViewport).getActors().map(entry => entry.referencedId);
       volumeIds?.forEach(volumeId => {
         const csProps = cleanProperties(csViewport.getProperties(volumeId));
         properties.set(volumeId, csProps);
@@ -902,10 +899,7 @@ class CornerstoneViewportService
    * Sets the image data for the given viewport.
    */
   // Public so the viewport backends (IViewportServiceInternals) can dispatch to it.
-  async _setEcgViewport(
-    viewport: Types.IECGViewport,
-    viewportData: StackViewportData
-  ): Promise<void> {
+  async _setEcgViewport(viewport: ECGViewport, viewportData: StackViewportData): Promise<void> {
     const [displaySet] = viewportData.data;
     const imageId = displaySet.imageIds?.[0];
     if (!imageId) {
@@ -928,7 +922,7 @@ class CornerstoneViewportService
 
   // Public so the viewport backends (IViewportServiceInternals) can dispatch to it.
   async _setOtherViewport(
-    viewport: Types.IStackViewport,
+    viewport: PlanarViewport,
     viewportData: StackViewportData,
     viewportInfo: ViewportInfo,
     _presentations: Presentations = {}
@@ -945,7 +939,7 @@ class CornerstoneViewportService
 
   // Public so the viewport backends (IViewportServiceInternals) can dispatch to it.
   async _setStackViewport(
-    viewport: Types.IStackViewport,
+    viewport: PlanarViewport,
     viewportData: StackViewportData,
     viewportInfo: ViewportInfo,
     presentations: Presentations = {}
@@ -1084,7 +1078,7 @@ class CornerstoneViewportService
   }
 
   async _setVolumeViewport(
-    viewport: Types.IVolumeViewport,
+    viewport: PlanarViewport,
     viewportData: VolumeViewportData,
     viewportInfo: ViewportInfo,
     presentations: Presentations = {}
@@ -1339,9 +1333,7 @@ class CornerstoneViewportService
     });
   }
 
-  private _processExtraDisplaySetsForViewport(
-    viewport: Types.IStackViewport | Types.IVolumeViewport
-  ) {
+  private _processExtraDisplaySetsForViewport(viewport: PlanarViewport | PlanarViewport) {
     const { displaySetService } = this.servicesManager.services;
 
     // load any secondary displaySets
@@ -1389,8 +1381,9 @@ class CornerstoneViewportService
 
     const applyRepresentation = () => {
       const { predecessorImageId } = displaySet;
-      const segmentationRepresentationPromise =
-        segmentationService.addSegmentationRepresentation(viewport.id, {
+      const segmentationRepresentationPromise = segmentationService.addSegmentationRepresentation(
+        viewport.id,
+        {
           segmentationId,
           predecessorImageId,
           type: representationType,
@@ -1400,7 +1393,8 @@ class CornerstoneViewportService
                 ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND
                 : undefined,
           },
-        });
+        }
+      );
       this.storePresentation({ viewportId: viewport.id });
       return segmentationRepresentationPromise;
     };
@@ -1468,8 +1462,7 @@ class CornerstoneViewportService
 
         // Stop waiting immediately if the SEG load itself fails — otherwise the
         // loading-complete event never fires and we would idle until the timeout.
-        const loadingPromise = (displaySet as { loadingPromise?: Promise<unknown> })
-          .loadingPromise;
+        const loadingPromise = (displaySet as { loadingPromise?: Promise<unknown> }).loadingPromise;
         loadingPromise?.catch(error => {
           if (settled) {
             return;
@@ -1694,7 +1687,7 @@ class CornerstoneViewportService
   }
 
   private _setLutPresentation(
-    viewport: Types.IStackViewport | Types.IVolumeViewport,
+    viewport: PlanarViewport | PlanarViewport,
     lutPresentation: LutPresentation
   ): void {
     // Forked per backend (§4.3 presentation write): legacy applies via setProperties;
@@ -1704,7 +1697,7 @@ class CornerstoneViewportService
   }
 
   private _setPositionPresentation(
-    viewport: Types.IStackViewport | Types.IVolumeViewport,
+    viewport: PlanarViewport | PlanarViewport,
     positionPresentation: PositionPresentation
   ): void {
     // Forked per backend (§4.3 presentation write): both apply the view reference;
@@ -1714,7 +1707,7 @@ class CornerstoneViewportService
   }
 
   private _setSegmentationPresentation(
-    viewport: Types.IStackViewport | Types.IVolumeViewport,
+    viewport: PlanarViewport | PlanarViewport,
     segmentationPresentation: SegmentationPresentation
   ): void {
     if (!segmentationPresentation) {

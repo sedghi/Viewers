@@ -64,7 +64,7 @@ class CornerstoneCacheService {
     if (
       isReconstructableFusion &&
       dataShapeType === Enums.ViewportType.STACK &&
-      cs3DViewportType === Enums.ViewportType.PLANAR_NEXT
+      cs3DViewportType === Enums.ViewportType.PLANAR
     ) {
       dataShapeType = Enums.ViewportType.ORTHOGRAPHIC;
     }

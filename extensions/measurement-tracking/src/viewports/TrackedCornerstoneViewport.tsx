@@ -5,7 +5,7 @@ import { OHIFCornerstoneViewport } from '@ohif/extension-cornerstone';
 
 import { annotation } from '@cornerstonejs/tools';
 import { useTrackedMeasurements } from './../getContextModule';
-import { BaseVolumeViewport, Enums } from '@cornerstonejs/core';
+import { Enums } from '@cornerstonejs/core';
 import { useSystem } from '@ohif/core';
 
 function TrackedCornerstoneViewport(
@@ -192,8 +192,6 @@ function TrackedCornerstoneViewport(
     </div>
   );
 }
-
-
 
 function _getNextMeasurementUID(
   direction,

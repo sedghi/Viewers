@@ -1,4 +1,4 @@
-import type { Types } from '@cornerstonejs/core';
+import type { Types, PlanarViewport, ECGViewport } from '@cornerstonejs/core';
 import type ViewportInfo from '../Viewport';
 import type { Presentations } from '../../../types/Presentation';
 import type { StackViewportData, VolumeViewportData } from '../../../types/CornerstoneCacheService';
@@ -14,23 +14,23 @@ import type { OverlayMountTask } from './IViewportBackend';
  */
 export interface IViewportServiceInternals {
   _setStackViewport(
-    viewport: Types.IStackViewport,
+    viewport: PlanarViewport,
     viewportData: StackViewportData,
     viewportInfo: ViewportInfo,
     presentations?: Presentations
   ): Promise<void>;
 
   _setVolumeViewport(
-    viewport: Types.IVolumeViewport,
+    viewport: PlanarViewport,
     viewportData: VolumeViewportData,
     viewportInfo: ViewportInfo,
     presentations?: Presentations
   ): Promise<void>;
 
-  _setEcgViewport(viewport: Types.IECGViewport, viewportData: StackViewportData): Promise<void>;
+  _setEcgViewport(viewport: ECGViewport, viewportData: StackViewportData): Promise<void>;
 
   _setOtherViewport(
-    viewport: Types.IStackViewport,
+    viewport: PlanarViewport,
     viewportData: StackViewportData,
     viewportInfo: ViewportInfo,
     presentations?: Presentations

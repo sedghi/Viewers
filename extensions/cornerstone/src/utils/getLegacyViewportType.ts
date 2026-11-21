@@ -1,3 +1,4 @@
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { Enums as csEnums, Types as csTypes } from '@cornerstonejs/core';
 
 const { ViewportType } = csEnums;
@@ -29,12 +30,12 @@ export function getLegacyViewportType(viewport: unknown): csEnums.ViewportType |
 }
 
 /** Legacy STACK viewport (image stack). Replaces `instanceof StackViewport`. */
-export function isStackViewportType(viewport: unknown): viewport is csTypes.IStackViewport {
+export function isStackViewportType(viewport: unknown): viewport is PlanarViewport {
   return getLegacyViewportType(viewport) === ViewportType.STACK;
 }
 
 /** Legacy ORTHOGRAPHIC (MPR) viewport. Replaces `instanceof VolumeViewport`. */
-export function isOrthographicViewportType(viewport: unknown): viewport is csTypes.IVolumeViewport {
+export function isOrthographicViewportType(viewport: unknown): viewport is PlanarViewport {
   return getLegacyViewportType(viewport) === ViewportType.ORTHOGRAPHIC;
 }
 
@@ -51,7 +52,7 @@ export function isOrthographicViewportType(viewport: unknown): viewport is csTyp
  */
 export function isVolume3DViewportType(viewport: unknown): viewport is csTypes.IVolumeViewport {
   const legacyType = getLegacyViewportType(viewport);
-  return legacyType === ViewportType.VOLUME_3D || legacyType === ViewportType.VOLUME_3D_NEXT;
+  return legacyType === ViewportType.VOLUME_3D || legacyType === ViewportType.VOLUME_3D;
 }
 
 /**

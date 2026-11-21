@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useState, ReactElement, useMemo } from 'react';
 import debounce from 'lodash.debounce';
 import { PanelSection, WindowLevel } from '@ohif/ui-next';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { Enums, eventTarget, cache, utilities as csUtils, Types } from '@cornerstonejs/core';
 import { useActiveViewportDisplaySets } from '@ohif/core';
 import {
@@ -26,7 +27,7 @@ const areViewportVolumesLoaded = (viewport): boolean => {
     return false;
   }
 
-  const volumeIds = (viewport as Types.IVolumeViewport).getAllVolumeIds();
+  const volumeIds = (viewport as PlanarViewport).getActors().map(entry => entry.referencedId);
   if (!volumeIds.length) {
     return false;
   }
@@ -77,7 +78,7 @@ const ViewportWindowLevel = ({
       .filter(csUtils.viewportSupportsVolumeCompatibility);
 
     return viewports.filter(vp => {
-      const viewportVolumeIds = (vp as Types.IVolumeViewport).getAllVolumeIds();
+      const viewportVolumeIds = (vp as PlanarViewport).getActors().map(entry => entry.referencedId);
       return (
         volumeIds.length === viewportVolumeIds.length &&
         volumeIds.every(volumeId => viewportVolumeIds.includes(volumeId))
@@ -154,7 +155,7 @@ const ViewportWindowLevel = ({
     }
 
     const viewportVolumeIds = csUtils.viewportSupportsVolumeId(viewport)
-      ? (viewport as Types.IVolumeViewport).getAllVolumeIds()
+      ? (viewport as PlanarViewport).getActors().map(entry => entry.referencedId)
       : [];
     const viewports = getViewportsWithVolumeIds(viewportVolumeIds);
 

@@ -39,15 +39,15 @@ function ViewportImageSliceLoadingIndicator({ viewportData, element }) {
 
   useEffect(() => {
     element.addEventListener(Enums.Events.STACK_VIEWPORT_SCROLL, setLoadingState);
-    element.addEventListener(Enums.Events.IMAGE_LOAD_ERROR, setErrorState);
-    element.addEventListener(Enums.Events.STACK_NEW_IMAGE, setFinishLoadingState);
+    element.addEventListener(Enums.Events.IMAGE_LOAD_FAILED, setErrorState);
+    element.addEventListener(Enums.Events.NEW_IMAGE, setFinishLoadingState);
 
     return () => {
       element.removeEventListener(Enums.Events.STACK_VIEWPORT_SCROLL, setLoadingState);
 
-      element.removeEventListener(Enums.Events.STACK_NEW_IMAGE, setFinishLoadingState);
+      element.removeEventListener(Enums.Events.NEW_IMAGE, setFinishLoadingState);
 
-      element.removeEventListener(Enums.Events.IMAGE_LOAD_ERROR, setErrorState);
+      element.removeEventListener(Enums.Events.IMAGE_LOAD_FAILED, setErrorState);
     };
   }, [element, viewportData]);
 
@@ -81,7 +81,5 @@ function ViewportImageSliceLoadingIndicator({ viewportData, element }) {
 
   return null;
 }
-
-
 
 export default ViewportImageSliceLoadingIndicator;

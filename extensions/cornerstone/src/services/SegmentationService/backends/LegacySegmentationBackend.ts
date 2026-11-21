@@ -1,4 +1,4 @@
-import type { Types as csTypes } from '@cornerstonejs/core';
+import type { Types as csTypes, PlanarViewport } from '@cornerstonejs/core';
 import {
   Enums as csToolsEnums,
   segmentation as cstSegmentation,
@@ -65,7 +65,7 @@ export class LegacySegmentationBackend implements ISegmentationBackend {
     }
 
     await this.service.handleVolumeViewport(
-      csViewport as csTypes.IVolumeViewport,
+      csViewport as PlanarViewport,
       segmentation,
       isVolumeSegmentation
     );
@@ -89,7 +89,7 @@ export class LegacySegmentationBackend implements ISegmentationBackend {
     }
 
     const isConverted = await this.service.attemptStackToVolumeConversion(
-      csViewport as csTypes.IStackViewport,
+      csViewport as PlanarViewport,
       segmentation,
       viewportId,
       segmentationId

@@ -24,15 +24,15 @@ export default function getCornerstoneViewportType(
   // hold regardless of the flag so re-entrant callers don't throw.
   switch (lowerViewportType) {
     case 'planarnext':
-      return Enums.ViewportType.PLANAR_NEXT;
+      return Enums.ViewportType.PLANAR;
     case 'volume3dnext':
-      return Enums.ViewportType.VOLUME_3D_NEXT;
+      return Enums.ViewportType.VOLUME_3D;
     case 'videonext':
-      return Enums.ViewportType.VIDEO_NEXT;
+      return Enums.ViewportType.VIDEO;
     case 'wholeslidenext':
-      return Enums.ViewportType.WHOLE_SLIDE_NEXT;
+      return Enums.ViewportType.WHOLE_SLIDE;
     case 'ecgnext':
-      return Enums.ViewportType.ECG_NEXT;
+      return Enums.ViewportType.ECG;
   }
 
   // Native Generic Viewport ("next") path (appConfig.useNextViewports). Stack and
@@ -43,15 +43,15 @@ export default function getCornerstoneViewportType(
       case STACK:
       case VOLUME:
       case ORTHOGRAPHIC:
-        return Enums.ViewportType.PLANAR_NEXT;
+        return Enums.ViewportType.PLANAR;
       case VOLUME_3D:
-        return Enums.ViewportType.VOLUME_3D_NEXT;
+        return Enums.ViewportType.VOLUME_3D;
       case VIDEO:
-        return Enums.ViewportType.VIDEO_NEXT;
+        return Enums.ViewportType.VIDEO;
       case WHOLESLIDE:
-        return Enums.ViewportType.WHOLE_SLIDE_NEXT;
+        return Enums.ViewportType.WHOLE_SLIDE;
       case ECG:
-        return Enums.ViewportType.ECG_NEXT;
+        return Enums.ViewportType.ECG;
       default:
         throw new Error(
           `Invalid viewport type: ${viewportType}. Valid types are: stack, volume, orthographic, volume3d, video, wholeslide, ecg`
@@ -60,7 +60,7 @@ export default function getCornerstoneViewportType(
   }
 
   if (lowerViewportType === STACK) {
-    return Enums.ViewportType.STACK;
+    return Enums.ViewportType.PLANAR;
   }
 
   if (lowerViewportType === VIDEO) {
@@ -75,7 +75,7 @@ export default function getCornerstoneViewportType(
   }
 
   if (lowerViewportType === VOLUME || lowerViewportType === ORTHOGRAPHIC) {
-    return Enums.ViewportType.ORTHOGRAPHIC;
+    return Enums.ViewportType.PLANAR;
   }
 
   if (lowerViewportType === VOLUME_3D) {

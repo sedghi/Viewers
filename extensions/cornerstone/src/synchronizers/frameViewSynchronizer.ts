@@ -1,4 +1,5 @@
 import { SynchronizerManager, Synchronizer } from '@cornerstonejs/tools';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { EVENTS, getRenderingEngine, type Types, utilities } from '@cornerstonejs/core';
 
 const frameViewSyncCallback = (
@@ -10,7 +11,7 @@ const frameViewSyncCallback = (
   if (!renderingEngine) {
     throw new Error(`No RenderingEngine for Id: ${targetViewport.renderingEngineId}`);
   }
-  const sViewport = renderingEngine.getViewport(sourceViewport.viewportId) as Types.IStackViewport;
+  const sViewport = renderingEngine.getViewport<PlanarViewport>(sourceViewport.viewportId);
 
   const { viewportIndex: targetViewportIndex } = synchronizerInstance.getOptions(
     targetViewport.viewportId
@@ -24,7 +25,7 @@ const frameViewSyncCallback = (
     throw new Error('No viewportIndex provided');
   }
 
-  const tViewport = renderingEngine.getViewport(targetViewport.viewportId) as Types.IStackViewport;
+  const tViewport = renderingEngine.getViewport<PlanarViewport>(targetViewport.viewportId);
 
   const sourceSliceIndex = sViewport.getSliceIndex();
   const sliceDifference = Number(targetViewportIndex) - Number(sourceViewportIndex);

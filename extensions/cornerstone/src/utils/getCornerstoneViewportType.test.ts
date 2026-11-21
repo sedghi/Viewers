@@ -102,52 +102,42 @@ describe('getCornerstoneViewportType', () => {
 
   describe('useNextViewports (native Generic Viewport types)', () => {
     it('maps stack to PLANAR_NEXT', () => {
-      expect(getCornerstoneViewportType('stack', undefined, true)).toBe(
-        Enums.ViewportType.PLANAR_NEXT
-      );
+      expect(getCornerstoneViewportType('stack', undefined, true)).toBe(Enums.ViewportType.PLANAR);
     });
 
     it('maps volume and orthographic to PLANAR_NEXT', () => {
-      expect(getCornerstoneViewportType('volume', undefined, true)).toBe(
-        Enums.ViewportType.PLANAR_NEXT
-      );
+      expect(getCornerstoneViewportType('volume', undefined, true)).toBe(Enums.ViewportType.PLANAR);
       expect(getCornerstoneViewportType('orthographic', undefined, true)).toBe(
-        Enums.ViewportType.PLANAR_NEXT
+        Enums.ViewportType.PLANAR
       );
     });
 
     it('maps volume3d / video / wholeslide / ecg to their *_NEXT types', () => {
       expect(getCornerstoneViewportType('volume3d', undefined, true)).toBe(
-        Enums.ViewportType.VOLUME_3D_NEXT
+        Enums.ViewportType.VOLUME_3D
       );
-      expect(getCornerstoneViewportType('video', undefined, true)).toBe(
-        Enums.ViewportType.VIDEO_NEXT
-      );
+      expect(getCornerstoneViewportType('video', undefined, true)).toBe(Enums.ViewportType.VIDEO);
       expect(getCornerstoneViewportType('wholeslide', undefined, true)).toBe(
-        Enums.ViewportType.WHOLE_SLIDE_NEXT
+        Enums.ViewportType.WHOLE_SLIDE
       );
-      expect(getCornerstoneViewportType('ecg', undefined, true)).toBe(
-        Enums.ViewportType.ECG_NEXT
-      );
+      expect(getCornerstoneViewportType('ecg', undefined, true)).toBe(Enums.ViewportType.ECG);
     });
 
     it('honors the displaySet viewportType override under the flag', () => {
       const displaySets = [{ viewportType: 'volume' }] as Types.DisplaySet[];
       expect(getCornerstoneViewportType('stack', displaySets, true)).toBe(
-        Enums.ViewportType.PLANAR_NEXT
+        Enums.ViewportType.PLANAR
       );
     });
 
     it('throws for an invalid viewport type under the flag', () => {
-      expect(() =>
-        getCornerstoneViewportType('invalid', undefined, true)
-      ).toThrow('Invalid viewport type: invalid');
+      expect(() => getCornerstoneViewportType('invalid', undefined, true)).toThrow(
+        'Invalid viewport type: invalid'
+      );
     });
 
     it('leaves the legacy mapping unchanged when the flag is off', () => {
-      expect(getCornerstoneViewportType('stack', undefined, false)).toBe(
-        Enums.ViewportType.STACK
-      );
+      expect(getCornerstoneViewportType('stack', undefined, false)).toBe(Enums.ViewportType.STACK);
       expect(getCornerstoneViewportType('volume', undefined, false)).toBe(
         Enums.ViewportType.ORTHOGRAPHIC
       );
@@ -156,13 +146,13 @@ describe('getCornerstoneViewportType', () => {
     it('is idempotent for already-native types regardless of the flag', () => {
       // A viewport's stored cs type can be re-fed into the mapper.
       expect(getCornerstoneViewportType('planarNext', undefined, false)).toBe(
-        Enums.ViewportType.PLANAR_NEXT
+        Enums.ViewportType.PLANAR
       );
       expect(getCornerstoneViewportType('planarNext', undefined, true)).toBe(
-        Enums.ViewportType.PLANAR_NEXT
+        Enums.ViewportType.PLANAR
       );
       expect(getCornerstoneViewportType('volume3dNext', undefined, true)).toBe(
-        Enums.ViewportType.VOLUME_3D_NEXT
+        Enums.ViewportType.VOLUME_3D
       );
     });
   });

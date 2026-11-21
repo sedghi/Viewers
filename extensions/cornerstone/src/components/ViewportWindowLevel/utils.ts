@@ -1,3 +1,4 @@
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { cache as cs3DCache, Types } from '@cornerstonejs/core';
 import vtkColorMaps from '@kitware/vtk.js/Rendering/Core/ColorTransferFunction/ColorMaps';
 import { utilities as csUtils } from '@cornerstonejs/core';
@@ -94,7 +95,7 @@ export const isVolumeWithConstantOpacity = volumeActor => {
  * Gets window levels data for a viewport
  */
 export const getWindowLevelsData = async (
-  viewport: Types.IStackViewport | Types.IVolumeViewport,
+  viewport: PlanarViewport | PlanarViewport,
   viewportInfo: any,
   getVolumeOpacity: (viewport: any, volumeId: string) => number | undefined
 ) => {

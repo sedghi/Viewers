@@ -72,8 +72,7 @@ export default async function init({
   // Enable cornerstone's stats/debug overlay when `?debug=true` is in the URL.
   // Mirrors the cornerstone demo trigger so the same overlay is available inside
   // OHIF: FPS / MS / MB panels plus the per-viewport actor & mapper bindings.
-  const statsOverlay =
-    new URLSearchParams(window.location.search).get('debug') === 'true';
+  const statsOverlay = new URLSearchParams(window.location.search).get('debug') === 'true';
 
   await cs3DInit({
     peerImport: appConfig.peerImport,
@@ -83,7 +82,7 @@ export default async function init({
     }),
   });
 
-  cornerstone.setUseCPURendering(Boolean(appConfig.useCPURendering));
+  cornerstone.setRenderBackend(Boolean(appConfig.useCPURendering) ? 'cpu' : 'auto');
 
   // All native ("next") Generic Viewport settings live under one config object:
   // appConfig.genericViewports = { enabled, viewportRendering }.
@@ -102,9 +101,9 @@ export default async function init({
   );
   if (renderBackend) {
     if (renderBackend === 'cpu') {
-      cornerstone.setUseCPURendering(true);
+      cornerstone.setRenderBackend('cpu');
     } else if (renderBackend === 'gpu') {
-      cornerstone.setUseCPURendering(false);
+      cornerstone.setRenderBackend('auto');
     }
     try {
       cornerstone.setRenderBackend(renderBackend as cornerstone.RenderBackendValue);
@@ -179,7 +178,7 @@ export default async function init({
   window.extensionManager = extensionManager;
   window.commandsManager = commandsManager;
 
-  if (appConfig.showCPUFallbackMessage && cornerstone.getShouldUseCPURendering()) {
+  if (appConfig.showCPUFallbackMessage && cornerstone.getEffectiveRenderBackend() === 'cpu') {
     _showCPURenderingModal(uiModalService, hangingProtocolService);
   }
   const { getPresentationId: getLutPresentationId } = useLutPresentationStore.getState();
@@ -327,7 +326,7 @@ export default async function init({
   };
 
   eventTarget.addEventListener(EVENTS.IMAGE_LOAD_FAILED, imageLoadFailedHandler);
-  eventTarget.addEventListener(EVENTS.IMAGE_LOAD_ERROR, imageLoadFailedHandler);
+  eventTarget.addEventListener(EVENTS.IMAGE_LOAD_FAILED, imageLoadFailedHandler);
 
   const getDisplaySetFromVolumeId = (volumeId: string) => {
     const allDisplaySets = displaySetService.getActiveDisplaySets();

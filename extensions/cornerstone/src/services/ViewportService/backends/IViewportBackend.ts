@@ -1,4 +1,4 @@
-import type { Types } from '@cornerstonejs/core';
+import type { Types, PlanarViewport, ECGViewport } from '@cornerstonejs/core';
 import type ViewportInfo from '../Viewport';
 import type {
   Presentations,
@@ -92,7 +92,7 @@ export interface IViewportBackend {
    * displayArea/rotation/flip via the camera surface. Next: register the dataId,
    * setDisplaySets, seed VOI from metadata, apply presentation + view state.
    */
-  mountStack(viewport: Types.IStackViewport, context: StackMountContext): Promise<void>;
+  mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void>;
 
   /**
    * Lane-specific volume mount. Next mounts the volumes natively (registered
@@ -116,7 +116,7 @@ export interface IViewportBackend {
    * the display set's dataId and mount through the generic setDisplaySets API.
    */
   mountEcg(
-    viewport: Types.IECGViewport,
+    viewport: ECGViewport,
     displaySet: { displaySetInstanceUID: string; imageIds?: string[] },
     imageId: string
   ): Promise<void>;

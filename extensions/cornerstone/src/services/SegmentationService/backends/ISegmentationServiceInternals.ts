@@ -1,4 +1,4 @@
-import type { Types as csTypes } from '@cornerstonejs/core';
+import type { Types as csTypes, PlanarViewport } from '@cornerstonejs/core';
 import type { Types as cstTypes } from '@cornerstonejs/tools';
 
 /**
@@ -26,7 +26,7 @@ export interface ISegmentationServiceInternals {
    * FrameOfReference matches the viewport's. Returns whether it converted.
    */
   attemptStackToVolumeConversion(
-    viewport: csTypes.IStackViewport,
+    viewport: PlanarViewport,
     segmentation: cstTypes.Segmentation,
     viewportId: string,
     segmentationId: string
@@ -37,7 +37,7 @@ export interface ISegmentationServiceInternals {
    * matches a volume viewport (pure data; no viewport recreation).
    */
   handleVolumeViewport(
-    viewport: csTypes.IVolumeViewport,
+    viewport: PlanarViewport,
     segmentation: cstTypes.Segmentation,
     isVolumeSegmentation: boolean
   ): Promise<void>;

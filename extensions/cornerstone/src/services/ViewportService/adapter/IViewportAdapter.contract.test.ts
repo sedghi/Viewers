@@ -43,7 +43,7 @@ function makeNextViewport(overrides: Record<string, unknown> = {}): any {
 function makeLegacyStackViewport(overrides: Record<string, unknown> = {}): any {
   return {
     id: 'legacy-stack',
-    type: ViewportType.STACK,
+    type: ViewportType.PLANAR,
     getProperties: jest.fn().mockReturnValue({ voiRange: { lower: 0, upper: 100 } }),
     setProperties: jest.fn(),
     getCamera: jest.fn().mockReturnValue({
@@ -65,7 +65,7 @@ function makeLegacyVolumeViewport(overrides: Record<string, unknown> = {}): any 
   };
   return {
     id: 'legacy-volume',
-    type: ViewportType.ORTHOGRAPHIC,
+    type: ViewportType.PLANAR,
     getAllVolumeIds: jest.fn().mockReturnValue(['volumeId-ds-1', 'volumeId-ds-2']),
     getProperties: jest.fn((volumeId?: string) =>
       volumeId ? (propertiesByVolumeId[volumeId] ?? {}) : { voiRange: { lower: 5, upper: 50 } }

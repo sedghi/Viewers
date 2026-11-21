@@ -1,4 +1,5 @@
-import { Enums as csEnums, Types, metaData } from '@cornerstonejs/core';
+import type { PlanarViewport, ECGViewport } from '@cornerstonejs/core';
+import { Enums as csEnums, Types, metaData, utilities } from '@cornerstonejs/core';
 import {
   getLegacyViewportType,
   isStackViewportType,
@@ -43,7 +44,7 @@ export class LegacyViewportBackend implements IViewportBackend {
   ): Promise<void> {
     if (isStackViewportType(viewport)) {
       return this.service._setStackViewport(
-        viewport as Types.IStackViewport,
+        viewport as PlanarViewport,
         viewportData as StackViewportData,
         viewportInfo,
         presentations
@@ -52,7 +53,7 @@ export class LegacyViewportBackend implements IViewportBackend {
 
     if (isVolumeViewportType(viewport)) {
       return this.service._setVolumeViewport(
-        viewport as Types.IVolumeViewport,
+        viewport as PlanarViewport,
         viewportData as VolumeViewportData,
         viewportInfo,
         presentations
@@ -61,20 +62,20 @@ export class LegacyViewportBackend implements IViewportBackend {
 
     if (getLegacyViewportType(viewport) === csEnums.ViewportType.ECG) {
       return this.service._setEcgViewport(
-        viewport as unknown as Types.IECGViewport,
+        viewport as unknown as ECGViewport,
         viewportData as StackViewportData
       );
     }
 
     return this.service._setOtherViewport(
-      viewport as Types.IStackViewport,
+      viewport as PlanarViewport,
       viewportData as StackViewportData,
       viewportInfo,
       presentations
     );
   }
 
-  async mountStack(viewport: Types.IStackViewport, context: StackMountContext): Promise<void> {
+  async mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void> {
     const {
       imageIds,
       initialImageIndex,
@@ -86,7 +87,13 @@ export class LegacyViewportBackend implements IViewportBackend {
       overlayProcessingResults,
     } = context;
 
-    await viewport.setStack(imageIds, initialImageIndex);
+    const displaySetId2 = JSON.stringify([viewport.renderingEngineId, viewport.id, imageIds[0]]);
+    utilities.genericViewportDisplaySetMetadataProvider.add(displaySetId2, {
+      kind: 'planar',
+      imageIds,
+      initialImageIdIndex: initialImageIndex,
+    });
+    await viewport.setDisplaySets({ displaySetId: displaySetId2 });
     viewport.setProperties({ ...properties });
     this.service.setPresentations(viewport.id, presentations);
 
@@ -99,7 +106,7 @@ export class LegacyViewportBackend implements IViewportBackend {
       viewport.setProperties({ rotation } as Parameters<typeof viewport.setProperties>[0]);
     }
     if (flipHorizontal) {
-      viewport.setCamera({ flipHorizontal: true });
+      viewport.setViewState({ flipHorizontal: true });
     }
   }
 
@@ -113,15 +120,15 @@ export class LegacyViewportBackend implements IViewportBackend {
     viewport: Types.IViewport,
     volumeInputArray: unknown[]
   ): Promise<void> {
-    await (viewport as Types.IVolumeViewport).setVolumes(volumeInputArray as Types.IVolumeInput[]);
+    await (viewport as PlanarViewport).setVolumes(volumeInputArray as Types.IVolumeInput[]);
   }
 
   async mountEcg(
-    viewport: Types.IECGViewport,
+    viewport: ECGViewport,
     _displaySet: { displaySetInstanceUID: string; imageIds?: string[] },
     imageId: string
   ): Promise<void> {
-    return viewport.setEcg(imageId);
+    return viewport.setDisplaySets({ displaySetId: imageId });
   }
 
   async mountOther(
@@ -165,11 +172,11 @@ export class LegacyViewportBackend implements IViewportBackend {
     if (isVolumeViewportType(viewport)) {
       // Snapshot the camera only for the family that uses it; taking it before
       // the family checks would throw for families with no re-mount path.
-      const vp = viewport as Types.IVolumeViewport;
+      const vp = viewport as PlanarViewport;
       const viewportCamera = keepCamera ? vp.getCamera() : undefined;
       displaySetPromise = this.service
         ._setVolumeViewport(
-          viewport as Types.IVolumeViewport,
+          viewport as PlanarViewport,
           viewportData as VolumeViewportData,
           viewportInfo
         )
@@ -183,7 +190,7 @@ export class LegacyViewportBackend implements IViewportBackend {
 
     if (isStackViewportType(viewport)) {
       displaySetPromise = this.service._setStackViewport(
-        viewport as Types.IStackViewport,
+        viewport as PlanarViewport,
         viewportData as StackViewportData,
         viewportInfo
       );
@@ -197,7 +204,7 @@ export class LegacyViewportBackend implements IViewportBackend {
     viewportInfo: ViewportInfo,
     viewportId: string
   ): PositionPresentation {
-    const vp = csViewport as Types.IStackViewport;
+    const vp = csViewport as PlanarViewport;
     return {
       viewportType: viewportInfo.getViewportType(),
       viewReference: isVolume3DViewportType(csViewport) ? null : vp.getViewReference(),
@@ -210,7 +217,7 @@ export class LegacyViewportBackend implements IViewportBackend {
     viewport: Types.IViewport,
     positionPresentation: PositionPresentation
   ): void {
-    const vp = viewport as Types.IStackViewport | Types.IVolumeViewport;
+    const vp = viewport as PlanarViewport | PlanarViewport;
     const viewRef = positionPresentation?.viewReference;
     if (viewRef) {
       // The orientation can be updated here to navigate to the specified
@@ -234,12 +241,12 @@ export class LegacyViewportBackend implements IViewportBackend {
       return;
     }
 
-    const vp = viewport as Types.IStackViewport | Types.IVolumeViewport;
+    const vp = viewport as PlanarViewport | PlanarViewport;
     const { properties } = lutPresentation;
     if (isVolumeViewportType(vp)) {
       if (properties instanceof Map) {
         properties.forEach((propertiesEntry, volumeId) => {
-          (vp as Types.IVolumeViewport).setProperties(propertiesEntry, volumeId);
+          (vp as PlanarViewport).setProperties(propertiesEntry, volumeId);
         });
       } else {
         vp.setProperties(properties);

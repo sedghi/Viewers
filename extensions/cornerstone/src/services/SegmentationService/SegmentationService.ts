@@ -1,3 +1,4 @@
+import type { PlanarViewport } from '@cornerstonejs/core';
 import {
   cache,
   Enums as csEnums,
@@ -1843,7 +1844,7 @@ class SegmentationService extends PubSubService implements ISegmentationServiceI
     }
   }
   public async handleVolumeViewport(
-    viewport: csTypes.IVolumeViewport,
+    viewport: PlanarViewport,
     segmentation: SegmentationData,
     isVolumeSegmentation: boolean
   ): Promise<void> {
@@ -1900,7 +1901,7 @@ class SegmentationService extends PubSubService implements ISegmentationServiceI
   }
 
   public async attemptStackToVolumeConversion(
-    viewport: csTypes.IStackViewport,
+    viewport: PlanarViewport,
     segmentation: SegmentationData,
     viewportId: string,
     segmentationId: string

@@ -1,3 +1,4 @@
+import type { PlanarViewport } from '@cornerstonejs/core';
 import {
   getEnabledElement,
   utilities as csUtils,
@@ -1173,7 +1174,7 @@ function commandsModule({
       // A stack-mode adapter passes the guard but getAllVolumeIds() returns [], so the
       // result is the same null as before on stacks.
       if (csUtils.viewportSupportsVolumeId(viewport)) {
-        const volumeIds = (viewport as CoreTypes.IVolumeViewport).getAllVolumeIds();
+        const volumeIds = (viewport as PlanarViewport).getActors().map(entry => entry.referencedId);
         const volumeId = volumeIds.find(id => id.includes(displaySetInstanceUID));
         return volumeId;
       }

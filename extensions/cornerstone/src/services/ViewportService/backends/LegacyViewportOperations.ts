@@ -1,3 +1,4 @@
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { utilities as csUtils, Types as CoreTypes } from '@cornerstonejs/core';
 import { mat4, vec3 } from 'gl-matrix';
 import {
@@ -38,36 +39,36 @@ type VtkActorChain = {
  */
 export const legacyViewportOperations: IViewportOperations = {
   flipHorizontal(viewport: CoreTypes.IViewport, newValue: FlipValue = 'toggle'): void {
-    const vp = viewport as CoreTypes.IStackViewport;
+    const vp = viewport as PlanarViewport;
     let flipHorizontal: boolean;
     if (newValue === 'toggle') {
       flipHorizontal = !vp.getCamera().flipHorizontal;
     } else {
       flipHorizontal = newValue;
     }
-    vp.setCamera({ flipHorizontal });
+    vp.setViewState({ flipHorizontal });
   },
 
   flipVertical(viewport: CoreTypes.IViewport, newValue: FlipValue = 'toggle'): void {
-    const vp = viewport as CoreTypes.IStackViewport;
+    const vp = viewport as PlanarViewport;
     let flipVertical: boolean;
     if (newValue === 'toggle') {
       flipVertical = !vp.getCamera().flipVertical;
     } else {
       flipVertical = newValue;
     }
-    vp.setCamera({ flipVertical });
+    vp.setViewState({ flipVertical });
   },
 
   invert(viewport: CoreTypes.IViewport): void {
-    const vp = viewport as CoreTypes.IStackViewport;
+    const vp = viewport as PlanarViewport;
     const { invert } = vp.getProperties();
     vp.setProperties({ invert: !invert });
   },
 
   rotate(viewport: CoreTypes.IViewport, rotation: number, mode: RotationMode = 'apply'): void {
     if (isVolumeViewportType(viewport)) {
-      const vp = viewport as CoreTypes.IVolumeViewport;
+      const vp = viewport as PlanarViewport;
       const camera = vp.getCamera();
       const rotAngle = (rotation * Math.PI) / 180;
       const rotMat = mat4.identity(new Float32Array(16));
@@ -77,7 +78,7 @@ export const legacyViewportOperations: IViewportOperations = {
       return;
     }
 
-    const vp = viewport as CoreTypes.IStackViewport;
+    const vp = viewport as PlanarViewport;
     if (vp.getRotation !== undefined) {
       const { rotation: currentRotation } = vp.getViewPresentation();
       const newRotation =
@@ -102,26 +103,26 @@ export const legacyViewportOperations: IViewportOperations = {
   },
 
   reset(viewport: CoreTypes.IViewport): void {
-    const vp = viewport as CoreTypes.IStackViewport;
+    const vp = viewport as PlanarViewport;
     vp.resetProperties?.();
-    vp.resetCamera();
+    vp.resetViewState();
   },
 
   scaleBy(viewport: CoreTypes.IViewport, direction: number): void {
     const scaleFactor = direction > 0 ? 0.9 : 1.1;
     if (isStackViewportType(viewport)) {
-      const vp = viewport as CoreTypes.IStackViewport;
+      const vp = viewport as PlanarViewport;
       if (direction) {
         const { parallelScale } = vp.getCamera();
         vp.setCamera({ parallelScale: parallelScale * scaleFactor });
       } else {
-        vp.resetCamera();
+        vp.resetViewState();
       }
     }
   },
 
   getViewPlaneNormal(viewport: CoreTypes.IViewport): CoreTypes.Point3 | undefined {
-    return (viewport as CoreTypes.IStackViewport).getCamera().viewPlaneNormal;
+    return (viewport as PlanarViewport).getCamera().viewPlaneNormal;
   },
 
   centerOnMeasurement(
@@ -132,7 +133,7 @@ export const legacyViewportOperations: IViewportOperations = {
       return false;
     }
 
-    const vp = viewport as CoreTypes.IStackViewport;
+    const vp = viewport as PlanarViewport;
     const camera = vp.getCamera();
     const { focalPoint: cameraFocalPoint, position: cameraPosition } = camera;
     const { center, extent } = getCenterExtent(measurement);
@@ -154,37 +155,37 @@ export const legacyViewportOperations: IViewportOperations = {
       params.windowCenter
     );
     if (isVolumeViewportType(viewport)) {
-      (viewport as CoreTypes.IVolumeViewport).setProperties(
-        { voiRange: { upper, lower } },
-        params.volumeId
-      );
+      (viewport as PlanarViewport).setProperties({ voiRange: { upper, lower } }, params.volumeId);
     } else {
-      (viewport as CoreTypes.IStackViewport).setProperties({ voiRange: { upper, lower } });
+      (viewport as PlanarViewport).setProperties({ voiRange: { upper, lower } });
     }
   },
 
   setColormap(viewport: CoreTypes.IViewport, params: ColormapParams): void {
     const { colormap, displaySetInstanceUID } = params;
     if (isStackViewportType(viewport)) {
-      (viewport as CoreTypes.IStackViewport).setProperties({ colormap });
+      (viewport as PlanarViewport).setProperties({ colormap });
     }
 
     if (isOrthographicViewportType(viewport)) {
-      const vp = viewport as CoreTypes.IVolumeViewport;
+      const vp = viewport as PlanarViewport;
       // ToDo: Find a better way of obtaining the volumeId that corresponds to the displaySetInstanceUID
       const volumeId =
-        vp.getAllVolumeIds().find((_volumeId: string) => _volumeId.includes(displaySetInstanceUID)) ??
+        vp
+          .getActors()
+          .map(entry => entry.referencedId)
+          .find((_volumeId: string) => _volumeId.includes(displaySetInstanceUID)) ??
         vp.getVolumeId();
       vp.setProperties({ colormap }, volumeId);
     }
   },
 
   setPreset(viewport: CoreTypes.IViewport, preset: string): void {
-    (viewport as CoreTypes.IVolumeViewport).setProperties({ preset });
+    (viewport as PlanarViewport).setProperties({ preset });
   },
 
   setVolumeRenderingQuality(viewport: CoreTypes.IViewport, volumeQuality: number): void {
-    const actorEntry = (viewport as unknown as CoreTypes.IVolumeViewport).getActors()[0];
+    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
     if (!actorEntry) {
       return;
     }
@@ -208,7 +209,7 @@ export const legacyViewportOperations: IViewportOperations = {
   },
 
   shiftVolumeOpacityPoints(viewport: CoreTypes.IViewport, shift: number): void {
-    const actorEntry = (viewport as unknown as CoreTypes.IVolumeViewport).getActors()[0];
+    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
     if (!actorEntry) {
       return;
     }
@@ -241,7 +242,7 @@ export const legacyViewportOperations: IViewportOperations = {
   },
 
   setVolumeLighting(viewport: CoreTypes.IViewport, options: VolumeLightingOptions): void {
-    const actorEntry = (viewport as unknown as CoreTypes.IVolumeViewport).getActors()[0];
+    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
     if (!actorEntry) {
       return;
     }

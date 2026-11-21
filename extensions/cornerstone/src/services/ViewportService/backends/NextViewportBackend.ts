@@ -6,7 +6,7 @@ import {
   CONSTANTS as csConstants,
   isRegisteredRenderBackend,
 } from '@cornerstonejs/core';
-import type { RenderBackendValue } from '@cornerstonejs/core';
+import type { RenderBackendValue, ECGViewport, PlanarViewport } from '@cornerstonejs/core';
 import { utilities as csToolsUtils } from '@cornerstonejs/tools';
 import { isVolume3DViewportType } from '../../../utils/getLegacyViewportType';
 import { getViewportRenderingOverride } from '../../../utils/nextViewports';
@@ -134,19 +134,16 @@ export class NextViewportBackend implements IViewportBackend {
     // family-specific dataId registration. Mirrors the legacy backend's type dispatch.
     const type = (viewport as { type?: string }).type;
 
-    if (type === csEnums.ViewportType.ECG_NEXT) {
+    if (type === csEnums.ViewportType.ECG) {
       return this.service._setEcgViewport(
-        viewport as unknown as Types.IECGViewport,
+        viewport as unknown as ECGViewport,
         viewportData as StackViewportData
       );
     }
 
-    if (
-      type === csEnums.ViewportType.VIDEO_NEXT ||
-      type === csEnums.ViewportType.WHOLE_SLIDE_NEXT
-    ) {
+    if (type === csEnums.ViewportType.VIDEO || type === csEnums.ViewportType.WHOLE_SLIDE) {
       return this.service._setOtherViewport(
-        viewport as unknown as Types.IStackViewport,
+        viewport as unknown as PlanarViewport,
         viewportData as StackViewportData,
         viewportInfo,
         presentations
@@ -168,7 +165,7 @@ export class NextViewportBackend implements IViewportBackend {
 
     if (isVolumeContent) {
       return this.service._setVolumeViewport(
-        viewport as unknown as Types.IVolumeViewport,
+        viewport as unknown as PlanarViewport,
         viewportData as VolumeViewportData,
         viewportInfo,
         presentations
@@ -176,7 +173,7 @@ export class NextViewportBackend implements IViewportBackend {
     }
 
     return this.service._setStackViewport(
-      viewport as unknown as Types.IStackViewport,
+      viewport as unknown as PlanarViewport,
       viewportData as StackViewportData,
       viewportInfo,
       presentations
@@ -190,7 +187,7 @@ export class NextViewportBackend implements IViewportBackend {
    * displayArea via setViewState — instead of the legacy setStack/setProperties/
    * setCamera surface, which a direct PLANAR_NEXT viewport does not expose.
    */
-  async mountStack(viewport: Types.IStackViewport, context: StackMountContext): Promise<void> {
+  async mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void> {
     const {
       displaySetInstanceUIDs,
       imageIds,
@@ -369,7 +366,7 @@ export class NextViewportBackend implements IViewportBackend {
    * provider reads sourceDataId). Ref-counted via the registry (§4.7).
    */
   async mountEcg(
-    viewport: Types.IECGViewport,
+    viewport: ECGViewport,
     displaySet: { displaySetInstanceUID: string; imageIds?: string[] },
     imageId: string
   ): Promise<void> {
@@ -396,7 +393,7 @@ export class NextViewportBackend implements IViewportBackend {
   ): Promise<void> {
     const dataId = displaySet.displaySetInstanceUID;
     const imageId = displaySet.imageIds[0];
-    const isWsi = (viewport as { type?: string }).type === csEnums.ViewportType.WHOLE_SLIDE_NEXT;
+    const isWsi = (viewport as { type?: string }).type === csEnums.ViewportType.WHOLE_SLIDE;
     const payload = isWsi
       ? {
           kind: 'wsi' as const,
@@ -454,7 +451,7 @@ export class NextViewportBackend implements IViewportBackend {
     // A native VOLUME_3D_NEXT viewport renders the volume as a 3D VTK volume
     // (renderMode 'vtkVolume3d'), not a reformatted planar slice; its appearance is
     // driven by a volume-rendering preset, not orientation/role.
-    const is3D = (viewport as { type?: string }).type === csEnums.ViewportType.VOLUME_3D_NEXT;
+    const is3D = (viewport as { type?: string }).type === csEnums.ViewportType.VOLUME_3D;
     const nativeViewport = viewport as unknown as {
       setDisplaySets: (
         ...entries: Array<{ displaySetId: string; options: Record<string, unknown> }>

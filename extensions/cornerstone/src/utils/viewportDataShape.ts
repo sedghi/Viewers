@@ -58,10 +58,10 @@ export function getSliceEventName(viewportData: ViewportDataLike): string {
   const { viewportType } = viewportData;
   const firstData = getPrimaryViewportDatum(viewportData);
   return (
-    (viewportType === Enums.ViewportType.STACK && Enums.Events.STACK_NEW_IMAGE) ||
-    (viewportType === Enums.ViewportType.ORTHOGRAPHIC && Enums.Events.VOLUME_NEW_IMAGE) ||
-    (isVolumeViewportData(viewportData) && Enums.Events.VOLUME_NEW_IMAGE) ||
-    (firstData?.imageIds && Enums.Events.STACK_NEW_IMAGE) ||
+    (viewportType === Enums.ViewportType.STACK && Enums.Events.NEW_IMAGE) ||
+    (viewportType === Enums.ViewportType.ORTHOGRAPHIC && Enums.Events.NEW_IMAGE) ||
+    (isVolumeViewportData(viewportData) && Enums.Events.NEW_IMAGE) ||
+    (firstData?.imageIds && Enums.Events.NEW_IMAGE) ||
     Enums.Events.IMAGE_RENDERED
   );
 }

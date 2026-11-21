@@ -9,5 +9,5 @@ export const DYNAMIC_VOLUME_LOADER_SCHEME = 'cornerstoneStreamingDynamicImageVol
  */
 export const UNSUPPORTED_WINDOW_LEVEL_VIEWPORT_TYPES: string[] = [
   Enums.ViewportType.ECG,
-  Enums.ViewportType.ECG_NEXT,
+  Enums.ViewportType.ECG,
 ];

@@ -1,3 +1,4 @@
+import type { PlanarViewport, VolumeViewport3D } from '@cornerstonejs/core';
 import {
   cache,
   Enums as csEnums,
@@ -166,7 +167,7 @@ describe('SegmentationService', () => {
       removeEventListener: jest.fn(),
     },
     id: viewportId,
-    type: ViewportType.STACK,
+    type: ViewportType.PLANAR,
     getFrameOfReferenceUID: jest.fn(),
     getViewPresentation: jest.fn(),
     getViewReference: jest.fn(),
@@ -590,7 +591,7 @@ describe('SegmentationService', () => {
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
           // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneStackViewport as unknown as csTypes.IStackViewport);
+          .mockReturnValue(mockCornerstoneStackViewport as unknown as PlanarViewport);
         jest
           .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
           .mockReturnValue('labelmapImageId');
@@ -649,7 +650,7 @@ describe('SegmentationService', () => {
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
           // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneStackViewport as unknown as csTypes.IStackViewport);
+          .mockReturnValue(mockCornerstoneStackViewport as unknown as PlanarViewport);
         jest
           .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
           .mockReturnValue(undefined);
@@ -766,7 +767,7 @@ describe('SegmentationService', () => {
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
           // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as csTypes.IVolumeViewport);
+          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
 
         volumeViewportNewVolumeHandlerCallback();
 
@@ -825,7 +826,7 @@ describe('SegmentationService', () => {
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
           // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneStackViewport as unknown as csTypes.IStackViewport);
+          .mockReturnValue(mockCornerstoneStackViewport as unknown as PlanarViewport);
         jest.spyOn(serviceManagerMock.services.viewportGridService, 'getState').mockReturnValue({
           viewports: new Map([
             [
@@ -887,7 +888,7 @@ describe('SegmentationService', () => {
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
           // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as csTypes.IVolumeViewport);
+          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
 
         volumeViewportNewVolumeHandlerCallback();
 
@@ -925,7 +926,7 @@ describe('SegmentationService', () => {
       const makeNextViewport = () => ({
         element: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
         id: viewportId,
-        type: ViewportType.PLANAR_NEXT,
+        type: ViewportType.PLANAR,
         setDisplaySets: jest.fn(),
         setDisplaySetPresentation: jest.fn(),
         setViewState: jest.fn(),
@@ -937,7 +938,7 @@ describe('SegmentationService', () => {
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          .mockReturnValue(makeNextViewport() as unknown as csTypes.IStackViewport);
+          .mockReturnValue(makeNextViewport() as unknown as PlanarViewport);
         jest
           .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
           .mockReturnValue('labelmapImageId');
@@ -986,7 +987,7 @@ describe('SegmentationService', () => {
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          .mockReturnValue(makeNextViewport() as unknown as csTypes.IStackViewport);
+          .mockReturnValue(makeNextViewport() as unknown as PlanarViewport);
         // resolver fails (FrameOfReference mismatch / mount-timing race): on legacy this
         // would fall through to convertStackToVolumeViewport; on native it must not.
         jest
@@ -1018,7 +1019,7 @@ describe('SegmentationService', () => {
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
           // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as csTypes.IVolumeViewport);
+          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
         jest
           .spyOn(cstSegmentation, 'addSegmentationRepresentations')
           .mockReturnValueOnce(undefined);
@@ -1058,7 +1059,7 @@ describe('SegmentationService', () => {
           .mockReturnValue({
             ...mockCornerstoneVolumeViewport,
             type: ViewportType.VOLUME_3D,
-          } as unknown as csTypes.IVolumeViewport);
+          } as unknown as VolumeViewport3D);
         jest
           .spyOn(cstSegmentation, 'addSegmentationRepresentations')
           .mockReturnValueOnce(undefined);
@@ -1080,13 +1081,13 @@ describe('SegmentationService', () => {
       });
 
       it('should add a volume segmentation representation to volume viewport through SegmentationService handling', async () => {
-        mockCornerstoneVolumeViewport.type = ViewportType.ORTHOGRAPHIC;
+        mockCornerstoneVolumeViewport.type = ViewportType.PLANAR;
         jest
           .spyOn(cstSegmentation.state, 'getSegmentation')
           .mockReturnValue(mockVolumeCornerstoneSegmentation as cstTypes.Segmentation);
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as csTypes.IVolumeViewport);
+          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
         jest
           .spyOn(cstSegmentation, 'addSegmentationRepresentations')
           .mockReturnValueOnce(undefined);
@@ -1123,7 +1124,7 @@ describe('SegmentationService', () => {
         const frameOfReferenceUID = 'frameOfReferenceUID';
         const imageId = 'imageId';
 
-        mockCornerstoneVolumeViewport.type = ViewportType.ORTHOGRAPHIC;
+        mockCornerstoneVolumeViewport.type = ViewportType.PLANAR;
         mockCornerstoneVolumeViewport.getFrameOfReferenceUID.mockReturnValueOnce(
           frameOfReferenceUID
         );
@@ -1133,7 +1134,7 @@ describe('SegmentationService', () => {
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as csTypes.IVolumeViewport);
+          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
         jest
           .spyOn(cstSegmentation, 'addSegmentationRepresentations')
           .mockReturnValueOnce(undefined);
@@ -2611,7 +2612,7 @@ describe('SegmentationService', () => {
       jest
         .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
         // only needed interfaces for the addSegmentationRepresentation call
-        .mockReturnValue(mockCornerstoneStackViewport as unknown as csTypes.IStackViewport);
+        .mockReturnValue(mockCornerstoneStackViewport as unknown as PlanarViewport);
       jest
         .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
         .mockReturnValue('labelmapImageId');

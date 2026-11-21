@@ -1,13 +1,14 @@
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { cache, Types } from '@cornerstonejs/core';
 import { utilities } from '@cornerstonejs/tools';
 
-function _getVolumeFromViewport(viewport: Types.IBaseVolumeViewport) {
+function _getVolumeFromViewport(viewport: PlanarViewport) {
   // Handle non-volume viewports that don't have getAllVolumeIds
   if (!viewport?.getAllVolumeIds) {
     return null;
   }
 
-  const volumeIds = viewport.getAllVolumeIds();
+  const volumeIds = viewport.getActors().map(entry => entry.referencedId);
   const volumes = volumeIds.map(id => cache.getVolume(id));
   const dynamicVolume = volumes.find(volume => volume.isDynamicVolume());
 
