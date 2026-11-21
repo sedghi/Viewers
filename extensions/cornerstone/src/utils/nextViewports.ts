@@ -1,35 +1,4 @@
 /**
- * Module-level accessor for the `appConfig.genericViewports.enabled` opt-in flag.
- *
- * The flag is captured once at extension init (from the `useNextViewports` URL
- * query param, else appConfig) and read by the
- * two viewport-type chokepoints (`getCornerstoneViewportType` and the
- * `CornerstoneViewportService` backend split) without threading appConfig
- * through every service/viewport constructor. Defaults to `false` so the legacy
- * path is unchanged until an app opts in.
- */
-let nextViewportsEnabled = false;
-
-export function setNextViewportsEnabled(value: boolean): void {
-  nextViewportsEnabled = Boolean(value);
-}
-
-export function isNextViewportsEnabled(): boolean {
-  return nextViewportsEnabled;
-}
-
-/**
- * Resolves the effective flag at init. A `useNextViewports` URL query parameter
- * takes precedence over the appConfig value, so the native backend can be opted
- * into per-session via the URL (e.g. `?useNextViewports=true`) without editing
- * the deployed config. `?useNextViewports` (no value), `=true`, or `=1` enable
- * it; any other value disables it. When the param is absent, appConfig wins.
- */
-export function resolveNextViewportsEnabled(appConfigValue: unknown): boolean {
-  return resolveBooleanUrlOptIn('useNextViewports', appConfigValue);
-}
-
-/**
  * Aliases accepted by the `viewportRendering` param/config, mapped to
  * cornerstone render backend wire ids ('gpu' is the VTK/WebGL backend).
  * Values not listed here pass through untouched so backends registered via
@@ -124,9 +93,8 @@ export function resolveViewportRendering(appConfigValue: unknown): ViewportRende
 
 /**
  * Per-viewport-type render backend overrides, captured once at extension init
- * (like the `useNextViewports` flag above) and read by the native mount paths
- * in NextViewportBackend, which pass the override as the per-mount
- * `renderBackend` option on `setDisplaySets`.
+ * and read by the mount paths in NextViewportBackend, which pass the override
+ * as the per-mount `renderBackend` option on `setDisplaySets`.
  */
 let renderBackendByViewportType: Record<string, string> = {};
 
@@ -136,22 +104,4 @@ export function setViewportRenderingOverrides(overrides: Record<string, string>)
 
 export function getViewportRenderingOverride(viewportType: string): string | undefined {
   return renderBackendByViewportType[viewportType?.toLowerCase()];
-}
-
-/**
- * Reads a boolean opt-in URL query param, falling back to a config value when
- * the param is absent. `?param` (no value), `=true`, or `=1` enable it; any
- * other value disables it.
- */
-function resolveBooleanUrlOptIn(paramName: string, fallbackValue: unknown): boolean {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has(paramName)) {
-      const value = params.get(paramName);
-      return value === '' || value === 'true' || value === '1';
-    }
-  } catch {
-    // window/URL unavailable (SSR/non-browser) — fall back to the config value.
-  }
-  return Boolean(fallbackValue);
 }

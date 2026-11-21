@@ -6,22 +6,17 @@ const CUSTOMIZATION_ID = 'cornerstone.segmentation.autoHydrateViewportTypes';
  * 'volume3d', ...), because that is the vocabulary a site configures in.
  *
  * Cornerstone's own enum is a different vocabulary and is not usable as the key:
- * 'orthographic' is what a 'volume' viewport becomes, and under
- * `useNextViewports` every planar viewport - stack and MPR alike - collapses to
- * 'planarNext', which no configured list could name. So callers pass the OHIF
- * type, and the few aliases that can still reach here are folded in.
+ * every planar viewport - stack and MPR alike - has the type 'planar', which no
+ * configured list could name. So callers pass the OHIF type, and the few aliases
+ * that can still reach here are folded in.
  *
- * 'planarNext' deliberately maps to undefined rather than to a type: it is
+ * 'planar' deliberately maps to undefined rather than to a type: it is
  * genuinely ambiguous (stack or volume), and guessing would gate viewports a
  * site never meant to exclude.
  */
 const TYPE_ALIASES: Record<string, string | undefined> = {
   orthographic: 'volume',
-  volume3dnext: 'volume3d',
-  videonext: 'video',
-  wholeslidenext: 'wholeslide',
-  ecgnext: 'ecg',
-  planarnext: undefined,
+  planar: undefined,
 };
 
 function normalizeViewportType(viewportType?: string): string | undefined {

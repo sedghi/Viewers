@@ -14,7 +14,6 @@ export const preserveKeys = [
   'customization',
   'theme',
   'debug',
-  'useNextViewports',
 ];
 
 function preserveKey(query: URLSearchParams, current: URLSearchParams, key: string) {

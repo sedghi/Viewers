@@ -13,30 +13,21 @@ export interface VolumeLightingOptions {
 export interface WindowLevelParams {
   windowWidth: number;
   windowCenter: number;
-  /** Legacy volume target; resolved by the caller. Ignored on native (active binding). */
-  volumeId?: string;
-  /** Native per-binding target (e.g. the PT overlay in a fusion); ignored on legacy. */
+  /** The binding to change (e.g. the PT overlay in a fusion). The source binding when absent. */
   displaySetInstanceUID?: string;
 }
 
 export interface ColormapParams {
   colormap: Record<string, unknown>;
-  /** Used by the legacy orthographic branch to resolve the volumeId; ignored on native. */
+  /** The binding to change (e.g. the PT overlay in a fusion). The source binding when absent. */
   displaySetInstanceUID?: string;
 }
 
 /**
  * Per-viewport interaction/appearance operations, extracted out of commandsModule so
- * command bodies stay thin (migration plan §4.3). This mirrors the IViewportBackend
- * family (LegacyViewportBackend / NextViewportBackend): there is one implementation per
- * lane and each uses its lane's cornerstone APIs DIRECTLY (legacy getCamera/setProperties/
- * getViewPresentation vs native getViewState/setDisplaySetPresentation/getViewReference).
- *
- * DISPATCH: unlike IViewportBackend (selected once by the appConfig flag because it owns
- * per-session mount lifecycle), operations are routed PER VIEWPORT via the dispatcher in
- * viewportOperations.ts (isNextViewport(viewport) ? next : legacy). The viewport is
- * already created and self-describing, and a session can hold a mix of legacy and native
- * viewports; per-viewport routing is the runtime truth.
+ * command bodies stay thin. The implementation (NextViewportOperations) uses the
+ * cornerstone API of the viewport directly (getViewState, setDisplaySetPresentation,
+ * getViewReference), or the viewport adapter where it has the call.
  *
  * RENDER: no method calls viewport.render(). The caller renders, matching today's
  * per-command render timing (e.g. setViewportColormap renders only when immediate).
@@ -55,19 +46,19 @@ export interface IViewportOperations {
   /** Rotate: mode 'apply' = relative, mode 'set' = absolute (with flip-parity correction). */
   rotate(viewport: CoreTypes.IViewport, rotation: number, mode?: RotationMode): void;
 
-  /** Reset properties + camera/view-state to defaults (slice/navigation preserved on native). */
+  /** Reset the presentation and the view state to defaults (the slice is preserved). */
   reset(viewport: CoreTypes.IViewport): void;
 
   /** Zoom by direction: >0 in, <0 out, 0 = fit-to-window (reset). */
   scaleBy(viewport: CoreTypes.IViewport, direction: number): void;
 
-  /** Read the view-plane normal in a lane-appropriate way. */
+  /** Read the view-plane normal. */
   getViewPlaneNormal(viewport: CoreTypes.IViewport): CoreTypes.Point3 | undefined;
 
   /**
    * In-plane re-center (+ zoom-to-fit) of a measurement AFTER the caller's setViewReference
    * slice jump. Returns true when it re-centered (caller should render), false when the
-   * measurement was already visible or in-plane centering is unsupported on the lane.
+   * measurement was already visible or in-plane centering is unsupported.
    */
   centerOnMeasurement(viewport: CoreTypes.IViewport, measurement: Record<string, unknown>): boolean;
 
@@ -82,7 +73,7 @@ export interface IViewportOperations {
   /** Apply a colormap. */
   setColormap(viewport: CoreTypes.IViewport, params: ColormapParams): void;
 
-  // ---- 3D volume rendering (CS-14: native unsupported yet) ----
+  // ---- 3D volume rendering ----
 
   /** VR preset. */
   setPreset(viewport: CoreTypes.IViewport, preset: string): void;

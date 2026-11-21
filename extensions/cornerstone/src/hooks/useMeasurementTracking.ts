@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSystem } from '@ohif/core/src';
 import { useViewportDisplaySets } from './useViewportDisplaySets';
-import { isVolumeViewportType } from '../utils/getLegacyViewportType';
+import { utilities as csUtils } from '@cornerstonejs/core';
 
 /**
  * Hook that provides measurement tracking information for a viewport
@@ -54,7 +54,7 @@ export function useMeasurementTracking({ viewportId }: { viewportId: string }) {
     const viewport = cornerstoneViewportService?.getCornerstoneViewport(viewportId);
     const SeriesInstanceUID = backgroundDisplaySet.SeriesInstanceUID;
 
-    if (isVolumeViewportType(viewport)) {
+    if (csUtils.viewportIsInVolumeMode(viewport)) {
       const currentImageId = viewport?.getCurrentImageId();
 
       if (!currentImageId) {

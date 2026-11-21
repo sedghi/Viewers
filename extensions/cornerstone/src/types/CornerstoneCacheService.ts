@@ -1,4 +1,5 @@
 import { Enums, Types } from '@cornerstonejs/core';
+import type { ViewportShape } from '../utils/viewportDataShape';
 
 type StackData = {
   StudyInstanceUID: string;
@@ -21,19 +22,18 @@ type VolumeData = {
 
 type StackViewportData = {
   viewportType: Enums.ViewportType;
-  // The legacy stack/volume data-shape decision (STACK vs ORTHOGRAPHIC/VOLUME_3D),
-  // preserved even when `viewportType` is a native Generic type (PLANAR_NEXT) that
-  // collapses both. Consumers that must distinguish stack from volume content
-  // (data re-build on invalidation, orientation markers) read this instead of
-  // `viewportType`, which is ambiguous on the native path. See migration plan §4.7.
-  dataShapeType?: Enums.ViewportType;
+  // The shape of the data (a stack, a volume, a 3D volume or other). The planar
+  // `viewportType` is the same for a stack and for a volume, so consumers that
+  // must distinguish them (data re-build on invalidation, orientation markers)
+  // read this instead, with `getViewportDataShape(viewportData)`.
+  dataShapeType?: ViewportShape;
   data: StackData[];
 };
 
 type VolumeViewportData = {
   viewportType: Enums.ViewportType;
   /** See StackViewportData.dataShapeType. */
-  dataShapeType?: Enums.ViewportType;
+  dataShapeType?: ViewportShape;
   data: VolumeData[];
 };
 

@@ -38,17 +38,11 @@ import { useSegmentationPresentationStore } from '../../stores/useSegmentationPr
 import getClosestOrientationFromIOP from '../../utils/isReferenceViewable';
 import { getViewportAdapter } from './adapter';
 import { viewportOperations } from './backends/viewportOperations';
-import {
-  getLegacyViewportType,
-  isVolume3DViewportType,
-  isVolumeViewportType,
-} from '../../utils/getLegacyViewportType';
 import { BlendModes } from '@cornerstonejs/core/enums';
-import { isNextViewportsEnabled } from '../../utils/nextViewports';
 import { isAutoHydrateViewportType } from '../../utils/autoHydrateViewportTypes';
+import { getViewportDataShape } from '../../utils/viewportDataShape';
 import type { IViewportBackend } from './backends/IViewportBackend';
 import type { IViewportServiceInternals } from './backends/IViewportServiceInternals';
-import { LegacyViewportBackend } from './backends/LegacyViewportBackend';
 import { NextViewportBackend } from './backends/NextViewportBackend';
 
 const EVENTS = {
@@ -58,56 +52,6 @@ const EVENTS = {
 
 const MIN_STACK_VIEWPORTS_TO_ENQUEUE_RESIZE = 12;
 const MIN_VOLUME_VIEWPORTS_TO_ENQUEUE_RESIZE = 6;
-
-// Actor class names that represent a primary volume binding in a viewport.
-// Legacy ORTHOGRAPHIC / VOLUME_3D render the source volume as a 'vtkVolume'
-// actor. Under the GenericViewport-backed compat path (useGenericViewport),
-// the MPR slice render path emits 'vtkImageSlice' actors instead, so the
-// volume-set-vs-add optimization below must recognize both. (3D still uses
-// 'vtkVolume'.) Without this, the optimization silently no-ops and a full
-// setVolumes() teardown blanks MPR during SEG hydration.
-const VOLUME_ACTOR_CLASS_NAMES = new Set(['vtkVolume', 'vtkImageSlice']);
-
-function getVolumeActorReferencedIds(viewport: PlanarViewport): string[] {
-  const actors = viewport.getActors?.() ?? [];
-  return actors
-    .filter(ac => VOLUME_ACTOR_CLASS_NAMES.has(ac.actor?.getClassName?.() ?? ''))
-    .map(ac => ac.referencedId)
-    .filter(Boolean) as string[];
-}
-
-function volumeIdPrefixesMatch(
-  existingIds: string[],
-  prefixLen: number,
-  targetIds: string[]
-): boolean {
-  if (prefixLen > targetIds.length) {
-    return false;
-  }
-  for (let i = 0; i < prefixLen; i++) {
-    if (existingIds[i] !== targetIds[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/**
- * Returns true when the viewport type matches a volume-based presentation (ORTHOGRAPHIC or VOLUME_3D).
- */
-function viewportMatchesDesiredVolumePresentation(
-  viewport: Types.IViewport,
-  desiredViewportInfo: ViewportInfo
-): boolean {
-  const desiredType = desiredViewportInfo.getViewportType();
-  if (getLegacyViewportType(viewport) !== desiredType) {
-    return false;
-  }
-  return (
-    desiredType === csEnums.ViewportType.ORTHOGRAPHIC ||
-    desiredType === csEnums.ViewportType.VOLUME_3D
-  );
-}
 
 export const WITH_NAVIGATION = { withNavigation: true, withOrientation: false };
 export const WITH_ORIENTATION = { withNavigation: true, withOrientation: true };
@@ -144,31 +88,16 @@ class CornerstoneViewportService
   gridResizeDelay = 50;
   gridResizeTimeOut = null;
 
-  // Resolved once, lazily, on first use. Forked viewport concerns (mount dispatch +
-  // native dataId lifecycle) route through it.
-  private _backend: IViewportBackend | null = null;
+  // The mount bodies, the presentation capture and restore, and the dataId
+  // lifecycle live in the backend.
+  private readonly backend: IViewportBackend;
 
   constructor(servicesManager: AppTypes.ServicesManager) {
     super(EVENTS);
     this.renderingEngine = null;
     this.viewportGridResizeObserver = null;
     this.servicesManager = servicesManager;
-  }
-
-  /**
-   * Sanctioned flag read (the exhaustive list lives in backends/README.md): pick
-   * the viewport backend once, on first use. Resolved lazily (not in the
-   * constructor) because the service singleton is constructed during extension
-   * registration, BEFORE init.tsx runs setNextViewportsEnabled — the first mount
-   * (when this is first read) always happens after init, so the flag is settled.
-   */
-  private get backend(): IViewportBackend {
-    if (!this._backend) {
-      this._backend = isNextViewportsEnabled()
-        ? new NextViewportBackend(this)
-        : new LegacyViewportBackend(this);
-    }
-    return this._backend;
+    this.backend = new NextViewportBackend(this);
   }
   hangingProtocolService: unknown;
   viewportsInfo: unknown;
@@ -235,11 +164,11 @@ class CornerstoneViewportService
     }
 
     const numStackViewportsInViewportGrid = Array.from(this.viewportsById.values()).filter(
-      viewportInfo => viewportInfo.getViewportType() === csEnums.ViewportType.STACK
+      viewportInfo => viewportInfo.getDataShape() === 'stack'
     ).length;
 
     const numVolumeViewportsInViewportGrid = Array.from(this.viewportsById.values()).filter(
-      viewportInfo => viewportInfo.getViewportType() === csEnums.ViewportType.ORTHOGRAPHIC
+      viewportInfo => viewportInfo.getDataShape() === 'volume'
     ).length;
 
     const isEasyResize =
@@ -267,7 +196,7 @@ class CornerstoneViewportService
   public destroy() {
     this._removeResizeObserver();
     this.viewportGridResizeObserver = null;
-    // Flush any native dataId registrations the backend owns (§4.7); no-op for legacy.
+    // Flush the dataId registrations the backend owns.
     this.backend.destroy();
     try {
       this.renderingEngine?.destroy?.();
@@ -290,8 +219,8 @@ class CornerstoneViewportService
    * @param viewportId - The viewportId to disable
    */
   public disableElement(viewportId: string): void {
-    // Release native dataId registrations BEFORE the viewport bookkeeping is
-    // deleted (§4.7 ref-counted GC); no-op for the legacy backend.
+    // Release the dataId registrations BEFORE the viewport bookkeeping is
+    // deleted (ref-counted).
     this.backend.onViewportDisabled(viewportId);
 
     this.renderingEngine?.disableElement(viewportId);
@@ -426,8 +355,6 @@ class CornerstoneViewportService
 
     const viewportInfo = this.viewportsById.get(viewportId);
 
-    // Forked per backend (§4.3 presentation read): legacy reads getViewPresentation
-    // (pan/zoom); native omits it (a PLANAR_NEXT viewport has no getViewPresentation).
     return this.backend.getPositionPresentation(csViewport, viewportInfo, viewportId);
   }
 
@@ -451,17 +378,7 @@ class CornerstoneViewportService
       return properties;
     };
 
-    const properties = isVolumeViewportType(csViewport)
-      ? new Map()
-      : cleanProperties(getViewportAdapter(csViewport).getPresentation());
-
-    if (properties instanceof Map) {
-      const volumeIds = (csViewport as PlanarViewport).getActors().map(entry => entry.referencedId);
-      volumeIds?.forEach(volumeId => {
-        const csProps = cleanProperties(csViewport.getProperties(volumeId));
-        properties.set(volumeId, csProps);
-      });
-    }
+    const properties = cleanProperties(getViewportAdapter(csViewport).getPresentation());
 
     const viewportInfo = this.viewportsById.get(viewportId);
 
@@ -518,7 +435,7 @@ class CornerstoneViewportService
     const renderingEngine = this.getRenderingEngine();
 
     // if not valid viewportData then return early
-    if (viewportData.viewportType === csEnums.ViewportType.STACK) {
+    if (getViewportDataShape(viewportData) === 'stack') {
       // check if imageIds is valid
       if (!viewportData.data[0].imageIds?.length) {
         return;
@@ -728,7 +645,6 @@ class CornerstoneViewportService
 
     for (const id of this.viewportsById.keys()) {
       const viewport = this.getCornerstoneViewport(id);
-      // Lane-appropriate view-plane normal (legacy getCamera vs native getViewReference).
       const viewPlaneNormal = viewportOperations.getViewPlaneNormal(viewport);
 
       if (!viewPlaneNormal) {
@@ -818,7 +734,7 @@ class CornerstoneViewportService
 
     if (!viewportType) {
       if (metadata.referencedImageId && !displaySet.isReconstructable) {
-        viewportType = csEnums.ViewportType.STACK;
+        viewportType = 'stack';
       } else if (metadata.volumeId) {
         viewportType = 'volume';
       }
@@ -1003,8 +919,8 @@ class CornerstoneViewportService
       initialImageIndexToUse = this._getInitialImageIndexForViewport(viewportInfo, imageIds) || 0;
     }
 
-    // The lane-specific mount (legacy setStack/setProperties vs native
-    // setDisplaySets/setDisplaySetPresentation/setViewState) lives in the backend.
+    // The mount itself (setDisplaySets, setDisplaySetPresentation, setViewState)
+    // lives in the backend.
     return this.backend.mountStack(viewport, {
       displaySetInstanceUIDs,
       imageIds,
@@ -1028,20 +944,19 @@ class CornerstoneViewportService
       return;
     }
     const { index, preset } = initialImageOptions;
-    const viewportType = viewportInfo.getViewportType();
+    const dataShape = viewportInfo.getDataShape();
 
     let numberOfSlices;
-    if (viewportType === csEnums.ViewportType.STACK) {
+    if (dataShape === 'stack') {
       numberOfSlices = imageIds.length;
-    } else if (viewportType === csEnums.ViewportType.ORTHOGRAPHIC) {
-      const viewport = this.getCornerstoneViewport(viewportInfo.getViewportId());
-      const imageSliceData = csUtils.getImageSliceDataForVolumeViewport(viewport);
+    } else if (dataShape === 'volume') {
+      const viewport = this.getCornerstoneViewport(viewportInfo.getViewportId()) as PlanarViewport;
 
-      if (!imageSliceData) {
+      if (!viewport) {
         return;
       }
 
-      ({ numberOfSlices } = imageSliceData);
+      numberOfSlices = viewport.getNumberOfSlices();
     } else {
       return;
     }
@@ -1216,11 +1131,10 @@ class CornerstoneViewportService
     // For SEG and RT viewports
     const overlayProcessingResults = this._processExtraDisplaySetsForViewport(viewport) || [];
 
-    // Lane-specific volume mount: the native backend mounts registered dataIds via
-    // setDisplaySets + per-binding presentations and reports the mount handled;
-    // legacy reports unhandled and runs the shared setVolumes tail below (which a
-    // native overlay-only mount also traverses — its legacy-surface steps are
-    // lane-guarded via mountOverlayOnlyVolumes).
+    // The backend mounts the registered dataIds via setDisplaySets with the
+    // per-binding presentations and reports the mount handled. An overlay-only
+    // mount (no base volume) is not handled there: the rest of this method adds
+    // its overlays.
     const handledByBackend = await this.backend.mountVolumes(viewport, {
       filteredVolumeInputArray,
       volumesProperties,
@@ -1250,7 +1164,7 @@ class CornerstoneViewportService
             throw new Error('Background display set not found');
           }
 
-          if (isVolume3DViewportType(viewport)) {
+          if (getViewportAdapter(viewport).getShape() === 'volume3d') {
             timeoutViewportCallback(() => {
               viewportGridService.setDisplaySetsForViewport({
                 viewportId: viewport.id,
@@ -1262,63 +1176,13 @@ class CornerstoneViewportService
       });
     }
 
-    const baseVolumeInputs = filteredVolumeInputArray.map(({ volumeInput }) => volumeInput);
-    const nextBaseVolumeIds = baseVolumeInputs.map(v => v.volumeId);
-    const existingVolumeIds = getVolumeActorReferencedIds(viewport);
-
-    let skippedIdenticalBaseVolumes = false;
-
-    if (baseVolumeInputs.length) {
-      const singleBaseViewport = nextBaseVolumeIds.length === 1;
-
-      // Only skip setVolumes() when the viewport type already matches the desired OHIF type
-      // (ORTHOGRAPHIC / VOLUME_3D); otherwise a stack → MPR switch with the same volumeId
-      // would incorrectly skip rebuilding the viewport.
-      if (
-        singleBaseViewport &&
-        existingVolumeIds.length >= nextBaseVolumeIds.length &&
-        volumeIdPrefixesMatch(existingVolumeIds, nextBaseVolumeIds.length, nextBaseVolumeIds) &&
-        viewportMatchesDesiredVolumePresentation(viewport, viewportInfo)
-      ) {
-        // Same primary volume already loaded (e.g. labelmap / extra actors after it) — avoid
-        // setVolumes(), which tears down all actors and blanks MPR during SEG hydrate.
-        skippedIdenticalBaseVolumes = true;
-      } else if (
-        existingVolumeIds.length &&
-        nextBaseVolumeIds.length > existingVolumeIds.length &&
-        volumeIdPrefixesMatch(existingVolumeIds, existingVolumeIds.length, nextBaseVolumeIds) &&
-        typeof viewport.addVolumes === 'function'
-      ) {
-        const toAdd = baseVolumeInputs.slice(existingVolumeIds.length);
-        if (toAdd.length) {
-          await viewport.addVolumes(toAdd);
-        }
-      } else {
-        await viewport.setVolumes(baseVolumeInputs);
-      }
-    } else if (volumeInputArray.length) {
-      // Every volume input is an overlay display set. Legacy still mounts them via
-      // setVolumes; the native backend no-ops (its overlays are added via
-      // _addOverlayRepresentations below).
-      await this.backend.mountOverlayOnlyVolumes(viewport, volumeInputArray);
-    }
-
     await this._addOverlayRepresentations(overlayProcessingResults);
     viewport.render();
 
-    volumesProperties.forEach(({ properties, volumeId }) => {
-      timeoutViewportCallback(() => {
-        viewport.setProperties(properties, volumeId);
-        viewport.render();
-      });
-    });
-
     this.setPresentations(viewport.id, presentations);
-    // Presentations apply segmentation (hydrated labelmap etc.) after the render above — redraw so
-    // every orthographic/3D tile shows the updated scene (fixes MPR siblings blank after SEG hydrate).
     viewport.render();
 
-    if (!presentations.positionPresentation && !skippedIdenticalBaseVolumes) {
+    if (!presentations.positionPresentation) {
       const imageIndex = this._getInitialImageIndexForViewport(viewportInfo);
 
       if (imageIndex !== undefined) {
@@ -1519,8 +1383,7 @@ class CornerstoneViewportService
     const viewportInfo = this.getViewportInfo(viewportId);
     const viewport = this.getCornerstoneViewport(viewportId);
 
-    // The camera snapshot/restore surface is forked per lane (legacy
-    // getCamera/setCamera vs native view state), so the backend owns the re-mount.
+    // The backend owns the re-mount: it snapshots and restores the view state.
     const displaySetPromise = this.backend.remount(
       viewport,
       viewportData,
@@ -1528,8 +1391,8 @@ class CornerstoneViewportService
       keepCamera
     );
 
-    // remount() returns undefined for viewport families with no re-mount path
-    // (matching legacy behavior); nothing changed, so skip the event broadcast.
+    // remount() returns undefined for viewport families with no re-mount path;
+    // nothing changed, so skip the event broadcast.
     if (!displaySetPromise) {
       return;
     }
@@ -1551,10 +1414,9 @@ class CornerstoneViewportService
     viewportInfo: ViewportInfo,
     presentations: Presentations = {}
   ): Promise<void> {
-    // The backend (legacy vs native, selected once in the constructor) owns the
-    // per-family routing: legacy dispatches by the runtime cornerstone viewport
-    // type; native dispatches by the bound data shape, because native stack and
-    // volume content both report a single PLANAR_NEXT type (§4.4).
+    // The backend owns the per-family routing: video, whole slide and ECG by the
+    // viewport type, a stack and a volume by the shape of the bound data, because
+    // both are shown by a planar viewport.
     return this.backend.dispatchMount(viewport, viewportData, viewportInfo, presentations);
   }
 
@@ -1690,9 +1552,6 @@ class CornerstoneViewportService
     viewport: PlanarViewport | PlanarViewport,
     lutPresentation: LutPresentation
   ): void {
-    // Forked per backend (§4.3 presentation write): legacy applies via setProperties;
-    // native via setDisplaySetPresentation (a PLANAR_NEXT viewport has no setProperties),
-    // so setPresentations no longer throws on the native path.
     this.backend.setLutPresentation(viewport, lutPresentation);
   }
 
@@ -1700,9 +1559,6 @@ class CornerstoneViewportService
     viewport: PlanarViewport | PlanarViewport,
     positionPresentation: PositionPresentation
   ): void {
-    // Forked per backend (§4.3 presentation write): both apply the view reference;
-    // legacy then applies getViewPresentation pan/zoom via setViewPresentation, native
-    // omits it for now (a PLANAR_NEXT viewport has no setViewPresentation).
     this.backend.setPositionPresentation(viewport, positionPresentation);
   }
 
@@ -1725,8 +1581,8 @@ class CornerstoneViewportService
     // The type comes from the grid, not from ViewportInfo: the customization is
     // written in OHIF viewport types and getUpdatedViewportsForSegmentation
     // reads the same field, so one configured list means the same thing in both
-    // places. ViewportInfo holds the cornerstone type, which under
-    // `useNextViewports` is 'planarNext' for stack and MPR alike.
+    // places. ViewportInfo holds the cornerstone type, which is 'planar' for
+    // stack and MPR alike.
     const autoHydrateAllowed = isAutoHydrateViewportType({
       viewportType: viewportGridService.getState().viewports.get(viewport.id)?.viewportOptions
         ?.viewportType,
@@ -1745,7 +1601,7 @@ class CornerstoneViewportService
       const { segmentationId, type, hydrated } = presentationItem;
 
       const { Labelmap, Surface } = csToolsEnums.SegmentationRepresentations;
-      const isVolume3D = isVolume3DViewportType(viewport);
+      const isVolume3D = getViewportAdapter(viewport).getShape() === 'volume3d';
 
       // The stored type is a hint: it was recorded when the segmentation was
       // hydrated, possibly against a viewport of a different kind than this

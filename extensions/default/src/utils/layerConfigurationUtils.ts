@@ -1,4 +1,4 @@
-import { isNextViewport, NEXT_OVERLAY_OPACITY } from '@ohif/extension-cornerstone';
+import { getViewportAdapter, NEXT_OVERLAY_OPACITY } from '@ohif/extension-cornerstone';
 
 export const DERIVED_OVERLAY_MODALITIES = ['SEG', 'RTSTRUCT'];
 export const DEFAULT_COLORMAP = 'hsv';
@@ -69,11 +69,11 @@ export function configureViewportForLayerAddition(params: {
 
   // If a viewport type was already set do not reset it.
   if (!viewport.viewportOptions.viewportType) {
-    // If the live Cornerstone viewport is already orthographic (volume), keep it as
+    // If the live Cornerstone viewport already shows a volume, keep it as
     // 'volume'. Prevents accidentally downgrading a volume viewport to 'stack' when
     // viewportOptions arrives without a viewportType (e.g. from the HP overlay path).
     const csViewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-    if (csViewport?.type === 'orthographic') {
+    if (csViewport && getViewportAdapter(csViewport).getShape() === 'volume') {
       viewport.viewportOptions.viewportType = 'volume';
       // Special handling for overlay display sets
     } else if (requestedLayerDisplaySet.isOverlayDisplaySet) {
@@ -95,10 +95,9 @@ export function configureViewportForLayerAddition(params: {
     }
   }
 
-  // Native ("next") viewports need the legacy-equivalent initial overlay opacity
-  // (see the NEXT_OVERLAY_OPACITY policy in @ohif/extension-cornerstone).
-  const liveCsViewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-  const isLiveViewportNext = !!liveCsViewport && isNextViewport(liveCsViewport);
+  // A live viewport starts an overlay at the NEXT_OVERLAY_OPACITY policy of
+  // @ohif/extension-cornerstone.
+  const hasLiveViewport = !!cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
   // create same amount of display set options as the number of display set UIDs
   const displaySetOptions = allDisplaySetInstanceUIDs.map((uid, index) => {
@@ -119,7 +118,7 @@ export function configureViewportForLayerAddition(params: {
       customizationService
     );
 
-    if (isLiveViewportNext && typeof overlayOptions.colormap?.opacity === 'number') {
+    if (hasLiveViewport && typeof overlayOptions.colormap?.opacity === 'number') {
       overlayOptions.colormap.opacity = NEXT_OVERLAY_OPACITY;
     }
 
@@ -154,9 +153,9 @@ export function configureViewportForLayerRemoval(params: {
     viewport.viewportOptions = {};
   }
 
-  const csViewportOrthographic =
-    cornerstoneViewportService.getCornerstoneViewport(viewportId)?.type === 'orthographic';
-  viewport.viewportOptions.viewportType = csViewportOrthographic ? 'volume' : 'stack';
+  const csViewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+  const showsVolume = !!csViewport && getViewportAdapter(csViewport).getShape() === 'volume';
+  viewport.viewportOptions.viewportType = showsVolume ? 'volume' : 'stack';
 
   // orientation
   if (!viewport.viewportOptions.orientation) {

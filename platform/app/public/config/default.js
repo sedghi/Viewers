@@ -38,12 +38,8 @@ window.config = {
   // },
   // ----------------------------------------------------------------------------
 
-  // --- Native ("next") Generic Viewport --------------------------------------
-  // OFF by default. Set `enabled: true` (or pass ?useNextViewports=true in the
-  // URL) to drive viewports through cornerstone's native GenericViewport
-  // ("next") API instead of the legacy Stack/Volume viewport classes.
+  // --- Viewport rendering -----------------------------------------------------
   genericViewports: {
-    enabled: false,
     // Render backend selection: 'cpu' | 'webgl' | 'auto' | a backend id
     // registered via cornerstone's registerRenderBackend (e.g. a webgpu
     // backend), or a map with per-viewport-type overrides, e.g.

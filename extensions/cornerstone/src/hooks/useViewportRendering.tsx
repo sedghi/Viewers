@@ -2,8 +2,7 @@ import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { useSystem } from '@ohif/core';
 import { useViewportDisplaySets } from './useViewportDisplaySets';
 import { Types, utilities, Enums } from '@cornerstonejs/core';
-import { isVolume3DViewportType } from '../utils/getLegacyViewportType';
-import { getViewportAdapter, LEGACY_OPACITY_GAMMA } from '../services/ViewportService/adapter';
+import { getViewportAdapter } from '../services/ViewportService/adapter';
 import { WindowLevelPreset } from '../types/WindowLevel';
 import { ColorbarPositionType, ColorbarOptions, ColorbarProperties } from '../types/Colorbar';
 import { VolumeRenderingConfig } from '../types/VolumeRenderingConfig';
@@ -143,6 +142,11 @@ function resolveActiveColormap(
   }
 }
 
+/** Whether the viewport is a 3D viewport. False when there is no viewport. */
+function isVolume3DViewport(viewport: Types.IViewport | null | undefined): boolean {
+  return !!viewport && getViewportAdapter(viewport).getShape() === 'volume3d';
+}
+
 /**
  * Reads the viewport's stored presentation (VOI range, colormap) for a display
  * set. Kept at module scope: the `??` inside the try/catch trips a React
@@ -194,14 +198,11 @@ export function useViewportRendering(
   const [viewport, setViewport] = useState<Types.IViewport | null>(() =>
     viewportId ? (cornerstoneViewportService.getCornerstoneViewport(viewportId) ?? null) : null
   );
-  const [is3DVolume, setIs3DVolume] = useState(isVolume3DViewportType(viewport));
+  const [is3DVolume, setIs3DVolume] = useState(isVolume3DViewport(viewport));
 
-  // The opacity slider gamma follows the rendering path (linear on native,
-  // the historical 1/5 curve on legacy), so the slider feel and its initial
-  // position match what is rendered.
-  const opacityGamma = viewport
-    ? getViewportAdapter(viewport).getOpacityGamma()
-    : LEGACY_OPACITY_GAMMA;
+  // The opacity slider gamma follows the rendering path, so the slider feel and
+  // its initial position match what is rendered.
+  const opacityGamma = viewport ? getViewportAdapter(viewport).getOpacityGamma() : 1;
   const linearToOpacity = useCallback(
     (linearValue: number): number => Math.pow(linearValue, opacityGamma),
     [opacityGamma]
@@ -339,7 +340,7 @@ export function useViewportRendering(
   }, [allWindowLevelPresets, activeDisplaySetInstanceUID]);
 
   useEffect(() => {
-    setIs3DVolume(isVolume3DViewportType(viewport));
+    setIs3DVolume(isVolume3DViewport(viewport));
 
     if (!viewport || !activeDisplaySetInstanceUID) {
       return;

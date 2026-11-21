@@ -5,9 +5,10 @@
 'use no memo';
 
 import React, { useEffect } from 'react';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { utilities as csUtils } from '@cornerstonejs/core';
 import { ImageScrollbar } from '@ohif/ui-next';
-import { isVolume3DViewportType } from '../../utils/getLegacyViewportType';
+import { getViewportAdapter } from '../../services/ViewportService/adapter';
 import { getSliceEventName, getViewportSliceCount } from '../../utils/viewportDataShape';
 
 function CornerstoneImageScrollbar({
@@ -45,9 +46,11 @@ function CornerstoneImageScrollbar({
       return;
     }
 
-    const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+    const viewport = cornerstoneViewportService.getCornerstoneViewport(
+      viewportId
+    ) as PlanarViewport;
 
-    if (!viewport || isVolume3DViewportType(viewport)) {
+    if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
       return;
     }
 
@@ -71,8 +74,10 @@ function CornerstoneImageScrollbar({
     const eventId = getSliceEventName(viewportData);
 
     const updateIndex = event => {
-      const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-      if (!viewport || isVolume3DViewportType(viewport)) {
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(
+        viewportId
+      ) as PlanarViewport;
+      if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
         return;
       }
       const { imageIndex, newImageIdIndex = imageIndex, imageIdIndex } = event.detail;
@@ -100,7 +105,5 @@ function CornerstoneImageScrollbar({
     />
   );
 }
-
-
 
 export default CornerstoneImageScrollbar;

@@ -5,9 +5,10 @@
 'use no memo';
 
 import { useEffect, useRef, useState } from 'react';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { cache as cornerstoneCache, Enums, eventTarget, utilities } from '@cornerstonejs/core';
 import { useByteArray } from '@ohif/ui-next';
-import { isVolume3DViewportType } from '../../../utils/getLegacyViewportType';
+import { getViewportAdapter } from '../../../services/ViewportService/adapter';
 import { getSliceEventName, getViewportSliceCount } from '../../../utils/viewportDataShape';
 import { getImageIdFromCacheEvent, getImageIndexFromEvent, isProgressFullMode } from './helpers';
 import { ImageSliceData, ViewportData } from './types';
@@ -115,8 +116,10 @@ export function useViewportSliceSync({
     // Seeds the shared slice state from the live viewport. Re-run on the initial
     // effect and on camera/orientation changes (below).
     const syncFromViewport = () => {
-      const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-      if (!viewport || isVolume3DViewportType(viewport)) {
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(
+        viewportId
+      ) as PlanarViewport;
+      if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
         return;
       }
       try {
@@ -143,8 +146,10 @@ export function useViewportSliceSync({
     const eventId = getSliceEventName(viewportData);
 
     const updateIndex = event => {
-      const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-      if (!viewport || isVolume3DViewportType(viewport)) {
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(
+        viewportId
+      ) as PlanarViewport;
+      if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
         return;
       }
 

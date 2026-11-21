@@ -1,5 +1,4 @@
 import { Enums, cache, Types as CoreTypes, utilities as csUtils } from '@cornerstonejs/core';
-import { isVolume3DViewportType } from '../../../utils/getLegacyViewportType';
 import type {
   IViewportAdapter,
   ViewportColormap,
@@ -37,8 +36,8 @@ const voiRangesClose = (a: VOIRange, b: VOIRange, eps = 0.001): boolean =>
   Math.abs(a.lower - b.lower) < eps && Math.abs(a.upper - b.upper) < eps;
 
 /**
- * Native ("next") lane of IViewportAdapter — a thin pass-through to the native
- * semantic API (view state, per-binding display-set presentation, view
+ * The implementation of IViewportAdapter: a thin pass-through to the semantic
+ * API of the viewport (view state, per-binding display-set presentation, view
  * reference). Instantiated only by `getViewportAdapter`.
  */
 export class NextViewportAdapter implements IViewportAdapter {
@@ -47,7 +46,7 @@ export class NextViewportAdapter implements IViewportAdapter {
   // ---- classification ----
 
   getShape(): ViewportShape {
-    if (isVolume3DViewportType(this.viewport)) {
+    if (this.viewport.type === Enums.ViewportType.VOLUME_3D) {
       return 'volume3d';
     }
     const mode = this.viewport.getCurrentMode?.();
@@ -57,7 +56,7 @@ export class NextViewportAdapter implements IViewportAdapter {
     if (mode === 'volume') {
       return 'volume';
     }
-    return 'unknown';
+    return 'other';
   }
 
   isVolumeRendering(): boolean {
@@ -75,7 +74,10 @@ export class NextViewportAdapter implements IViewportAdapter {
     const volume = reference?.volumeId ? cache.getVolume(reference.volumeId) : undefined;
 
     if (volume && reference.viewPlaneNormal) {
-      return csUtils.isAcquisitionPlaneNormal(volume, reference.viewPlaneNormal as CoreTypes.Point3);
+      return csUtils.isAcquisitionPlaneNormal(
+        volume,
+        reference.viewPlaneNormal as CoreTypes.Point3
+      );
     }
 
     // orientation defaults to ACQUISITION when unset on the native view state.

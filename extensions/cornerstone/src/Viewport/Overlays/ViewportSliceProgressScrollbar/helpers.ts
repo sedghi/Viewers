@@ -1,5 +1,4 @@
 import { ViewportData } from './types';
-import { isVolume3DViewportType } from '../../../utils/getLegacyViewportType';
 import { getViewportAdapter } from '../../../services/ViewportService/adapter';
 
 export function getImageIndexFromEvent(event): number | undefined {
@@ -20,14 +19,12 @@ export function getViewportImageIds(viewportData: ViewportData): string[] {
 }
 
 export function isProgressFullMode(viewportData: ViewportData, viewport): boolean {
-  if (!viewportData || !viewport || isVolume3DViewportType(viewport)) {
+  if (!viewportData || !viewport) {
     return false;
   }
 
   // A stack renders the full progress UI; an acquisition-plane volume is the
-  // volume-mode equivalent. The adapter classifies both lanes (legacy by
-  // viewport type / isInAcquisitionPlane; native by content mode + view-state
-  // orientation, since PLANAR_NEXT collapses the runtime type).
+  // volume-mode equivalent. A 3D viewport has neither shape.
   const adapter = getViewportAdapter(viewport);
   const shape = adapter.getShape();
   if (shape === 'stack') {

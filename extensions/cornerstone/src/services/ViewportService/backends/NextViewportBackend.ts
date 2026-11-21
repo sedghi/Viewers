@@ -8,8 +8,8 @@ import {
 } from '@cornerstonejs/core';
 import type { RenderBackendValue, ECGViewport, PlanarViewport } from '@cornerstonejs/core';
 import { utilities as csToolsUtils } from '@cornerstonejs/tools';
-import { isVolume3DViewportType } from '../../../utils/getLegacyViewportType';
 import { getViewportRenderingOverride } from '../../../utils/nextViewports';
+import { getViewportDataShape } from '../../../utils/viewportDataShape';
 import type ViewportInfo from '../Viewport';
 import type {
   Presentations,
@@ -110,13 +110,11 @@ function getDefaultVoiRangeFromMetadata(
 }
 
 /**
- * Native GenericViewport ("next") backend. Selected when `appConfig.useNextViewports`
- * is on. Routes the mount by the bound data shape (native stack and volume content
- * both report a single PLANAR_NEXT type, so the legacy runtime-type checks cannot
- * classify them — §4.4), owns the per-family native MOUNT BODIES
+ * The viewport backend. Routes the mount by the bound data shape (a planar
+ * viewport shows a stack and a volume, so the viewport type cannot tell them
+ * apart), owns the per-family MOUNT BODIES
  * (mountStack/mountVolumes/mountEcg/mountOther/remount), and owns the ref-counted
- * dataId lifecycle (§4.7) over cornerstone's global GenericViewport metadata
- * provider. The service's shared methods hold no native branches.
+ * dataId lifecycle over cornerstone's global display set metadata provider.
  */
 export class NextViewportBackend implements IViewportBackend {
   private readonly registry = new DataIdRegistry();
@@ -129,9 +127,9 @@ export class NextViewportBackend implements IViewportBackend {
     viewportInfo: ViewportInfo,
     presentations: Presentations = {}
   ): Promise<void> {
-    // Non-planar native families (video / WSI / ECG) route by viewport TYPE to their
+    // Non-planar families (video / WSI / ECG) route by viewport TYPE to their
     // dedicated mounts: the bound data shape cannot distinguish them, and each needs
-    // family-specific dataId registration. Mirrors the legacy backend's type dispatch.
+    // family-specific dataId registration.
     const type = (viewport as { type?: string }).type;
 
     if (type === csEnums.ViewportType.ECG) {
@@ -150,18 +148,11 @@ export class NextViewportBackend implements IViewportBackend {
       );
     }
 
-    // Planar stack vs volume content both report PLANAR_NEXT, so infer from the
-    // persisted dataShapeType contract (§4.4) — the canonical discriminator set by
-    // CornerstoneCacheService and used everywhere else. Don't probe `'volume' in
-    // firstData`: that field can be lazily initialized after the data object is built,
-    // so the presence check is unreliable. Fall back to the probe only when an older
-    // viewportData has no dataShapeType.
-    const dataShapeType = (viewportData as { dataShapeType?: csEnums.ViewportType }).dataShapeType;
-    const firstData = (viewportData?.data?.[0] ?? {}) as Record<string, unknown>;
-    const isVolumeContent =
-      dataShapeType === csEnums.ViewportType.ORTHOGRAPHIC ||
-      dataShapeType === csEnums.ViewportType.VOLUME_3D ||
-      (dataShapeType === undefined && 'volume' in firstData);
+    // A planar viewport shows a stack and a volume, so route by the shape of the
+    // data: the dataShapeType that CornerstoneCacheService stores, which is the
+    // discriminator used everywhere else.
+    const dataShape = getViewportDataShape(viewportData);
+    const isVolumeContent = dataShape === 'volume' || dataShape === 'volume3d';
 
     if (isVolumeContent) {
       return this.service._setVolumeViewport(
@@ -200,9 +191,8 @@ export class NextViewportBackend implements IViewportBackend {
       overlayProcessingResults,
     } = context;
 
-    // Native stacks arrive as PLANAR_NEXT and bypass the legacy STACK-typed
-    // invalid-stack guard upstream, so guard empty/malformed stack data here
-    // before registering and indexing imageIds below.
+    // Guard empty/malformed stack data before registering and indexing imageIds
+    // below.
     if (!imageIds?.length) {
       return;
     }
@@ -306,10 +296,9 @@ export class NextViewportBackend implements IViewportBackend {
    * Native volume/MPR mount: a direct PLANAR_NEXT viewport renders a volume by
    * registering the dataset (with the already-cached volumeId) and calling
    * setDisplaySets with the requested orientation; cornerstone selects the image
-   * vs reformatted-volume render path from that orientation. Returns true so the
-   * service skips the legacy setVolumes/setProperties tail; an overlay-only mount
-   * (no base volumes) returns false and traverses the shared tail, whose
-   * legacy-surface steps are lane-guarded via mountOverlayOnlyVolumes.
+   * vs reformatted-volume render path from that orientation. Returns true when it
+   * mounted; an overlay-only mount (no base volumes) returns false, and the service
+   * adds its overlays.
    */
   async mountVolumes(viewport: Types.IViewport, context: VolumeMountContext): Promise<boolean> {
     const {
@@ -352,12 +341,6 @@ export class NextViewportBackend implements IViewportBackend {
       });
     }
     return true;
-  }
-
-  async mountOverlayOnlyVolumes(): Promise<void> {
-    // Generic ("next") viewports don't expose the legacy setVolumes surface. A
-    // native overlay-only mount adds its overlays via _addOverlayRepresentations
-    // in the shared tail; there is nothing to mount here.
   }
 
   /**
@@ -568,7 +551,7 @@ export class NextViewportBackend implements IViewportBackend {
     viewportInfo: ViewportInfo,
     viewportId: string
   ): PositionPresentation {
-    const is3D = isVolume3DViewportType(csViewport);
+    const is3D = csViewport.type === csEnums.ViewportType.VOLUME_3D;
     const vp = csViewport as NativePlanarViewport;
 
     // A direct PLANAR_NEXT viewport has no getViewPresentation; pan/zoom/rotation/flip

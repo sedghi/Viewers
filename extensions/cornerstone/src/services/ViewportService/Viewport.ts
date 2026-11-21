@@ -1,14 +1,9 @@
-import {
-  Types,
-  Enums,
-  getEnabledElementByViewportId,
-  utilities,
-} from '@cornerstonejs/core';
+import { Types, Enums, getEnabledElementByViewportId, utilities } from '@cornerstonejs/core';
 import { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
-import { isOrthographicViewportType } from '../../utils/getLegacyViewportType';
 import getCornerstoneBlendMode from '../../utils/getCornerstoneBlendMode';
 import getCornerstoneOrientation from '../../utils/getCornerstoneOrientation';
 import getCornerstoneViewportType from '../../utils/getCornerstoneViewportType';
+import { getViewportDataShape, type ViewportShape } from '../../utils/viewportDataShape';
 import JumpPresets from '../../utils/JumpPresets';
 import { SyncGroup } from '../SyncGroupService/SyncGroupService';
 
@@ -105,7 +100,7 @@ const dataContains = ({ data, displaySetUID, imageId, viewport }): boolean => {
     return !!data.imageIds.find(dataId => dataId === imageId);
   }
 
-  if (imageId && (data.volumeId || isOrthographicViewportType(viewport))) {
+  if (imageId && (data.volumeId || utilities.getViewportContentMode(viewport) === 'volume')) {
     const isAcquisition = !!viewport.getCurrentImageId();
 
     if (!isAcquisition) {
@@ -227,17 +222,13 @@ class ViewportInfo {
     // via cornerstoneViewportService
     let viewportData = this.getViewportData();
 
-    // Branch on the persisted data shape, not viewportType: native ("next") volume
-    // viewports carry viewportType === PLANAR_NEXT while their data is still a volume
-    // array, so keying off viewportType alone would treat them as a stack object and
-    // miss the display set — skipping invalidateViewportData() on metadata invalidation.
-    // Falls back to viewportType for legacy viewportData with no dataShapeType.
-    const dataShapeType = viewportData.dataShapeType ?? viewportData.viewportType;
+    // Branch on the persisted data shape, not viewportType: a volume viewport
+    // carries the planar viewportType while its data is a volume array, so keying
+    // off viewportType alone would treat it as a stack object and miss the display
+    // set, skipping invalidateViewportData() on metadata invalidation.
+    const dataShape = getViewportDataShape(viewportData);
 
-    if (
-      dataShapeType === Enums.ViewportType.ORTHOGRAPHIC ||
-      dataShapeType === Enums.ViewportType.VOLUME_3D
-    ) {
+    if (dataShape === 'volume' || dataShape === 'volume3d') {
       viewportData = viewportData as VolumeViewportData;
       return viewportData.data.some(
         ({ displaySetInstanceUID: dsUID }) => dsUID === displaySetInstanceUID
@@ -307,8 +298,17 @@ class ViewportInfo {
     return this.displaySetOptions;
   }
 
+  /** The Cornerstone3D type of the viewport. It does not say stack or volume: see getDataShape. */
   public getViewportType(): Enums.ViewportType {
-    return this.viewportOptions.viewportType || Enums.ViewportType.STACK;
+    return this.viewportOptions.viewportType || Enums.ViewportType.PLANAR;
+  }
+
+  /**
+   * The shape of the data of the viewport: a stack, a volume, a 3D volume or
+   * other. A viewport without data counts as a stack.
+   */
+  public getDataShape(): ViewportShape {
+    return getViewportDataShape(this.viewportData) ?? 'stack';
   }
 
   public getToolGroupId(): string {

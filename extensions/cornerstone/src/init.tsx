@@ -27,12 +27,7 @@ import initCornerstoneTools from './initCornerstoneTools';
 import { connectToolsToMeasurementService } from './initMeasurementService';
 import initCineService from './initCineService';
 import initStudyPrefetcherService from './initStudyPrefetcherService';
-import {
-  setNextViewportsEnabled,
-  resolveNextViewportsEnabled,
-  resolveViewportRendering,
-  setViewportRenderingOverrides,
-} from './utils/nextViewports';
+import { resolveViewportRendering, setViewportRenderingOverrides } from './utils/nextViewports';
 import interleaveCenterLoader from './utils/interleaveCenterLoader';
 import nthLoader from './utils/nthLoader';
 import interleaveTopToBottom from './utils/interleaveTopToBottom';
@@ -84,8 +79,8 @@ export default async function init({
 
   cornerstone.setRenderBackend(Boolean(appConfig.useCPURendering) ? 'cpu' : 'auto');
 
-  // All native ("next") Generic Viewport settings live under one config object:
-  // appConfig.genericViewports = { enabled, viewportRendering }.
+  // The viewport rendering setting lives under one config object:
+  // appConfig.genericViewports = { viewportRendering }.
   const genericViewportsConfig = appConfig.genericViewports ?? {};
 
   // viewportRendering selects the render backend per-session:
@@ -93,9 +88,8 @@ export default async function init({
   // `?<viewportType>.viewportRendering=<backend>` (e.g.
   // `?orthographic.viewportRendering=cpu`) to override a single viewport type
   // via the per-mount renderBackend option. The global value maps to
-  // cornerstone's setRenderBackend; 'cpu'/'gpu' additionally drive the legacy
-  // useCPURendering flag so pre-generic viewports follow the same selection
-  // (letting a session force GPU when the deployed config defaults to CPU).
+  // cornerstone's setRenderBackend, letting a session force GPU when the
+  // deployed config defaults to CPU.
   const { renderBackend, renderBackendByViewportType } = resolveViewportRendering(
     genericViewportsConfig.viewportRendering
   );
@@ -122,20 +116,8 @@ export default async function init({
     rendering: {
       ...cornerstone.getConfiguration().rendering,
       strictZSpacingForVolumeViewport: appConfig.strictZSpacingForVolumeViewport,
-      // Opt-in: route legacy viewport types through the new GenericViewport render
-      // paths while keeping the legacy public API via compatibility adapters.
-      // No-op on cornerstone builds that predate the GenericViewport architecture.
-      useGenericViewport: Boolean(appConfig.useGenericViewport),
     },
   });
-
-  // Opt-in: drive viewports through the DIRECT native GenericViewport ("next")
-  // API (PLANAR_NEXT, setDisplaySets, ...). Read by getCornerstoneViewportType
-  // and the CornerstoneViewportService backend split. Distinct from
-  // useGenericViewport above (which only enables cornerstone's compat remap).
-  // resolveNextViewportsEnabled lets a `?useNextViewports=true` URL param opt in
-  // per-session; when the param is absent, appConfig.genericViewports.enabled wins.
-  setNextViewportsEnabled(resolveNextViewportsEnabled(genericViewportsConfig.enabled));
 
   // For debugging large datasets, otherwise prefer the defaults
   const { maxCacheSize } = appConfig;
@@ -337,7 +319,6 @@ export default async function init({
 
   function elementEnabledHandler(evt) {
     const { element } = evt.detail;
-    const { viewport } = getEnabledElement(element);
     initViewTiming({ element });
 
     element.addEventListener(EVENTS.CAMERA_RESET, evt => {
@@ -349,11 +330,6 @@ export default async function init({
       const { viewportId } = enabledElement;
       commandsManager.runCommand('resetCrosshairs', { viewportId });
     });
-
-    // limitation: currently supporting only volume viewports with fusion
-    if (viewport.type !== cornerstone.Enums.ViewportType.ORTHOGRAPHIC) {
-      return;
-    }
   }
 
   eventTarget.addEventListener(EVENTS.ELEMENT_ENABLED, elementEnabledHandler.bind(null));

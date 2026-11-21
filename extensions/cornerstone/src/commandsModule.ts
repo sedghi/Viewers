@@ -38,12 +38,6 @@ import { getFirstAnnotationSelected } from './utils/measurementServiceMappings/u
 import { getViewportEnabledElement } from './utils/getViewportEnabledElement';
 import getActiveViewportEnabledElement from './utils/getActiveViewportEnabledElement';
 import toggleVOISliceSync from './utils/toggleVOISliceSync';
-import {
-  isStackViewportType,
-  isOrthographicViewportType,
-  isVolume3DViewportType,
-  isVolumeViewportType,
-} from './utils/getLegacyViewportType';
 import { viewportOperations as ops } from './services/ViewportService/backends/viewportOperations';
 import { getViewportAdapter } from './services/ViewportService/adapter';
 import {
@@ -379,7 +373,7 @@ function commandsModule({
           // Todo: check if PMAP modality should be handled such as SEG
           displaySet.Modality !== 'SEG'
             ? SegmentationRepresentations.Contour
-            : viewport && isVolume3DViewportType(viewport)
+            : viewport && getViewportAdapter(viewport).getShape() === 'volume3d'
               ? SegmentationRepresentations.Surface
               : SegmentationRepresentations.Labelmap;
 
@@ -1102,17 +1096,9 @@ function commandsModule({
         return;
       }
 
-      // Legacy volume viewports target a specific volume; the command owns that
-      // resolution (it needs the service). The operations backend applies the VOI
-      // (legacy setProperties vs native setDisplaySetPresentation on the active binding).
-      const volumeId = isVolumeViewportType(viewport)
-        ? actions.getVolumeIdForDisplaySet({ viewportId, displaySetInstanceUID })
-        : undefined;
-
       ops.setWindowLevel(viewport, {
         windowWidth: windowWidthNum,
         windowCenter: windowCenterNum,
-        volumeId,
         displaySetInstanceUID,
       });
       viewport.render();
@@ -1413,17 +1399,12 @@ function commandsModule({
         viewport = cornerstoneViewportService.getCornerstoneViewport(gridViewport.id);
       }
 
-      // Get number of slices
-      // -> Copied from cornerstone3D jumpToSlice\_getImageSliceData()
-      let numberOfSlices = 0;
-
-      if (isStackViewportType(viewport)) {
-        numberOfSlices = viewport.getImageIds().length;
-      } else if (isOrthographicViewportType(viewport)) {
-        numberOfSlices = csUtils.getImageSliceDataForVolumeViewport(viewport).numberOfSlices;
-      } else {
+      const shape = getViewportAdapter(viewport).getShape();
+      if (shape !== 'stack' && shape !== 'volume') {
         throw new Error('Unsupported viewport type');
       }
+
+      const numberOfSlices = viewport.getNumberOfSlices();
 
       const jumpIndex = imageIndex < 0 ? numberOfSlices + imageIndex : imageIndex;
       if (jumpIndex >= numberOfSlices || jumpIndex < 0) {
@@ -1474,14 +1455,6 @@ function commandsModule({
 
       // HP takes priority over the default opacity
       colormap = { ...colormap, opacity: hpOpacity || opacity };
-
-      // The legacy orthographic branch resolves the volumeId from the display set;
-      // fall back to the viewport's first display set (needs viewportGridService, so
-      // it is resolved here in the command rather than in the operations backend).
-      if (isOrthographicViewportType(viewport) && !displaySetInstanceUID) {
-        const { viewports } = viewportGridService.getState();
-        displaySetInstanceUID = viewports.get(viewportId)?.displaySetInstanceUIDs[0];
-      }
 
       ops.setColormap(viewport, { colormap, displaySetInstanceUID });
 

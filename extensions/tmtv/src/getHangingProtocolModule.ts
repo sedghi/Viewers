@@ -1,4 +1,3 @@
-import { isNextViewportsEnabled, NEXT_FUSION_PT_OPACITY } from '@ohif/extension-cornerstone';
 import {
   ctAXIAL,
   ctCORONAL,
@@ -340,20 +339,6 @@ const ptCT: AppTypes.HangingProtocol.Protocol = {
 };
 
 function getHangingProtocolModule() {
-  // Replace the fusion PT opacity ramp with a flat scalar for the native ("next")
-  // path only, leaving the legacy ramp in hpViewports untouched. Done here (not at
-  // module load) because the useNextViewports flag is set during cornerstone
-  // preRegistration, which runs before this module is gathered.
-  if (isNextViewportsEnabled()) {
-    [fusionAXIAL, fusionSAGITTAL, fusionCORONAL].forEach(viewport => {
-      const ptDisplaySet = viewport.displaySets?.find(ds => ds.id === 'ptDisplaySet');
-      const colormap = ptDisplaySet?.options?.colormap as { opacity?: unknown } | undefined;
-      if (colormap) {
-        colormap.opacity = NEXT_FUSION_PT_OPACITY;
-      }
-    });
-  }
-
   return [
     {
       name: ptCT.id,

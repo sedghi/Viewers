@@ -69,13 +69,11 @@ const ViewportWindowLevel = ({
 
   const getViewportsWithVolumeIds = (volumeIds: string[]) => {
     const renderingEngine = cornerstoneViewportService.getRenderingEngine();
-    // getVolumeViewports() was removed in the GenericViewport architecture
-    // (a PLANAR_NEXT viewport can be volume-capable without being a VolumeViewport).
-    // Official replacement: getViewports() + the viewportSupportsVolumeCompatibility
-    // capability guard (cornerstone codemod cornerstone3d/5/generic-viewport).
+    // The viewports that show a volume now: a planar viewport can show a stack or
+    // a volume, so its content mode says which.
     const viewports = renderingEngine
       .getViewports()
-      .filter(csUtils.viewportSupportsVolumeCompatibility);
+      .filter(viewport => csUtils.viewportIsInVolumeMode(viewport));
 
     return viewports.filter(vp => {
       const viewportVolumeIds = (vp as PlanarViewport).getActors().map(entry => entry.referencedId);

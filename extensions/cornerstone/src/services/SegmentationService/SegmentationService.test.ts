@@ -20,7 +20,6 @@ import {
 import { EasingFunctionEnum, EasingFunctionMap } from '../../utils/transitions';
 import * as MapROIContoursToRTStructData from './RTSTRUCT/mapROIContoursToRTStructData';
 import SegmentationServiceClass, { SegmentationRepresentation } from './SegmentationService';
-import { setNextViewportsEnabled } from '../../utils/nextViewports';
 
 jest.mock('@cornerstonejs/core', () => ({
   ...jest.requireActual('@cornerstonejs/core'),
@@ -169,14 +168,12 @@ describe('SegmentationService', () => {
     id: viewportId,
     type: ViewportType.PLANAR,
     getFrameOfReferenceUID: jest.fn(),
-    getViewPresentation: jest.fn(),
     getViewReference: jest.fn(),
   };
   const mockCornerstoneVolumeViewport = {
     id: viewportId,
     type: ViewportType.VOLUME_3D,
     getFrameOfReferenceUID: jest.fn(),
-    setViewPresentation: jest.fn(),
     setViewReference: jest.fn(),
     render: jest.fn(),
   };
@@ -629,300 +626,12 @@ describe('SegmentationService', () => {
           segmentationId: mockCornerstoneSegmentation.segmentationId,
         });
       });
-
-      it('should add a non volume segmentation representation to stack viewport through SegmentationService conversion attempt', async () => {
-        const frameOfReferenceUID = 'frameOfReferenceUID';
-        const imageId = 'imageId';
-        const viewportGridServiceUnsubscribe = jest.fn();
-
-        const prevViewPresentation = {};
-        const prevViewReference = {};
-
-        mockCornerstoneStackViewport.getFrameOfReferenceUID.mockReturnValueOnce(
-          frameOfReferenceUID
-        );
-        mockCornerstoneStackViewport.getViewPresentation.mockReturnValueOnce(prevViewPresentation);
-        mockCornerstoneStackViewport.getViewReference.mockReturnValueOnce(prevViewReference);
-
-        jest
-          .spyOn(cstSegmentation.state, 'getSegmentation')
-          .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
-        jest
-          .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneStackViewport as unknown as PlanarViewport);
-        jest
-          .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
-          .mockReturnValue(undefined);
-        jest.spyOn(cstSegmentation, 'getLabelmapImageIds').mockReturnValue([imageId]);
-        jest
-          .spyOn(cstSegmentation, 'addSegmentationRepresentations')
-          .mockReturnValueOnce(undefined);
-        jest
-          .spyOn(cache, 'getImage')
-          .mockReturnValueOnce({ FrameOfReferenceUID: frameOfReferenceUID } as csTypes.IImage);
-        jest.spyOn(serviceManagerMock.services.viewportGridService, 'getState').mockReturnValue({
-          viewports: new Map([
-            [
-              viewportId,
-              { displaySetInstanceUIDs: ['displaySetInstanceUID'], viewportOptions: {} },
-            ],
-          ]),
-        });
-        jest
-          .spyOn(cstSegmentation, 'addSegmentationRepresentations')
-          .mockReturnValueOnce(undefined);
-        jest.spyOn(serviceManagerMock.services.viewportGridService, 'subscribe').mockReturnValue({
-          unsubscribe: viewportGridServiceUnsubscribe,
-        });
-
-        // awaiting here will wait for publishing of viewportGridService.EVENTS.GRID_STATE_CHANGED (deadlock avoidance)
-        const serviceAddSegmentationRepresentationPromise = service.addSegmentationRepresentation(
-          viewportId,
-          {
-            segmentationId: mockCornerstoneSegmentation.segmentationId,
-            type: csToolsEnums.SegmentationRepresentations.Labelmap,
-          }
-        );
-
-        let _addSegmentationRepresentationCallback;
-        const waitForSubscription = async () => {
-          let remainingAttempts = 100;
-
-          while (_addSegmentationRepresentationCallback === undefined && remainingAttempts > 0) {
-            _addSegmentationRepresentationCallback = jest.mocked(
-              serviceManagerMock.services.viewportGridService.subscribe
-            ).mock.calls[0]?.[1];
-
-            await new Promise(resolve => resolve(void 0));
-            remainingAttempts--;
-          }
-        };
-
-        await waitForSubscription();
-
-        // trigger callback being awaited
-        _addSegmentationRepresentationCallback();
-        await serviceAddSegmentationRepresentationPromise;
-
-        expect(cstSegmentation.getLabelmapImageIds).toHaveBeenCalledTimes(1);
-        expect(cstSegmentation.getLabelmapImageIds).toHaveBeenCalledWith(
-          mockCornerstoneSegmentation.segmentationId
-        );
-
-        expect(mockCornerstoneStackViewport.getFrameOfReferenceUID).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneStackViewport.getFrameOfReferenceUID).toHaveBeenCalledWith();
-
-        expect(cache.getImage).toHaveBeenCalledTimes(1);
-        expect(cache.getImage).toHaveBeenCalledWith(imageId);
-
-        expect(serviceManagerMock.services.viewportGridService.getState).toHaveBeenCalledTimes(1);
-        expect(serviceManagerMock.services.viewportGridService.getState).toHaveBeenCalledWith();
-
-        expect(mockCornerstoneStackViewport.getViewPresentation).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneStackViewport.getViewPresentation).toHaveBeenCalledWith();
-
-        expect(mockCornerstoneStackViewport.getViewReference).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneStackViewport.getViewReference).toHaveBeenCalledWith();
-
-        expect(
-          serviceManagerMock.services.cornerstoneViewportService.getCornerstoneViewport
-        ).toHaveBeenCalledTimes(2);
-        expect(
-          serviceManagerMock.services.cornerstoneViewportService.getCornerstoneViewport
-        ).toHaveBeenCalledWith(viewportId);
-
-        expect(mockCornerstoneStackViewport.element.addEventListener).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneStackViewport.element.addEventListener).toHaveBeenCalledWith(
-          csEnums.Events.VOLUME_VIEWPORT_NEW_VOLUME,
-          expect.any(Function)
-        );
-
-        const volumeViewportNewVolumeHandlerCallback = jest.mocked(
-          mockCornerstoneStackViewport.element.addEventListener
-        ).mock.calls[0][1];
-
-        expect(
-          serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
-        ).toHaveBeenCalledTimes(1);
-        expect(
-          serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
-        ).toHaveBeenCalledWith({
-          viewportId,
-          displaySetInstanceUIDs: ['displaySetInstanceUID'],
-          viewportOptions: { viewportType: ViewportType.ORTHOGRAPHIC },
-        });
-
-        expect(
-          cstSegmentation.triggerSegmentationEvents.triggerSegmentationRepresentationModified
-        ).toHaveBeenCalledTimes(1);
-        expect(
-          cstSegmentation.triggerSegmentationEvents.triggerSegmentationRepresentationModified
-        ).toHaveBeenCalledWith(
-          viewportId,
-          mockCornerstoneSegmentation.segmentationId,
-          csToolsEnums.SegmentationRepresentations.Labelmap
-        );
-
-        jest
-          .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
-
-        volumeViewportNewVolumeHandlerCallback();
-
-        expect(
-          serviceManagerMock.services.cornerstoneViewportService.getCornerstoneViewport
-        ).toHaveBeenCalledTimes(3);
-        expect(
-          serviceManagerMock.services.cornerstoneViewportService.getCornerstoneViewport
-        ).toHaveBeenCalledWith(viewportId);
-
-        expect(mockCornerstoneVolumeViewport.setViewPresentation).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneVolumeViewport.setViewPresentation).toHaveBeenCalledWith(
-          prevViewPresentation
-        );
-
-        expect(mockCornerstoneVolumeViewport.setViewReference).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneVolumeViewport.setViewReference).toHaveBeenCalledWith(
-          prevViewReference
-        );
-
-        expect(mockCornerstoneVolumeViewport.render).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneVolumeViewport.render).toHaveBeenCalledWith();
-
-        expect(mockCornerstoneStackViewport.element.removeEventListener).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneStackViewport.element.removeEventListener).toHaveBeenCalledWith(
-          csEnums.Events.VOLUME_VIEWPORT_NEW_VOLUME,
-          expect.any(Function)
-        );
-
-        expect(serviceManagerMock.services.viewportGridService.subscribe).toHaveBeenCalledTimes(1);
-        expect(serviceManagerMock.services.viewportGridService.subscribe).toHaveBeenCalledWith(
-          serviceManagerMock.services.viewportGridService.EVENTS.GRID_STATE_CHANGED,
-          expect.any(Function)
-        );
-
-        expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
-        expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
-          {
-            type: csToolsEnums.SegmentationRepresentations.Labelmap,
-            segmentationId: mockCornerstoneSegmentation.segmentationId,
-            config: { colorLUTOrIndex: undefined },
-          },
-        ]);
-
-        expect(viewportGridServiceUnsubscribe).toHaveBeenCalledTimes(1);
-        expect(viewportGridServiceUnsubscribe).toHaveBeenCalledWith();
-      });
-
-      it('should add a volume segmentation representation to stack viewport through SegmentationService conversion', async () => {
-        mockCornerstoneStackViewport.getViewPresentation.mockReturnValueOnce({});
-        mockCornerstoneStackViewport.getViewReference.mockReturnValueOnce({});
-
-        jest
-          .spyOn(cstSegmentation.state, 'getSegmentation')
-          .mockReturnValue(mockVolumeCornerstoneSegmentation as cstTypes.Segmentation);
-        jest
-          .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneStackViewport as unknown as PlanarViewport);
-        jest.spyOn(serviceManagerMock.services.viewportGridService, 'getState').mockReturnValue({
-          viewports: new Map([
-            [
-              viewportId,
-              { displaySetInstanceUIDs: ['displaySetInstanceUID'], viewportOptions: {} },
-            ],
-          ]),
-        });
-
-        // awaiting here will wait for publishing of viewportGridService.EVENTS.GRID_STATE_CHANGED (deadlock avoidance)
-        const serviceAddSegmentationRepresentationPromise = service.addSegmentationRepresentation(
-          viewportId,
-          {
-            segmentationId: mockCornerstoneSegmentation.segmentationId,
-            type: csToolsEnums.SegmentationRepresentations.Labelmap,
-          }
-        );
-
-        let _addSegmentationRepresentationCallback;
-        const waitForSubscription = async () => {
-          let remainingAttempts = 100;
-
-          while (_addSegmentationRepresentationCallback === undefined && remainingAttempts > 0) {
-            _addSegmentationRepresentationCallback = jest.mocked(
-              serviceManagerMock.services.viewportGridService.subscribe
-            ).mock.calls[0]?.[1];
-
-            await new Promise(resolve => resolve(void 0));
-            remainingAttempts--;
-          }
-        };
-
-        await waitForSubscription();
-
-        // trigger callback being awaited
-        _addSegmentationRepresentationCallback();
-        await serviceAddSegmentationRepresentationPromise;
-
-        // guarantee the early exit at handleStackViewportCase (isVolumeSegmentation)
-        expect(
-          cstSegmentation.state.updateLabelmapSegmentationImageReferences
-        ).not.toHaveBeenCalled();
-
-        expect(
-          serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
-        ).toHaveBeenCalledTimes(1);
-        expect(
-          serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
-        ).toHaveBeenCalledWith({
-          viewportId,
-          displaySetInstanceUIDs: ['displaySetInstanceUID'],
-          viewportOptions: { viewportType: ViewportType.ORTHOGRAPHIC },
-        });
-
-        const volumeViewportNewVolumeHandlerCallback = jest.mocked(
-          mockCornerstoneStackViewport.element.addEventListener
-        ).mock.calls[0][1];
-
-        jest
-          .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          // only needed interfaces for the addSegmentationRepresentation call
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
-
-        volumeViewportNewVolumeHandlerCallback();
-
-        expect(
-          serviceManagerMock.services.cornerstoneViewportService.getCornerstoneViewport
-        ).toHaveBeenCalledTimes(3);
-        expect(
-          serviceManagerMock.services.cornerstoneViewportService.getCornerstoneViewport
-        ).toHaveBeenCalledWith(viewportId);
-
-        expect(mockCornerstoneStackViewport.element.removeEventListener).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneStackViewport.element.removeEventListener).toHaveBeenCalledWith(
-          csEnums.Events.VOLUME_VIEWPORT_NEW_VOLUME,
-          expect.any(Function)
-        );
-
-        expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
-        expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
-          {
-            type: csToolsEnums.SegmentationRepresentations.Labelmap,
-            segmentationId: mockCornerstoneSegmentation.segmentationId,
-            config: { colorLUTOrIndex: undefined },
-          },
-        ]);
-      });
     });
 
-    describe('next (generic) viewport', () => {
-      // A native GenericViewport (raw PlanarViewport) exposes setDisplaySets /
-      // setDisplaySetPresentation / setViewState, so csUtils.isGenericViewport is
-      // true and addSegmentationRepresentation routes to NextSegmentationBackend.
-      // It deliberately has NO getViewPresentation: the native path must never reach
-      // convertStackToVolumeViewport (the source of the observed
-      // "getViewPresentation is not a function" / silent ORTHOGRAPHIC flip).
+    describe('planar viewport', () => {
+      // A PlanarViewport exposes setDisplaySets / setDisplaySetPresentation /
+      // setViewState. It has NO getViewPresentation: the viewport must never be
+      // recreated as a volume viewport.
       const makeNextViewport = () => ({
         element: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
         id: viewportId,
@@ -945,8 +654,6 @@ describe('SegmentationService', () => {
         jest
           .spyOn(cstSegmentation, 'addSegmentationRepresentations')
           .mockReturnValueOnce(undefined);
-        const convertSpy = jest.spyOn(service, 'convertStackToVolumeViewport');
-
         const callback = jest.fn();
         service.subscribe(service.EVENTS.SEGMENTATION_REPRESENTATION_MODIFIED, callback);
 
@@ -955,18 +662,17 @@ describe('SegmentationService', () => {
           type: csToolsEnums.SegmentationRepresentations.Labelmap,
         });
 
-        // the native in-place resolver is consulted...
+        // the in-place resolver is consulted...
         expect(
           cstSegmentation.state.updateLabelmapSegmentationImageReferences
         ).toHaveBeenCalledWith(viewportId, mockCornerstoneSegmentation.segmentationId);
 
-        // ...but the viewport is NEVER promoted to an ORTHOGRAPHIC volume viewport
-        expect(convertSpy).not.toHaveBeenCalled();
+        // ...but the viewport is NEVER recreated as a volume viewport
         expect(
           serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
         ).not.toHaveBeenCalled();
 
-        // the representation is added in place, synchronously (isConverted === false)
+        // the representation is added in place, synchronously
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
           {
@@ -981,29 +687,27 @@ describe('SegmentationService', () => {
         });
       });
 
-      it('never promotes on native even when the in-place resolver cannot map (returns isConverted:false unconditionally)', async () => {
+      it('never promotes the viewport even when the in-place resolver cannot map', async () => {
         jest
           .spyOn(cstSegmentation.state, 'getSegmentation')
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
           .mockReturnValue(makeNextViewport() as unknown as PlanarViewport);
-        // resolver fails (FrameOfReference mismatch / mount-timing race): on legacy this
-        // would fall through to convertStackToVolumeViewport; on native it must not.
+        // resolver fails (FrameOfReference mismatch / mount-timing race): the
+        // viewport must still not be recreated.
         jest
           .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
           .mockReturnValue(undefined);
         jest
           .spyOn(cstSegmentation, 'addSegmentationRepresentations')
           .mockReturnValueOnce(undefined);
-        const convertSpy = jest.spyOn(service, 'convertStackToVolumeViewport');
 
         await service.addSegmentationRepresentation(viewportId, {
           segmentationId: mockCornerstoneSegmentation.segmentationId,
           type: csToolsEnums.SegmentationRepresentations.Labelmap,
         });
 
-        expect(convertSpy).not.toHaveBeenCalled();
         expect(
           serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
         ).not.toHaveBeenCalled();
@@ -1012,7 +716,7 @@ describe('SegmentationService', () => {
     });
 
     describe('volume viewport', () => {
-      it('should add a segmentation representation to volume viewport without need for handling', async () => {
+      it('adds a labelmap that is asked for on a 3D viewport as a labelmap', async () => {
         jest
           .spyOn(cstSegmentation.state, 'getSegmentation')
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
@@ -1037,7 +741,7 @@ describe('SegmentationService', () => {
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
           {
-            type: csToolsEnums.SegmentationRepresentations.Surface,
+            type: csToolsEnums.SegmentationRepresentations.Labelmap,
             segmentationId: mockCornerstoneSegmentation.segmentationId,
             config: { colorLUTOrIndex: undefined },
           },
@@ -1103,72 +807,6 @@ describe('SegmentationService', () => {
         expect(serviceManagerMock.services.viewportGridService.getState).not.toHaveBeenCalled();
 
         expect(mockCornerstoneVolumeViewport.getFrameOfReferenceUID).not.toHaveBeenCalled();
-
-        expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
-        expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
-          {
-            type: csToolsEnums.SegmentationRepresentations.Labelmap,
-            segmentationId: mockCornerstoneSegmentation.segmentationId,
-            config: { colorLUTOrIndex: undefined },
-          },
-        ]);
-
-        expect(callback).toHaveBeenCalledTimes(1);
-        expect(callback).toHaveBeenCalledWith({
-          segmentationId: mockCornerstoneSegmentation.segmentationId,
-        });
-        mockCornerstoneVolumeViewport.type = ViewportType.VOLUME_3D;
-      });
-
-      it('should add a volume segmentation representation to volume viewport through SegmentationService handling', async () => {
-        const frameOfReferenceUID = 'frameOfReferenceUID';
-        const imageId = 'imageId';
-
-        mockCornerstoneVolumeViewport.type = ViewportType.PLANAR;
-        mockCornerstoneVolumeViewport.getFrameOfReferenceUID.mockReturnValueOnce(
-          frameOfReferenceUID
-        );
-
-        jest
-          .spyOn(cstSegmentation.state, 'getSegmentation')
-          .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
-        jest
-          .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          .mockReturnValue(mockCornerstoneVolumeViewport as unknown as PlanarViewport);
-        jest
-          .spyOn(cstSegmentation, 'addSegmentationRepresentations')
-          .mockReturnValueOnce(undefined);
-        jest.spyOn(cstSegmentation, 'getLabelmapImageIds').mockReturnValue([imageId]);
-        jest
-          .spyOn(cache, 'getImage')
-          .mockReturnValueOnce({ FrameOfReferenceUID: frameOfReferenceUID } as csTypes.IImage);
-        jest
-          .spyOn(cstSegmentation.helpers, 'convertStackToVolumeLabelmap')
-          .mockReturnValueOnce(undefined);
-
-        const callback = jest.fn();
-        service.subscribe(service.EVENTS.SEGMENTATION_REPRESENTATION_MODIFIED, callback);
-
-        await service.addSegmentationRepresentation(viewportId, {
-          segmentationId: mockCornerstoneSegmentation.segmentationId,
-          type: csToolsEnums.SegmentationRepresentations.Labelmap,
-        });
-
-        expect(mockCornerstoneVolumeViewport.getFrameOfReferenceUID).toHaveBeenCalledTimes(1);
-        expect(mockCornerstoneVolumeViewport.getFrameOfReferenceUID).toHaveBeenCalledWith();
-
-        expect(cstSegmentation.getLabelmapImageIds).toHaveBeenCalledTimes(1);
-        expect(cstSegmentation.getLabelmapImageIds).toHaveBeenCalledWith(
-          mockCornerstoneSegmentation.segmentationId
-        );
-
-        expect(cache.getImage).toHaveBeenCalledTimes(1);
-        expect(cache.getImage).toHaveBeenCalledWith(imageId);
-
-        expect(cstSegmentation.helpers.convertStackToVolumeLabelmap).toHaveBeenCalledTimes(1);
-        expect(cstSegmentation.helpers.convertStackToVolumeLabelmap).toHaveBeenCalledWith(
-          mockCornerstoneSegmentation
-        );
 
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
@@ -1668,14 +1306,8 @@ describe('SegmentationService', () => {
       expect(retrievedSegmentationId).toEqual(segmentationId);
     });
 
-    describe('overlap / useSliceRendering (next backend)', () => {
+    describe('overlap / useSliceRendering', () => {
       const segmentationId = 'segmentationId';
-
-      // The session flag selects the seg-backend lane at SEG-load; reset it so it
-      // never leaks into the legacy-path tests that follow.
-      afterEach(() => {
-        setNextViewportsEnabled(false);
-      });
 
       const segMetadata = {
         data: [
@@ -1727,8 +1359,7 @@ describe('SegmentationService', () => {
         jest.spyOn(service, 'addOrUpdateSegmentation').mockReturnValue(undefined);
       };
 
-      it('flag ON + overlapping SEG builds one labelmap layer per group + segmentBindings', async () => {
-        setNextViewportsEnabled(true);
+      it('overlapping SEG builds one labelmap layer per group + segmentBindings', async () => {
         primeMocks();
 
         await service.createSegmentationForSEGDisplaySet(
@@ -1758,8 +1389,7 @@ describe('SegmentationService', () => {
         expect(data.imageIds).toEqual(['g0i1', 'g0i2', 'g1i1', 'g1i2']);
       });
 
-      it('flag ON + non-overlapping SEG stays a single layer (no multi-layer map)', async () => {
-        setNextViewportsEnabled(true);
+      it('non-overlapping SEG stays a single layer (no multi-layer map)', async () => {
         primeMocks();
 
         const vm = { getScalarData: jest.fn().mockReturnValue([1, 0]), setScalarData: jest.fn() };
@@ -1780,21 +1410,6 @@ describe('SegmentationService', () => {
         expect(data.labelmaps).toBeUndefined();
         expect(data.segmentBindings).toBeUndefined();
         expect(data.imageIds).toEqual(['i1', 'i2']);
-      });
-
-      it('flag OFF + overlapping SEG collapses to a single flattened layer (legacy byte-identical)', async () => {
-        // flag stays off (default)
-        primeMocks();
-
-        await service.createSegmentationForSEGDisplaySet(
-          makeSegDisplaySet(makeOverlapGroups(), true),
-          { type: csToolsEnums.SegmentationRepresentations.Labelmap, segmentationId }
-        );
-
-        const seg = jest.mocked(service.addOrUpdateSegmentation).mock.calls[0][0];
-        const data = seg.representation.data as Record<string, any>;
-        expect(data.labelmaps).toBeUndefined();
-        expect(data.imageIds).toEqual(['g0i1', 'g0i2', 'g1i1', 'g1i2']);
       });
     });
   });
@@ -2983,7 +2598,7 @@ describe('SegmentationService', () => {
       const segmentationId = 'segmentationId';
       const segmentIndex = 1;
       const viewportId = 'viewportId';
-      const viewport = { jumpToWorld: jest.fn() };
+      const viewport = { setViewReference: jest.fn(), render: jest.fn() };
 
       const segmentationWithCenter = {
         ...mockCornerstoneSegmentation,
@@ -3009,8 +2624,8 @@ describe('SegmentationService', () => {
 
       expect(service.getViewportIdsWithSegmentation).not.toHaveBeenCalled();
 
-      expect(viewport.jumpToWorld).toHaveBeenCalledTimes(1);
-      expect(viewport.jumpToWorld).toHaveBeenCalledWith([10, 10, 10]);
+      expect(viewport.setViewReference).toHaveBeenCalledTimes(1);
+      expect(viewport.setViewReference).toHaveBeenCalledWith({ cameraFocalPoint: [10, 10, 10] });
 
       expect(service.highlightSegment).toHaveBeenCalledTimes(1);
       expect(service.highlightSegment).toHaveBeenCalledWith(
@@ -3024,13 +2639,10 @@ describe('SegmentationService', () => {
       );
     });
 
-    it('navigates a native viewport via setViewReference (no jumpToWorld) and still highlights', () => {
+    it('navigates via setViewReference, renders and still highlights', () => {
       const segmentationId = 'segmentationId';
       const segmentIndex = 1;
       const viewportId = 'viewportId';
-      // A native PlanarViewport: csUtils.isGenericViewport is true (setDisplaySets +
-      // setDisplaySetPresentation + setViewState) and it has setViewReference but NO
-      // jumpToWorld, so jumpToSegmentCenter routes to the next twin.
       const viewport = {
         setDisplaySets: jest.fn(),
         setDisplaySetPresentation: jest.fn(),
@@ -3057,7 +2669,7 @@ describe('SegmentationService', () => {
 
       service.jumpToSegmentCenter(segmentationId, segmentIndex, viewportId);
 
-      // native jump: a view reference centered on the segment world point, then render
+      // the jump: a view reference centered on the segment world point, then render
       expect(viewport.setViewReference).toHaveBeenCalledTimes(1);
       expect(viewport.setViewReference).toHaveBeenCalledWith({ cameraFocalPoint: [10, 10, 10] });
       expect(viewport.render).toHaveBeenCalledTimes(1);
@@ -3069,7 +2681,7 @@ describe('SegmentationService', () => {
       const segmentationId = 'segmentationId';
       const segmentIndex = 1;
       const viewportId = 'viewportId';
-      const viewport = { jumpToWorld: jest.fn() };
+      const viewport = { setViewReference: jest.fn(), render: jest.fn() };
 
       const segmentationWithNamedStatsCenter = {
         ...mockCornerstoneSegmentation,
@@ -3106,8 +2718,8 @@ describe('SegmentationService', () => {
       expect(service.getViewportIdsWithSegmentation).toHaveBeenCalledTimes(1);
       expect(service.getViewportIdsWithSegmentation).toHaveBeenCalledWith(segmentationId);
 
-      expect(viewport.jumpToWorld).toHaveBeenCalledTimes(1);
-      expect(viewport.jumpToWorld).toHaveBeenCalledWith([1, 1, 1]);
+      expect(viewport.setViewReference).toHaveBeenCalledTimes(1);
+      expect(viewport.setViewReference).toHaveBeenCalledWith({ cameraFocalPoint: [1, 1, 1] });
 
       expect(service.highlightSegment).toHaveBeenCalledTimes(1);
       expect(service.highlightSegment).toHaveBeenCalledWith(
@@ -3550,7 +3162,9 @@ describe('SegmentationService', () => {
             .spyOn(service, 'getViewportIdsWithSegmentation')
             .mockReturnValue(['viewportId1', 'viewportId2']);
           // @ts-expect-error - mock only needed properties
-          getEnabledElementByViewportId.mockReturnValue({ viewport: { jumpToWorld: jest.fn() } });
+          getEnabledElementByViewportId.mockReturnValue({
+            viewport: { setViewReference: jest.fn(), render: jest.fn() },
+          });
         });
 
         it('runs one animation for the style the viewports share', () => {

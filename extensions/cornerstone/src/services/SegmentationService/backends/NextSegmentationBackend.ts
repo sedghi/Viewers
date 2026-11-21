@@ -16,22 +16,15 @@ const {
 } = cstSegmentation;
 
 /**
- * Native GenericViewport ("next") segmentation backend. Selected when the target
- * viewport is a native generic viewport (raw PlanarViewport;
- * `isNextViewport(viewport)` is true).
+ * The segmentation backend.
  *
- * The keystone of the native migration: a native PlanarViewport renders a labelmap
- * IN PLACE — cornerstone's `resolveLabelmapRenderPlan` picks `legacy-stack-image`
- * for a stack labelmap (no volumeId, no VTK_VOLUME_SLICE precondition) and the
- * duck-typed image-reference resolver maps it onto the viewport's current image. So
- * this twin NEVER promotes the viewport to an ORTHOGRAPHIC volume viewport: the
- * legacy `convertStackToVolumeViewport` calls `getViewPresentation` /
- * `setViewPresentation`, which the raw PlanarViewport does not implement — it throws
- * (the observed `getViewPresentation is not a function`) and would recreate the
- * viewport, defeating `useNextViewports`.
+ * A PlanarViewport renders a labelmap IN PLACE: cornerstone's
+ * `resolveLabelmapRenderPlan` picks the stack image plan for a stack labelmap (no
+ * volumeId, no VTK_VOLUME_SLICE precondition) and the duck-typed image-reference
+ * resolver maps it onto the viewport's current image. So the backend never
+ * recreates the viewport as a volume viewport.
  *
- * Needs nothing from the host service (it never converts / never touches
- * servicesManager), so unlike the legacy twin it takes no internals handle.
+ * Needs nothing from the host service (it never touches servicesManager).
  */
 export class NextSegmentationBackend implements ISegmentationBackend {
   async classifyAndPrepareLabelmapAdd(
@@ -43,11 +36,11 @@ export class NextSegmentationBackend implements ISegmentationBackend {
   ): Promise<LabelmapAddClassification> {
     // Try the duck-typed in-place resolver so the labelmap's images map onto the
     // viewport's current image when the FrameOfReference matches. Its return value
-    // is intentionally ignored: we return isConverted:false UNCONDITIONALLY so we
-    // never promote, even on a mount-timing race where the resolver cannot map yet.
+    // is intentionally ignored: the viewport is never recreated, even on a
+    // mount-timing race where the resolver cannot map yet.
     updateLabelmapSegmentationImageReferences(viewportId, segmentationId);
 
-    return { representationTypeToUse: representationType, isConverted: false };
+    return { representationTypeToUse: representationType };
   }
 
   assembleSegmentationDataForSEG(
@@ -66,7 +59,7 @@ export class NextSegmentationBackend implements ISegmentationBackend {
     const groups = segDisplaySet.labelMapImages ?? [];
     const config = { label, fallbackLabel, segments };
 
-    // Non-overlapping (or a single group): identical to the legacy single-layer build.
+    // Non-overlapping (or a single group): a single flattened labelmap layer.
     if (!segDisplaySet.overlappingSegments || groups.length <= 1) {
       return {
         segmentationId,
@@ -142,8 +135,7 @@ export class NextSegmentationBackend implements ISegmentationBackend {
   }
 
   jumpToSegmentCenter(viewport: csTypes.IViewport, world: csTypes.Point3): boolean {
-    // A native PlanarViewport has no jumpToWorld; navigate via a view reference
-    // centered on the segment's world point. This snaps to the slice containing
+    // Navigate via a view reference centered on the segment's world point. This snaps to the slice containing
     // `world` along the viewport's current view normal (the core of jump-to-segment).
     // In-plane pan-to-center is a separate, deferred refinement.
     const nativeViewport = viewport as csTypes.IViewport & {

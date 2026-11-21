@@ -87,7 +87,7 @@ function ViewportOrientationMenu({
         viewportId: viewportIdToUse,
         displaySetInstanceUIDs: displaySetUIDs,
         viewportOptions: {
-          viewportType: Enums.ViewportType.ORTHOGRAPHIC,
+          viewportType: 'orthographic',
           orientation: orientationEnum,
         },
         displaySetOptions: displaySetUIDs.map(() => ({})),

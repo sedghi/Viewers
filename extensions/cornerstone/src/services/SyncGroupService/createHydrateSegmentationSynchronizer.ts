@@ -7,7 +7,7 @@ import {
 } from '@cornerstonejs/tools';
 
 import { isAnyDisplaySetCommon } from '../../utils/isAnyDisplaySetCommon';
-import { isVolume3DViewportType } from '../../utils/getLegacyViewportType';
+import { getViewportAdapter } from '../ViewportService/adapter';
 
 const { createSynchronizer } = SynchronizerManager;
 const { SEGMENTATION_REPRESENTATION_MODIFIED } = Enums.Events;
@@ -89,7 +89,7 @@ const segmentationRepresentationModifiedCallback = async (
   }
 
   // Ensure the segmentation representation aligns with the target viewport type
-  const is3D = isVolume3DViewportType(viewport);
+  const is3D = getViewportAdapter(viewport).getShape() === 'volume3d';
   const requestedRepresentation =
     segmentationRepresentationType as Enums.SegmentationRepresentations;
   const { Surface, Labelmap } = Enums.SegmentationRepresentations;

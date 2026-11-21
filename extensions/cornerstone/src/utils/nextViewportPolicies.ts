@@ -1,41 +1,35 @@
-import { isNextViewportsEnabled } from './nextViewports';
-
 /**
- * The named home for every BEHAVIORAL POLICY difference between the legacy and
- * native ("next") viewport paths — appearance defaults and workflow rules that
- * are not API bridging (that's `services/ViewportService/adapter/`) and not
- * mount lifecycle (that's `services/ViewportService/backends/`). Keeping them
- * in one greppable file is the point: a policy divergence that lives inline in
- * a mode or hanging protocol is invisible to the next reader.
+ * The named home for the BEHAVIORAL POLICIES of the viewport path: appearance
+ * defaults and workflow rules that are not API bridging (that's
+ * `services/ViewportService/adapter/`) and not mount lifecycle (that's
+ * `services/ViewportService/backends/`). Keeping them in one greppable file is
+ * the point: a policy that lives inline in a mode or hanging protocol is
+ * invisible to the next reader.
  */
 
 /**
- * Initial PT opacity for TMTV fusion viewports on the native path. Legacy (in
- * tmtv's hpViewports) uses a per-value opacity ramp; native applies a ramp
- * literally through its flat 2D blend (which would keep the background
- * transparent), so the native path replaces the ramp with this single flat,
- * more CT-weighted starting blend.
+ * Initial PT opacity for TMTV fusion viewports. A per-value opacity ramp is
+ * applied literally through the flat 2D blend (which would keep the background
+ * transparent), so the fusion starts with this single flat, more CT-weighted
+ * blend.
  */
 export const NEXT_FUSION_PT_OPACITY = 0.4;
 
 /**
- * Initial opacity for data overlays (e.g. colormapped foreground layers) on
- * the native path. Native viewports composite an overlay as a 2D image slice
- * with a flat alpha blend and no volume ray-cast opacity attenuation: the
- * legacy nominal 0.9 renders at ~40% effective through the ray-cast path but
- * reads ~80-90% on native, so native starts at the legacy-equivalent
- * effective value.
+ * Initial opacity for data overlays (e.g. colormapped foreground layers). A
+ * viewport composites an overlay as a 2D image slice with a flat alpha blend
+ * and no volume ray-cast opacity attenuation, so a nominal 0.9 would read
+ * ~80-90%: an overlay starts at this value.
  */
 export const NEXT_OVERLAY_OPACITY = 0.4;
 
 /**
  * Viewport type to pin when hydrating a segmentation's referenced display set.
- * RTSTRUCT contours render correctly on a native stack/vtkImage viewport and
- * scroll fast, so the referenced image stays in stack mode on hydrate rather
- * than being promoted to a volume slice (which the perf acceptance criteria
- * forbid). Scoped to RTSTRUCT + the next path; SEG and legacy keep the default
- * (undefined = no pin).
+ * RTSTRUCT contours render correctly on a stack viewport and scroll fast, so
+ * the referenced image stays in stack mode on hydrate rather than being
+ * promoted to a volume slice (which the perf acceptance criteria forbid).
+ * Scoped to RTSTRUCT; SEG keeps the default (undefined = no pin).
  */
 export function getHydrationViewportTypeForModality(modality: string): 'stack' | undefined {
-  return modality === 'RTSTRUCT' && isNextViewportsEnabled() ? 'stack' : undefined;
+  return modality === 'RTSTRUCT' ? 'stack' : undefined;
 }

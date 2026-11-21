@@ -27,43 +27,25 @@ export interface AssembleSegmentationForSEGParams {
 }
 
 /**
- * Result of classifying a labelmap add: the representation type to actually use
- * (LABELMAP, or SURFACE for a 3D viewport) and whether the viewport was promoted
- * stack -> volume (ORTHOGRAPHIC). When `isConverted` is true the caller defers the
- * representation add until the grid re-mounts the recreated viewport.
+ * Result of classifying a labelmap add: the representation type to actually use.
  */
 export interface LabelmapAddClassification {
   representationTypeToUse: csToolsEnums.SegmentationRepresentations;
-  isConverted: boolean;
 }
 
 /**
- * Segmentation backend twin (mirrors the viewport backend family at
- * `ViewportService/backends/`). One implementation per lane:
- *   - LegacySegmentationBackend: today's behavior (may promote a stack viewport to
- *     an ORTHOGRAPHIC volume viewport via the host's convertStackToVolumeViewport).
- *   - NextSegmentationBackend: the native GenericViewport ("next") path — renders
- *     the labelmap IN PLACE on the raw PlanarViewport and never promotes.
+ * Segmentation backend (the counterpart of the viewport backend at
+ * `ViewportService/backends/`). NextSegmentationBackend is the one
+ * implementation: it renders the labelmap IN PLACE on the planar viewport.
  *
- * DISPATCH (deliberately diverges from IViewportBackend): unlike the viewport
- * lifecycle backend, which is selected ONCE by the appConfig flag, the segmentation
- * twin is routed PER VIEWPORT via `isNextViewport(viewport)` (the same
- * runtime predicate used by `viewportOperations`). A flag-on session can hold both
- * legacy and native viewports, and every viewport-bearing method already has an
- * already-resolved, self-describing viewport in hand, so per-viewport routing is the
- * runtime truth. `isNextViewport` is true for the native raw PlanarViewport and
- * false for legacy StackViewport/VolumeViewport.
- *
- * BOUNDARY: viewport (re)creation is NOT a segmentation concern. The Next twin never
- * calls `convertStackToVolumeViewport` (that recreates the viewport as ORTHOGRAPHIC
- * and is owned by CornerstoneViewportService); the Legacy twin reaches it through
- * `ISegmentationServiceInternals`, so the off path stays byte-identical.
+ * BOUNDARY: viewport (re)creation is NOT a segmentation concern: the backend
+ * never recreates a viewport.
  */
 export interface ISegmentationBackend {
   /**
-   * Decide how a LABELMAP representation is added for `csViewport`, performing any
-   * stack->volume promotion the lane requires. Called only inside the LABELMAP gate
-   * of `addSegmentationRepresentation` (CONTOUR/SURFACE never reach here).
+   * Decide how a LABELMAP representation is added for `csViewport`. Called only
+   * inside the LABELMAP gate of `addSegmentationRepresentation` (CONTOUR/SURFACE
+   * never reach here).
    */
   classifyAndPrepareLabelmapAdd(
     csViewport: csTypes.IViewport,
@@ -76,13 +58,13 @@ export interface ISegmentationBackend {
   /**
    * Build the cornerstone SegmentationPublicInput for a loaded DICOM SEG display set.
    *
-   * Dispatched by the session flag at SEG-load (NOT per viewport): no target viewport
-   * exists yet, and the data shape (single- vs multi-layer) is fixed at creation.
+   * Called at SEG-load: no target viewport exists yet, and the data shape (single-
+   * vs multi-layer) is fixed at creation.
    *
-   * Legacy: a single flattened labelmap layer (today's behavior, byte-identical).
-   * Next: when the SEG has overlapping segments, register each conflict-free group as
+   * When the SEG has overlapping segments, each conflict-free group is registered as
    * its own labelmap layer under one segmentationId (+ segmentBindings) so cornerstone
-   * renders all overlapping segments via the slice path; otherwise identical to Legacy.
+   * renders all overlapping segments via the slice path; otherwise a single
+   * flattened labelmap layer.
    */
   assembleSegmentationDataForSEG(
     params: AssembleSegmentationForSEGParams
@@ -90,13 +72,10 @@ export interface ISegmentationBackend {
 
   /**
    * Recenter a viewport on a segment's world-space center point. Returns whether it
-   * actually recentered, so the caller can skip the segment highlight when it did not
-   * (preserving today's "no jump -> no highlight" behavior).
+   * actually recentered, so the caller can skip the segment highlight when it did not.
    *
-   * Legacy: `viewport.jumpToWorld(world)` (guarded; absent -> false no-op, as today).
-   * Next: a native PlanarViewport has no jumpToWorld -> navigate via a view reference
-   * centered on `world` (setViewReference), turning today's silent native no-op into a
-   * working jump-to-slice. (In-plane pan-to-center is a separate, deferred refinement.)
+   * Navigates via a view reference centered on `world` (setViewReference).
+   * (In-plane pan-to-center is a separate, deferred refinement.)
    */
   jumpToSegmentCenter(viewport: csTypes.IViewport, world: csTypes.Point3): boolean;
 }

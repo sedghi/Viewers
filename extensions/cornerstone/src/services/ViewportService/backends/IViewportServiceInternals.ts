@@ -5,12 +5,10 @@ import type { StackViewportData, VolumeViewportData } from '../../../types/Corne
 import type { OverlayMountTask } from './IViewportBackend';
 
 /**
- * The narrow slice of CornerstoneViewportService that a viewport backend is
- * allowed to reach (migration plan §4.3 access pattern). The service `implements`
- * this and passes `this` to each backend, so a backend can dispatch the per-family
- * mount work back to the shared service methods without reaching into unrelated
- * internals. Keeping this interface narrow is what stops the off (legacy) path
- * from drifting as the next backend grows.
+ * The narrow slice of CornerstoneViewportService that the viewport backend is
+ * allowed to reach. The service `implements` this and passes `this` to the
+ * backend, so the backend can dispatch the per-family mount work back to the
+ * service methods without reaching into unrelated internals.
  */
 export interface IViewportServiceInternals {
   _setStackViewport(

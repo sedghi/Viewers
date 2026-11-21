@@ -1,10 +1,11 @@
+import type { PlanarViewport } from '@cornerstonejs/core';
 import {
   utilities as csUtils,
   CONSTANTS as csConstants,
   Types as CoreTypes,
 } from '@cornerstonejs/core';
+import { vec3 } from 'gl-matrix';
 import { getViewportAdapter } from '../adapter';
-import { legacyViewportOperations } from './LegacyViewportOperations';
 import type {
   IViewportOperations,
   FlipValue,
@@ -23,13 +24,22 @@ type NativePlanarViewport = CoreTypes.IViewport & {
   setZoom?: (zoom: number) => void;
 };
 
+// Loose view of the VTK actor/mapper/property chain used by the 3D VR ops. These
+// live on vtk.js objects, not cornerstone types, so they are accessed structurally.
+type VtkActorChain = {
+  actor: {
+    getMapper: () => Record<string, (...args: unknown[]) => unknown>;
+    getProperty: () => Record<string, (...args: unknown[]) => unknown>;
+  };
+};
+
 /**
  * Native ("next") lane of IViewportOperations for direct PLANAR_NEXT viewports.
  * Appearance and camera/view-state ops go through the viewport adapter (which
  * encapsulates the native getViewState/setViewState and
  * getDisplaySetPresentation/setDisplaySetPresentation primitives, including the
  * active-binding dataId default); the remaining ops use the native semantic API
- * directly. The dispatcher only routes generic viewports here.
+ * directly.
  *
  * No method calls viewport.render() — the command renders.
  */
@@ -152,18 +162,90 @@ export const nextViewportOperations: IViewportOperations = {
     }
   },
 
-  // VR sample-distance / opacity-points / lighting operate on the vtk volume actor via
-  // getActors, which the native VolumeViewport3D exposes; the work is lane-agnostic, so
-  // reuse the legacy actor-based implementations.
   setVolumeRenderingQuality(viewport: CoreTypes.IViewport, volumeQuality: number): void {
-    legacyViewportOperations.setVolumeRenderingQuality(viewport, volumeQuality);
+    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
+    if (!actorEntry) {
+      return;
+    }
+    const { actor } = actorEntry;
+    const mapper = (actor as unknown as VtkActorChain['actor']).getMapper();
+    const image = mapper.getInputData() as {
+      getDimensions: () => number[];
+      getSpacing: () => number[];
+    };
+    const dims = image.getDimensions();
+    const spacing = image.getSpacing();
+    const spatialDiagonal = vec3.length(
+      vec3.fromValues(dims[0] * spacing[0], dims[1] * spacing[1], dims[2] * spacing[2])
+    );
+
+    let sampleDistance = spacing.reduce((a, b) => a + b) / 3.0;
+    sampleDistance /= volumeQuality > 1 ? 0.5 * volumeQuality ** 2 : 1.0;
+    const samplesPerRay = spatialDiagonal / sampleDistance + 1;
+    mapper.setMaximumSamplesPerRay(samplesPerRay);
+    mapper.setSampleDistance(sampleDistance);
   },
 
   shiftVolumeOpacityPoints(viewport: CoreTypes.IViewport, shift: number): void {
-    legacyViewportOperations.shiftVolumeOpacityPoints(viewport, shift);
+    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
+    if (!actorEntry) {
+      return;
+    }
+    const { actor } = actorEntry;
+    const ofun = (actor as unknown as VtkActorChain['actor']).getProperty().getScalarOpacity(0) as {
+      getSize: () => number;
+      getNodeValue: (i: number, v: number[]) => void;
+      removeAllPoints: () => void;
+      addPoint: (...args: number[]) => void;
+    };
+
+    const opacityPointValues: number[][] = []; // Array to hold values
+    // Gather Existing Values
+    const size = ofun.getSize();
+    for (let pointIdx = 0; pointIdx < size; pointIdx++) {
+      const opacityPointValue = [0, 0, 0, 0];
+      ofun.getNodeValue(pointIdx, opacityPointValue);
+      // opacityPointValue now holds [xLocation, opacity, midpoint, sharpness]
+      opacityPointValues.push(opacityPointValue);
+    }
+    // Add offset
+    opacityPointValues.forEach(opacityPointValue => {
+      opacityPointValue[0] += shift; // Change the location value
+    });
+    // Set new values
+    ofun.removeAllPoints();
+    opacityPointValues.forEach(opacityPointValue => {
+      ofun.addPoint(...opacityPointValue);
+    });
   },
 
   setVolumeLighting(viewport: CoreTypes.IViewport, options: VolumeLightingOptions): void {
-    legacyViewportOperations.setVolumeLighting(viewport, options);
+    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
+    if (!actorEntry) {
+      return;
+    }
+    const { actor } = actorEntry;
+    const property = (actor as unknown as VtkActorChain['actor']).getProperty() as {
+      setShade: (v: boolean) => void;
+      setAmbient: (v: number) => void;
+      setDiffuse: (v: number) => void;
+      setSpecular: (v: number) => void;
+    };
+
+    if (options.shade !== undefined) {
+      property.setShade(options.shade);
+    }
+
+    if (options.ambient !== undefined) {
+      property.setAmbient(options.ambient);
+    }
+
+    if (options.diffuse !== undefined) {
+      property.setDiffuse(options.diffuse);
+    }
+
+    if (options.specular !== undefined) {
+      property.setSpecular(options.specular);
+    }
   },
 };

@@ -40,10 +40,8 @@ import getSOPInstanceAttributes from './utils/measurementServiceMappings/utils/g
 import {
   getViewportAdapter,
   getViewportFocalPoint,
-  isNextViewport,
   isVolumeRenderingViewport,
 } from './services/ViewportService/adapter';
-import { isNextViewportsEnabled } from './utils/nextViewports';
 import {
   NEXT_FUSION_PT_OPACITY,
   NEXT_OVERLAY_OPACITY,
@@ -319,9 +317,7 @@ export {
   getSOPInstanceAttributes,
   getViewportAdapter,
   getViewportFocalPoint,
-  isNextViewport,
   isVolumeRenderingViewport,
-  isNextViewportsEnabled,
   NEXT_FUSION_PT_OPACITY,
   NEXT_OVERLAY_OPACITY,
   getHydrationViewportTypeForModality,

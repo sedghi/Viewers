@@ -1,16 +1,21 @@
 import { Enums } from '@cornerstonejs/core';
 
 /**
- * Pre-mount classification of a viewport's bound data (viewportData from
- * CornerstoneCacheService), for code that runs before — or independently of —
- * a live viewport instance (overlays, scrollbars). Native ("next") viewports
- * collapse stack/volume onto a single PLANAR_NEXT viewportType, so these
- * helpers classify by the persisted dataShapeType and the data shape itself
- * (imageIds = stack, volume/volumeId = volume) instead of the runtime type.
+ * The shape of the data that a viewport shows. A planar viewport of
+ * Cornerstone3D shows a stack and a volume alike, so its type does not say
+ * which one: OHIF keeps the shape as a value of its own.
  *
- * For classification of a LIVE viewport instance, use
- * `getViewportAdapter(viewport).getShape()` instead.
+ * - `stack`: a stack of images.
+ * - `volume`: a slice of a volume (MPR, fusion).
+ * - `volume3d`: a volume in a 3D viewport.
+ * - `other`: anything else (video, whole slide, ECG), or nothing.
+ *
+ * The shape of the data of a viewportData (from CornerstoneCacheService) is
+ * `getViewportDataShape(viewportData)`. It is known before the viewport has
+ * the data, so overlays and scrollbars use it. The shape of what a LIVE
+ * viewport shows is `getViewportAdapter(viewport).getShape()`.
  */
+export type ViewportShape = 'stack' | 'volume' | 'volume3d' | 'other';
 
 type ViewportDatum = {
   imageIds?: string[];
@@ -21,7 +26,7 @@ type ViewportDatum = {
 
 type ViewportDataLike = {
   viewportType?: Enums.ViewportType;
-  dataShapeType?: Enums.ViewportType;
+  dataShapeType?: ViewportShape;
   data?: ViewportDatum | ViewportDatum[];
 };
 
@@ -37,39 +42,58 @@ export function isVolumeViewportData(viewportData: ViewportDataLike): boolean {
 }
 
 /**
- * The stack/volume shape a viewportData was built for, transparent across the
- * native type collapse: the persisted dataShapeType when present (set by
- * CornerstoneCacheService on the native path), else the legacy viewportType.
+ * The shape of the data a viewportData was built for: the `dataShapeType` that
+ * CornerstoneCacheService stores. A viewportData without one (built by other
+ * code) is read from its data: a 3D viewport type is a 3D volume, a volume or
+ * a volumeId is a volume, image ids are a stack.
  */
-export function getViewportDataShapeType(
-  viewportData: ViewportDataLike
-): Enums.ViewportType | undefined {
-  return viewportData?.dataShapeType ?? viewportData?.viewportType;
+export function getViewportDataShape(viewportData: ViewportDataLike): ViewportShape | undefined {
+  if (!viewportData) {
+    return undefined;
+  }
+
+  if (viewportData.dataShapeType) {
+    return viewportData.dataShapeType;
+  }
+
+  const { viewportType } = viewportData;
+
+  if (viewportType === Enums.ViewportType.VOLUME_3D) {
+    return 'volume3d';
+  }
+
+  if (viewportType && viewportType !== Enums.ViewportType.PLANAR) {
+    return 'other';
+  }
+
+  if (isVolumeViewportData(viewportData)) {
+    return 'volume';
+  }
+
+  return getPrimaryViewportDatum(viewportData)?.imageIds ? 'stack' : 'other';
 }
 
 /**
  * The slice-navigation event for this viewport's content. Resolved from the
- * legacy viewportType when it is meaningful, else from the bound data shape —
- * which is known immediately, unlike a runtime content-mode check that may not
- * be ready while a native viewport is still binding. Native viewports emit the
- * same STACK_NEW_IMAGE / VOLUME_NEW_IMAGE events as legacy.
+ * bound data, which is known immediately, unlike the content mode of a
+ * viewport that is still binding its data.
  */
 export function getSliceEventName(viewportData: ViewportDataLike): string {
-  const { viewportType } = viewportData;
+  const shape = getViewportDataShape(viewportData);
   const firstData = getPrimaryViewportDatum(viewportData);
-  return (
-    (viewportType === Enums.ViewportType.STACK && Enums.Events.NEW_IMAGE) ||
-    (viewportType === Enums.ViewportType.ORTHOGRAPHIC && Enums.Events.NEW_IMAGE) ||
-    (isVolumeViewportData(viewportData) && Enums.Events.NEW_IMAGE) ||
-    (firstData?.imageIds && Enums.Events.NEW_IMAGE) ||
-    Enums.Events.IMAGE_RENDERED
-  );
+  const hasSlices =
+    shape === 'stack' ||
+    shape === 'volume' ||
+    isVolumeViewportData(viewportData) ||
+    !!firstData?.imageIds;
+
+  return hasSlices ? Enums.Events.NEW_IMAGE : Enums.Events.IMAGE_RENDERED;
 }
 
 /**
  * The slice count for a viewport. `viewport.getNumberOfSlices()` can be
- * premature while a native viewport is still binding its data (it returns 1
- * until then). For an image stack the count is known from the bound data, so
+ * premature while a viewport is still binding its data (it returns 1 until
+ * then). For an image stack the count is known from the bound data, so
  * prefer that and only fall back to the viewport for volume/MPR (where the
  * count depends on orientation).
  */

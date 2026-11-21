@@ -15,7 +15,7 @@ import { formatDICOMTime, formatNumberPrecision } from './utils';
 import { utils } from '@ohif/core';
 import { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
 import { getViewportAdapter } from '../../services/ViewportService/adapter';
-import { getViewportDataShapeType } from '../../utils/viewportDataShape';
+import { getViewportDataShape } from '../../utils/viewportDataShape';
 
 import './CustomizableViewportOverlay.css';
 import { useViewportRendering } from '../../hooks';
@@ -276,11 +276,11 @@ function getDisplaySets(viewportData, displaySetService) {
 const getInstanceNumber = (viewportData, viewportId, imageIndex, cornerstoneViewportService) => {
   let instanceNumber;
 
-  switch (getViewportDataShapeType(viewportData)) {
-    case Enums.ViewportType.STACK:
+  switch (getViewportDataShape(viewportData)) {
+    case 'stack':
       instanceNumber = _getInstanceNumberFromStack(viewportData, imageIndex);
       break;
-    case Enums.ViewportType.ORTHOGRAPHIC:
+    case 'volume':
       instanceNumber = _getInstanceNumberFromVolume(
         viewportData,
         viewportId,
@@ -461,8 +461,6 @@ function InstanceNumberOverlayItem({
     </div>
   );
 }
-
-
 
 export default CustomizableViewportOverlay;
 
