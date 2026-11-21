@@ -363,7 +363,7 @@ Edit these files in your fork. The examples add
    as shared, and sets a plugin's peer range from this file.
 
    ```json
-   "@cornerstonejs/dicom-image-loader": "5"
+   "@cornerstonejs/dicom-image-loader": "6"
    ```
 
    A package named `@ohif/...` gets no entry, and the test fails if you add one.

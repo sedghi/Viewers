@@ -80,11 +80,10 @@ function CornerstoneImageScrollbar({
       if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
         return;
       }
-      const { imageIndex, newImageIdIndex = imageIndex, imageIdIndex } = event.detail;
+      const { imageIdIndex } = event.detail;
       const numberOfSlices = viewport.getNumberOfSlices();
-      // find the index of imageId in the imageIds
       setImageSliceData({
-        imageIndex: newImageIdIndex ?? imageIdIndex,
+        imageIndex: imageIdIndex,
         numberOfSlices,
       });
     };

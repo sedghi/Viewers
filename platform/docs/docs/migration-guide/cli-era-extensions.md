@@ -176,9 +176,9 @@ The contract:
   `coreVersionRange`, not peer ranges.
 - **Shared packages follow the host's major version.** The host shares React
   and `react-dom` 19, `react-router` and `react-router-dom` 6, `i18next` 19,
-  `react-i18next` 12, `@cornerstonejs/core` and `@cornerstonejs/tools` 5,
+  `react-i18next` 12, `@cornerstonejs/core` and `@cornerstonejs/tools` 6,
   `dcmjs` 0.52 and `gl-matrix` 3 (`create-ohif`'s `host-shared-majors.json`).
-  A peer on another major is set to the host's (`^19.0.0`, `^5.0.0`,
+  A peer on another major is set to the host's (`^19.0.0`, `^6.0.0`,
   `^0.52.0`, …); a range already on it is left alone, and an exact version on
   it becomes a caret range of itself (`19.2.0` becomes `^19.2.0`), since an
   exact peer is met by that one release only. Any of them under `dependencies`

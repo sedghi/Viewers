@@ -235,6 +235,20 @@ describe('per-display-set appearance', () => {
     });
   });
 
+  it('getBlendMode reads the blend mode of the presentation', () => {
+    const getDisplaySetPresentation = jest.fn((dataId: string) =>
+      dataId === 'ds-mip' ? { blendMode: Enums.BlendModes.MAXIMUM_INTENSITY_BLEND } : {}
+    );
+    const mip = makeNextViewport({
+      getSourceDataId: jest.fn().mockReturnValue('ds-mip'),
+      getDisplaySetPresentation,
+    });
+
+    expect(getViewportAdapter(mip).getBlendMode()).toBe(Enums.BlendModes.MAXIMUM_INTENSITY_BLEND);
+    expect(getViewportAdapter(mip).getBlendMode('ds-other')).toBeUndefined();
+    expect(getViewportAdapter(makeNextViewport()).getBlendMode()).toBeUndefined();
+  });
+
   it('getOpacityGamma is linear', () => {
     expect(getViewportAdapter(makeNextViewport()).getOpacityGamma()).toBe(1);
   });
@@ -245,8 +259,47 @@ describe('data addressing', () => {
     expect(getViewportAdapter(makeNextViewport()).getDataIdForDisplaySet('ds-1')).toBe('ds-1');
   });
 
-  it('getVolumeIds is empty', () => {
+  it('getVolumeIds is empty for a viewport without actors', () => {
     expect(getViewportAdapter(makeNextViewport()).getVolumeIds()).toEqual([]);
+  });
+
+  it('getVolumeIds keeps the ids that the viewport takes as volume ids', () => {
+    const viewport = makeNextViewport({
+      getActors: jest
+        .fn()
+        .mockReturnValue([
+          { referencedId: 'volume-ct' },
+          { referencedId: 'volume-pt' },
+          { referencedId: 'labelmap-image-7' },
+          { referencedId: 'surface-geometry' },
+          { referencedId: undefined },
+          { referencedId: 'volume-ct' },
+        ]),
+      hasVolumeId: jest.fn((id: string) => id.startsWith('volume-')),
+    });
+
+    expect(getViewportAdapter(viewport).getVolumeIds()).toEqual(['volume-ct', 'volume-pt']);
+  });
+
+  it('getVolumeIds is empty for a stack, whose actors stand for images', () => {
+    const viewport = makeNextViewport({
+      getActors: jest.fn().mockReturnValue([{ referencedId: 'image-0' }]),
+      hasVolumeId: jest.fn().mockReturnValue(false),
+    });
+
+    expect(getViewportAdapter(viewport).getVolumeIds()).toEqual([]);
+  });
+
+  it('getDataIdForVolumeId gives the binding that shows the volume', () => {
+    const viewport = makeNextViewport({
+      findDataIdByVolumeId: jest.fn((id: string) => (id === 'volume-pt' ? 'ds-pt' : undefined)),
+    });
+
+    expect(getViewportAdapter(viewport).getDataIdForVolumeId('volume-pt')).toBe('ds-pt');
+    expect(getViewportAdapter(viewport).getDataIdForVolumeId('volume-other')).toBeUndefined();
+    expect(
+      getViewportAdapter(makeNextViewport()).getDataIdForVolumeId('volume-pt')
+    ).toBeUndefined();
   });
 
   it('getVoxelManagerForDisplaySet resolves from the cornerstone cache', () => {

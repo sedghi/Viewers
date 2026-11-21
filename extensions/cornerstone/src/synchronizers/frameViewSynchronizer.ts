@@ -40,12 +40,17 @@ const frameViewSyncCallback = (
   });
 };
 
+/**
+ * A synchronizer that keeps the slices of its viewports a fixed number of
+ * slices apart. A scroll is a view state change: CAMERA_MODIFIED fires when
+ * the index is asked for, and NEW_IMAGE when the image shows.
+ */
 const createFrameViewSynchronizer = (synchronizerName: string): Synchronizer => {
   const synchronizer = SynchronizerManager.createSynchronizer(
     synchronizerName,
-    EVENTS.STACK_VIEWPORT_SCROLL,
+    EVENTS.CAMERA_MODIFIED,
     frameViewSyncCallback,
-    { auxiliaryEvents: [{ name: EVENTS.CAMERA_MODIFIED, source: 'element' }] }
+    { auxiliaryEvents: [{ name: EVENTS.NEW_IMAGE, source: 'element' }] }
   );
   return synchronizer;
 };

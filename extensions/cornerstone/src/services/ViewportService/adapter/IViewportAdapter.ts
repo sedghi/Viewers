@@ -1,4 +1,4 @@
-import type { Types as CoreTypes } from '@cornerstonejs/core';
+import type { Enums as CoreEnums, Types as CoreTypes } from '@cornerstonejs/core';
 import type { ViewportShape } from '../../../utils/viewportDataShape';
 
 export type { ViewportShape };
@@ -13,14 +13,15 @@ export interface ViewportColormap {
 }
 
 /**
- * Per-display-set appearance (VOI/colormap/invert): the per-binding display-set
- * presentation keyed by dataId.
+ * Per-display-set appearance (VOI/colormap/invert/blend mode): the per-binding
+ * display-set presentation keyed by dataId.
  */
 export interface ViewportPresentation {
   voiRange?: VOIRange;
   colormap?: ViewportColormap;
   invert?: boolean;
   isComputedVOI?: boolean;
+  blendMode?: CoreEnums.BlendModes;
   [key: string]: unknown;
 }
 
@@ -127,6 +128,13 @@ export interface IViewportAdapter {
   setLayerThreshold(displaySetInstanceUID: string, threshold: number): boolean;
 
   /**
+   * The blend mode of the slab of a display set binding (the active source
+   * binding when no dataId): MAXIMUM_INTENSITY_BLEND for a MIP. Undefined when
+   * none was set, and for a 3D viewport.
+   */
+  getBlendMode(dataId?: string): CoreEnums.BlendModes | undefined;
+
+  /**
    * Gamma applied between the fusion opacity slider position and the rendered
    * opacity. The blend is linear (gamma 1).
    */
@@ -141,10 +149,18 @@ export interface IViewportAdapter {
   getDataIdForDisplaySet(displaySetInstanceUID: string): string | undefined;
 
   /**
-   * The volumeIds bound to this viewport. Always [] : volume data is addressed
-   * by dataId.
+   * The ids of the volumes that the viewport shows, the source first. The
+   * actors of a viewport also stand for stack images, labelmap images and
+   * surfaces: only an id that the viewport takes as a volume id is kept. Empty
+   * for a stack and for a viewport without actors (video, whole slide, ECG).
    */
   getVolumeIds(): string[];
+
+  /**
+   * The dataId of the binding that shows a volume, to address its presentation.
+   * Undefined when the viewport does not show the volume.
+   */
+  getDataIdForVolumeId(volumeId: string): string | undefined;
 
   /** Voxel data access (getRange etc.) for a display set's volume, when available. */
   getVoxelManagerForDisplaySet(

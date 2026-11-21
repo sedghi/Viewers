@@ -1,15 +1,10 @@
 import React, { useEffect, useCallback, useState, ReactElement, useMemo } from 'react';
 import debounce from 'lodash.debounce';
 import { PanelSection, WindowLevel } from '@ohif/ui-next';
-import type { PlanarViewport } from '@cornerstonejs/core';
-import { Enums, eventTarget, cache, utilities as csUtils, Types } from '@cornerstonejs/core';
+import { Enums, eventTarget, cache, utilities as csUtils } from '@cornerstonejs/core';
 import { useActiveViewportDisplaySets } from '@ohif/core';
-import {
-  getNodeOpacity,
-  isPetVolumeWithDefaultOpacity,
-  isVolumeWithConstantOpacity,
-  getWindowLevelsData,
-} from './utils';
+import { getWindowLevelsData } from './utils';
+import { getViewportAdapter } from '../../services/ViewportService/adapter';
 
 const { Events } = Enums;
 
@@ -23,11 +18,11 @@ const { Events } = Enums;
  * that may already have happened.
  */
 const areViewportVolumesLoaded = (viewport): boolean => {
-  if (!viewport || !csUtils.viewportSupportsVolumeId(viewport)) {
+  if (!viewport) {
     return false;
   }
 
-  const volumeIds = (viewport as PlanarViewport).getActors().map(entry => entry.referencedId);
+  const volumeIds = getViewportAdapter(viewport).getVolumeIds();
   if (!volumeIds.length) {
     return false;
   }
@@ -36,20 +31,6 @@ const areViewportVolumesLoaded = (viewport): boolean => {
     volumeId =>
       (cache.getVolume(volumeId)?.loadStatus as { loaded?: boolean } | undefined)?.loaded === true
   );
-};
-
-// Depends only on its arguments, so it lives at module scope and keeps a stable
-// identity — that is what lets updateViewportHistograms below be memoized.
-const getVolumeOpacity = (viewport, volumeId) => {
-  const volumeActor = viewport.getActors().find(actor => actor.referencedId === volumeId)?.actor;
-
-  if (isPetVolumeWithDefaultOpacity(volumeId, volumeActor)) {
-    return getNodeOpacity(volumeActor, 1);
-  } else if (isVolumeWithConstantOpacity(volumeActor)) {
-    return getNodeOpacity(volumeActor, 0);
-  }
-
-  return undefined;
 };
 
 const ViewportWindowLevel = ({
@@ -76,7 +57,7 @@ const ViewportWindowLevel = ({
       .filter(viewport => csUtils.viewportIsInVolumeMode(viewport));
 
     return viewports.filter(vp => {
-      const viewportVolumeIds = (vp as PlanarViewport).getActors().map(entry => entry.referencedId);
+      const viewportVolumeIds = getViewportAdapter(vp).getVolumeIds();
       return (
         volumeIds.length === viewportVolumeIds.length &&
         volumeIds.every(volumeId => viewportVolumeIds.includes(volumeId))
@@ -88,7 +69,7 @@ const ViewportWindowLevel = ({
     const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
     const viewportInfo = cornerstoneViewportService.getViewportInfo(viewportId);
 
-    getWindowLevelsData(viewport, viewportInfo, getVolumeOpacity).then(data => {
+    getWindowLevelsData(viewport, viewportInfo).then(data => {
       setWindowLevels(data);
     });
   }, [cornerstoneViewportService, viewportId]);
@@ -141,7 +122,9 @@ const ViewportWindowLevel = ({
       upper: voi.windowCenter + voi.windowWidth / 2,
     };
 
-    viewport.setProperties({ voiRange: newRange }, volumeId);
+    const adapter = getViewportAdapter(viewport);
+
+    adapter.setPresentation({ voiRange: newRange }, adapter.getDataIdForVolumeId(volumeId));
     viewport.render();
   };
 
@@ -152,14 +135,16 @@ const ViewportWindowLevel = ({
       return;
     }
 
-    const viewportVolumeIds = csUtils.viewportSupportsVolumeId(viewport)
-      ? (viewport as PlanarViewport).getActors().map(entry => entry.referencedId)
-      : [];
+    const viewportVolumeIds = getViewportAdapter(viewport).getVolumeIds();
     const viewports = getViewportsWithVolumeIds(viewportVolumeIds);
 
     viewports.forEach(vp => {
-      vp.setProperties({ colormap: { opacity } }, volumeId);
-      vp.render();
+      const adapter = getViewportAdapter(vp);
+      const dataId = adapter.getDataIdForVolumeId(volumeId);
+
+      if (dataId && adapter.setLayerOpacity(dataId, opacity)) {
+        vp.render();
+      }
     });
   };
 

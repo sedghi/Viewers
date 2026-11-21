@@ -26,6 +26,9 @@ type NativeViewport = CoreTypes.IViewport & {
   getViewReference?: () => CoreTypes.ViewReference | undefined;
   setViewReference?: (ref: CoreTypes.ViewReference) => void;
   getCurrentMode?: () => string;
+  getActors?: () => Array<{ referencedId?: string }>;
+  hasVolumeId?: (volumeId: string) => boolean;
+  findDataIdByVolumeId?: (volumeId: string) => string | undefined;
   setDisplaySets?: (args: {
     displaySetId: string;
     options?: Record<string, unknown>;
@@ -172,6 +175,10 @@ export class NextViewportAdapter implements IViewportAdapter {
     return true;
   }
 
+  getBlendMode(dataId?: string): Enums.BlendModes | undefined {
+    return this.getPresentation(dataId).blendMode;
+  }
+
   getOpacityGamma(): number {
     // Native volume viewports render the fusion as a volume slice whose blend is
     // linear in the opacity scalar, so the slider maps 1:1.
@@ -189,8 +196,21 @@ export class NextViewportAdapter implements IViewportAdapter {
   }
 
   getVolumeIds(): string[] {
-    // No legacy getAllVolumeIds surface; volume data is addressed by dataId.
-    return [];
+    const { viewport } = this;
+    if (typeof viewport.getActors !== 'function' || typeof viewport.hasVolumeId !== 'function') {
+      return [];
+    }
+
+    const volumeIds = viewport
+      .getActors()
+      .map(entry => entry.referencedId)
+      .filter(id => !!id && viewport.hasVolumeId(id));
+
+    return [...new Set(volumeIds)];
+  }
+
+  getDataIdForVolumeId(volumeId: string): string | undefined {
+    return this.viewport.findDataIdByVolumeId?.(volumeId);
   }
 
   getVoxelManagerForDisplaySet(

@@ -1155,16 +1155,16 @@ function commandsModule({
     },
     getVolumeIdForDisplaySet: ({ viewportId, displaySetInstanceUID }) => {
       const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-      // `instanceof BaseVolumeViewport` is false for GenericViewport compat adapters,
-      // so use the capability guard instead (cornerstone 5.x generic-viewport guide).
-      // A stack-mode adapter passes the guard but getAllVolumeIds() returns [], so the
-      // result is the same null as before on stacks.
-      if (csUtils.viewportSupportsVolumeId(viewport)) {
-        const volumeIds = (viewport as PlanarViewport).getActors().map(entry => entry.referencedId);
-        const volumeId = volumeIds.find(id => id.includes(displaySetInstanceUID));
-        return volumeId;
+
+      if (!viewport) {
+        return null;
       }
-      return null;
+
+      const volumeId = getViewportAdapter(viewport)
+        .getVolumeIds()
+        .find(id => id.includes(displaySetInstanceUID));
+
+      return volumeId ?? null;
     },
     setToolEnabled: ({ toolName, toggle, toolGroupId }) => {
       const { viewports } = viewportGridService.getState();

@@ -613,7 +613,7 @@ packages, and get the host's copies when they load:
 | `react-router`, `react-router-dom` | 6 |
 | `i18next` | 19 |
 | `react-i18next` | 12 |
-| `@cornerstonejs/core`, `@cornerstonejs/tools` | 5 |
+| `@cornerstonejs/core`, `@cornerstonejs/tools` | 6 |
 | `dcmjs` | 0.52 |
 | `gl-matrix` | 3 |
 

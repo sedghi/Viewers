@@ -1,5 +1,6 @@
 import type { Types } from '@cornerstonejs/core';
 import { SegmentationRepresentations } from '@cornerstonejs/tools/enums';
+import type { ViewportPresentation } from '../services/ViewportService/adapter/IViewportAdapter';
 
 /**
  * Represents a position presentation in a viewport. This is basically
@@ -30,7 +31,7 @@ export type PositionPresentation = {
 export interface LutPresentation {
   viewportType: string;
   // either a single object with the properties itself or a map of properties with volumeId keys
-  properties: Record<string, Types.ViewportProperties> | Types.ViewportProperties;
+  properties: Record<string, ViewportPresentation> | ViewportPresentation;
 }
 
 /**

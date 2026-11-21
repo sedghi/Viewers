@@ -94,11 +94,6 @@ export default async function init({
     genericViewportsConfig.viewportRendering
   );
   if (renderBackend) {
-    if (renderBackend === 'cpu') {
-      cornerstone.setRenderBackend('cpu');
-    } else if (renderBackend === 'gpu') {
-      cornerstone.setRenderBackend('auto');
-    }
     try {
       cornerstone.setRenderBackend(renderBackend as cornerstone.RenderBackendValue);
     } catch (error) {
@@ -307,7 +302,6 @@ export default async function init({
     handler(detail.error);
   };
 
-  eventTarget.addEventListener(EVENTS.IMAGE_LOAD_FAILED, imageLoadFailedHandler);
   eventTarget.addEventListener(EVENTS.IMAGE_LOAD_FAILED, imageLoadFailedHandler);
 
   const getDisplaySetFromVolumeId = (volumeId: string) => {

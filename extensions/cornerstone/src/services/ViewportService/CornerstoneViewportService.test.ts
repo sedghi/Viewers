@@ -1,9 +1,18 @@
-import { Enums } from '@cornerstonejs/core';
+import { Enums, utilities } from '@cornerstonejs/core';
 import type { PlanarViewport } from '@cornerstonejs/core';
 import CornerstoneViewportService from './CornerstoneViewportService';
 import type ViewportInfo from './Viewport';
 import type { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
 import type { ViewportShape } from '../../utils/viewportDataShape';
+
+jest.mock('@cornerstonejs/core', () => {
+  const actual = jest.requireActual('@cornerstonejs/core');
+
+  return {
+    ...actual,
+    utilities: { ...actual.utilities, jumpToSlice: jest.fn() },
+  };
+});
 
 const { ViewportType } = Enums;
 
@@ -15,6 +24,9 @@ function makeServicesManager() {
       displaySetService: { getDisplaySetByUID: jest.fn().mockReturnValue({}) },
       segmentationService: { clearSegmentationRepresentations: jest.fn() },
       syncGroupService: { getSynchronizersForViewport: jest.fn().mockReturnValue([]) },
+      viewportGridService: {
+        getDisplaySetsUIDsForViewport: jest.fn().mockReturnValue(['display-set']),
+      },
     },
   } as unknown as AppTypes.ServicesManager;
 }
@@ -63,6 +75,7 @@ function addViewports(service: CornerstoneViewportService, shape: ViewportShape,
 describe('CornerstoneViewportService and the shape of the data', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+    (utilities.jumpToSlice as jest.Mock).mockClear();
   });
 
   describe('the initial image of a hanging protocol', () => {
@@ -130,6 +143,66 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       });
 
       expect(getInitialImageIndex(service, viewportInfo)).toBeUndefined();
+    });
+
+    /** Mounts a volume of 11 slices on the viewport of a service whose backend mounts it. */
+    const mountVolume = async (viewportOptions: object, presentations: object) => {
+      const { service } = makeServiceWithViewport('volume', {
+        viewportType: 'volume',
+        ...viewportOptions,
+      });
+      const viewport = {
+        id: 'viewport-1',
+        element: {},
+        getNumberOfSlices: () => 11,
+      } as unknown as PlanarViewport;
+      const internals = service as unknown as {
+        backend: { mountVolumes: jest.Mock };
+        _processExtraDisplaySetsForViewport: () => unknown[];
+      };
+      internals.backend.mountVolumes = jest.fn().mockResolvedValue(true);
+      jest.spyOn(internals, '_processExtraDisplaySetsForViewport').mockReturnValue([]);
+      jest.spyOn(service, 'getCornerstoneViewport').mockReturnValue(viewport);
+
+      await service.setVolumesForViewport(
+        viewport,
+        [{ volumeId: 'volume-1', displaySetInstanceUID: 'display-set', imageIds }],
+        presentations
+      );
+
+      return { viewport, mountVolumes: internals.backend.mountVolumes };
+    };
+
+    it('a volume mount jumps to the initial image of the preset', async () => {
+      const { viewport, mountVolumes } = await mountVolume(
+        { initialImageOptions: { preset: 'middle' } },
+        {}
+      );
+
+      expect(mountVolumes).toHaveBeenCalledTimes(1);
+      expect(utilities.jumpToSlice).toHaveBeenCalledTimes(1);
+      expect(utilities.jumpToSlice).toHaveBeenCalledWith(viewport.element, { imageIndex: 5 });
+    });
+
+    it('a volume mount jumps to the initial image of the index', async () => {
+      const { viewport } = await mountVolume({ initialImageOptions: { index: 3 } }, {});
+
+      expect(utilities.jumpToSlice).toHaveBeenCalledWith(viewport.element, { imageIndex: 3 });
+    });
+
+    it('a volume mount with a position presentation keeps its position', async () => {
+      await mountVolume(
+        { initialImageOptions: { preset: 'middle' } },
+        { positionPresentation: { viewportType: 'planar', viewReference: {} } }
+      );
+
+      expect(utilities.jumpToSlice).not.toHaveBeenCalled();
+    });
+
+    it('a volume mount without initial image options does not jump', async () => {
+      await mountVolume({}, {});
+
+      expect(utilities.jumpToSlice).not.toHaveBeenCalled();
     });
   });
 

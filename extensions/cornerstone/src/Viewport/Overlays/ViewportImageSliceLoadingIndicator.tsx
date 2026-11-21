@@ -5,7 +5,23 @@
 'use no memo';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Enums } from '@cornerstonejs/core';
+import { Enums, getEnabledElement } from '@cornerstonejs/core';
+import type { PlanarViewport } from '@cornerstonejs/core';
+import { getViewportAdapter } from '../../services/ViewportService/adapter';
+
+/**
+ * The stack viewport of an element, or undefined when the element shows
+ * something else (a volume, a video) or nothing yet.
+ */
+function getStackViewport(element: HTMLDivElement): PlanarViewport | undefined {
+  const viewport = getEnabledElement(element)?.viewport;
+
+  if (!viewport || getViewportAdapter(viewport).getShape() !== 'stack') {
+    return undefined;
+  }
+
+  return viewport as PlanarViewport;
+}
 
 function ViewportImageSliceLoadingIndicator({ viewportData, element }) {
   const [loading, setLoading] = useState(false);
@@ -13,8 +29,20 @@ function ViewportImageSliceLoadingIndicator({ viewportData, element }) {
 
   const loadIndicatorRef = useRef(null);
   const imageIdToBeLoaded = useRef(null);
+  const shownImageIdIndex = useRef<number | null>(null);
 
-  const setLoadingState = evt => {
+  /**
+   * A scroll of a stack asks for another image: CAMERA_MODIFIED fires when the
+   * index is asked for, and NEW_IMAGE when the image shows. A pan or a zoom
+   * fires CAMERA_MODIFIED too and keeps the index, so it starts nothing.
+   */
+  const setLoadingState = () => {
+    const viewport = getStackViewport(element);
+
+    if (!viewport || viewport.getCurrentImageIdIndex() === shownImageIdIndex.current) {
+      return;
+    }
+
     clearTimeout(loadIndicatorRef.current);
 
     loadIndicatorRef.current = setTimeout(() => {
@@ -25,6 +53,7 @@ function ViewportImageSliceLoadingIndicator({ viewportData, element }) {
   const setFinishLoadingState = evt => {
     clearTimeout(loadIndicatorRef.current);
 
+    shownImageIdIndex.current = evt.detail.imageIdIndex;
     setLoading(false);
   };
 
@@ -38,12 +67,14 @@ function ViewportImageSliceLoadingIndicator({ viewportData, element }) {
   };
 
   useEffect(() => {
-    element.addEventListener(Enums.Events.STACK_VIEWPORT_SCROLL, setLoadingState);
+    shownImageIdIndex.current = getStackViewport(element)?.getCurrentImageIdIndex() ?? null;
+
+    element.addEventListener(Enums.Events.CAMERA_MODIFIED, setLoadingState);
     element.addEventListener(Enums.Events.IMAGE_LOAD_FAILED, setErrorState);
     element.addEventListener(Enums.Events.NEW_IMAGE, setFinishLoadingState);
 
     return () => {
-      element.removeEventListener(Enums.Events.STACK_VIEWPORT_SCROLL, setLoadingState);
+      element.removeEventListener(Enums.Events.CAMERA_MODIFIED, setLoadingState);
 
       element.removeEventListener(Enums.Events.NEW_IMAGE, setFinishLoadingState);
 

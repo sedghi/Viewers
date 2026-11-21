@@ -1,5 +1,5 @@
 import { metaData, utilities } from '@cornerstonejs/core';
-import { IStackViewport, IVolumeViewport } from '@cornerstonejs/core/types';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { AnnotationDisplayTool, drawing } from '@cornerstonejs/tools';
 import { guid, b64toBlob } from '@ohif/core/src/utils';
 import OverlayPlaneModuleProvider from './OverlayPlaneModuleProvider';
@@ -48,7 +48,7 @@ class ImageOverlayViewerTool extends AnnotationDisplayTool {
 
   onSetToolDisabled = (): void => {};
 
-  protected getReferencedImageId(viewport: IStackViewport | IVolumeViewport): string {
+  protected getReferencedImageId(viewport: PlanarViewport): string {
     if (utilities.getViewportContentMode(viewport) === 'volume') {
       return;
     }

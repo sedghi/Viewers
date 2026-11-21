@@ -1,9 +1,12 @@
 import { ViewportData } from './types';
 import { getViewportAdapter } from '../../../services/ViewportService/adapter';
 
+/**
+ * The index of the slice that a NEW_IMAGE event shows: the index of the image
+ * of a stack, the slice index of the view of a volume.
+ */
 export function getImageIndexFromEvent(event): number | undefined {
-  const { imageIndex, newImageIdIndex = imageIndex, imageIdIndex } = event.detail;
-  return newImageIdIndex ?? imageIdIndex;
+  return event.detail.imageIdIndex;
 }
 
 export function getViewportImageIds(viewportData: ViewportData): string[] {

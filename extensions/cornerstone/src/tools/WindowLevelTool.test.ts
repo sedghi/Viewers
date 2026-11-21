@@ -5,9 +5,8 @@ import WindowLevelTool from './WindowLevelTool';
 jest.mock('@cornerstonejs/core', () => ({
   Enums: {
     ViewportType: {
-      STACK: 'stack',
+      PLANAR: 'planar',
       ECG: 'ecg',
-      ECG_NEXT: 'ecgNext',
     },
   },
   getEnabledElement: jest.fn(),
@@ -38,8 +37,8 @@ describe('WindowLevelTool', () => {
     expect(WindowLevelTool.toolName).toBe('WindowLevel');
   });
 
-  it.each(['ecg', 'ecgNext'])('ignores drags on %s viewports', type => {
-    expect(() => dragOn({ type })).not.toThrow();
+  it('ignores drags on ecg viewports', () => {
+    expect(() => dragOn({ type: 'ecg' })).not.toThrow();
     expect(cornerstoneDrag).not.toHaveBeenCalled();
   });
 
@@ -48,7 +47,7 @@ describe('WindowLevelTool', () => {
     expect(cornerstoneDrag).not.toHaveBeenCalled();
   });
 
-  it.each(['stack', 'wholeSlide'])('applies window/level on %s viewports', type => {
+  it.each(['planar', 'wholeSlide'])('applies window/level on %s viewports', type => {
     dragOn({ type });
     expect(cornerstoneDrag).toHaveBeenCalledWith(evt);
   });

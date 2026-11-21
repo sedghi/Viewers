@@ -1,15 +1,17 @@
-import type { PlanarViewport } from '@cornerstonejs/core';
 import { cache, Types } from '@cornerstonejs/core';
 import { utilities } from '@cornerstonejs/tools';
+import { getViewportAdapter } from './services/ViewportService/adapter';
 
-function _getVolumeFromViewport(viewport: PlanarViewport) {
-  // Handle non-volume viewports that don't have getAllVolumeIds
-  if (!viewport?.getAllVolumeIds) {
-    return null;
-  }
-
-  const volumeIds = viewport.getActors().map(entry => entry.referencedId);
-  const volumes = volumeIds.map(id => cache.getVolume(id));
+/**
+ * The volume of a viewport that a cine plays: its dynamic (4D) volume when it
+ * shows one, else its first volume. Undefined for a viewport that shows no
+ * volume (a stack, a video).
+ */
+function _getVolumeFromViewport(viewport: Types.IViewport) {
+  const volumes = getViewportAdapter(viewport)
+    .getVolumeIds()
+    .map(id => cache.getVolume(id))
+    .filter(Boolean);
   const dynamicVolume = volumes.find(volume => volume.isDynamicVolume());
 
   return dynamicVolume ?? volumes[0];
@@ -46,7 +48,11 @@ function _getSyncedViewports(servicesManager: AppTypes.ServicesManager, srcViewp
     .filter(({ viewportId }) => {
       const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
-      return viewportId !== srcViewportId && viewport?.hasVolumeId?.(srcVolumeId);
+      return (
+        viewportId !== srcViewportId &&
+        !!viewport &&
+        getViewportAdapter(viewport).getVolumeIds().includes(srcVolumeId)
+      );
     })
     .map(({ viewportId }) => ({ viewportId }));
 }

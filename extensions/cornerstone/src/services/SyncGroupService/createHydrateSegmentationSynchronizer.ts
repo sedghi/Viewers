@@ -105,7 +105,9 @@ const segmentationRepresentationModifiedCallback = async (
     type,
     config: {
       blendMode:
-        viewport?.getBlendMode?.() === 1 ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND : undefined,
+        getViewportAdapter(viewport).getBlendMode() === BlendModes.MAXIMUM_INTENSITY_BLEND
+          ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND
+          : undefined,
     },
   });
 };

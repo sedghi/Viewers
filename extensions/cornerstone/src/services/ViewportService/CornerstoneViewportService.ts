@@ -30,13 +30,13 @@ import {
 } from '../../types/Presentation';
 
 import JumpPresets from '../../utils/JumpPresets';
-import { ViewportProperties } from '@cornerstonejs/core/types';
 import { useLutPresentationStore } from '../../stores/useLutPresentationStore';
 import { usePositionPresentationStore } from '../../stores/usePositionPresentationStore';
 import { useSynchronizersStore } from '../../stores/useSynchronizersStore';
 import { useSegmentationPresentationStore } from '../../stores/useSegmentationPresentationStore';
 import getClosestOrientationFromIOP from '../../utils/isReferenceViewable';
 import { getViewportAdapter } from './adapter';
+import type { ViewportPresentation } from './adapter';
 import { viewportOperations } from './backends/viewportOperations';
 import { BlendModes } from '@cornerstonejs/core/enums';
 import { isAutoHydrateViewportType } from '../../utils/autoHydrateViewportTypes';
@@ -1103,7 +1103,7 @@ class CornerstoneViewportService
     const volumesProperties = filteredVolumeInputArray.map(({ volumeInput, displaySetOptions }) => {
       const { volumeId } = volumeInput;
       const { voi, voiInverted, colormap, displayPreset } = displaySetOptions;
-      const properties = {} as ViewportProperties;
+      const properties: ViewportPresentation = {};
 
       if (voi && (voi.windowWidth || voi.windowCenter)) {
         const { lower, upper } = csUtils.windowLevel.toLowHighRange(
@@ -1143,6 +1143,7 @@ class CornerstoneViewportService
       presentations,
     });
     if (handledByBackend) {
+      this._jumpToInitialImage(viewport, viewportInfo, presentations);
       this._broadcastEvent(this.EVENTS.VIEWPORT_VOLUMES_CHANGED, { viewportInfo });
       return;
     }
@@ -1182,19 +1183,35 @@ class CornerstoneViewportService
     this.setPresentations(viewport.id, presentations);
     viewport.render();
 
-    if (!presentations.positionPresentation) {
-      const imageIndex = this._getInitialImageIndexForViewport(viewportInfo);
-
-      if (imageIndex !== undefined) {
-        csUtils.jumpToSlice(viewport.element, {
-          imageIndex,
-        });
-      }
-    }
+    this._jumpToInitialImage(viewport, viewportInfo, presentations);
 
     this._broadcastEvent(this.EVENTS.VIEWPORT_VOLUMES_CHANGED, {
       viewportInfo,
     });
+  }
+
+  /**
+   * Puts a volume viewport on the initial image of its hanging protocol
+   * (`initialImageOptions`: an index or a preset), after its volumes are
+   * mounted. A viewport that comes back with a position presentation keeps the
+   * position that the presentation restored.
+   */
+  private _jumpToInitialImage(
+    viewport: Types.IViewport,
+    viewportInfo: ViewportInfo,
+    presentations?: Presentations
+  ): void {
+    if (presentations?.positionPresentation) {
+      return;
+    }
+
+    const imageIndex = this._getInitialImageIndexForViewport(viewportInfo);
+
+    if (imageIndex !== undefined) {
+      csUtils.jumpToSlice(viewport.element, {
+        imageIndex,
+      });
+    }
   }
 
   private _processExtraDisplaySetsForViewport(viewport: PlanarViewport | PlanarViewport) {
@@ -1253,7 +1270,7 @@ class CornerstoneViewportService
           type: representationType,
           config: {
             blendMode:
-              viewport?.getBlendMode?.() === 1
+              getViewportAdapter(viewport).getBlendMode() === BlendModes.MAXIMUM_INTENSITY_BLEND
                 ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND
                 : undefined,
           },
@@ -1623,7 +1640,7 @@ class CornerstoneViewportService
           type: representationType,
           config: {
             blendMode:
-              viewport?.getBlendMode?.() === 1
+              getViewportAdapter(viewport).getBlendMode() === BlendModes.MAXIMUM_INTENSITY_BLEND
                 ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND
                 : undefined,
           },

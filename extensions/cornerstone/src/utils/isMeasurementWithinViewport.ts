@@ -5,12 +5,19 @@ import { getCenterExtent } from './getCenterExtent';
  * Uses the measurement's bounding box extent to efficiently check if the entire
  * measurement fits within the viewport's visible area.
  *
+ * A viewport without a view (no data yet) holds no measurement.
+ *
  * @param {Object} viewport - The viewport object containing camera information
  * @param {Object} measurement - The measurement object containing points to check
  * @returns {boolean} True if the measurement extent is within the viewport, false otherwise
  */
 export const isMeasurementWithinViewport = (viewport, measurement) => {
-  const camera = viewport.getCamera();
+  const camera = viewport.getResolvedView()?.toICamera();
+
+  if (!camera) {
+    return false;
+  }
+
   const { focalPoint, parallelScale } = camera;
 
   // Get the measurement's bounding box extent

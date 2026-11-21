@@ -6,8 +6,9 @@ jest.mock('./getCenterExtent', () => ({
 }));
 
 describe('isMeasurementWithinViewport', () => {
+  const toICamera = jest.fn();
   const mockViewport = {
-    getCamera: jest.fn(),
+    getResolvedView: jest.fn(),
   };
 
   const mockMeasurement = {
@@ -19,6 +20,7 @@ describe('isMeasurementWithinViewport', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockViewport.getResolvedView.mockReturnValue({ toICamera });
   });
 
   it('should return true when measurement is within viewport extent', () => {
@@ -34,12 +36,12 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
 
-    expect(mockViewport.getCamera).toHaveBeenCalled();
+    expect(toICamera).toHaveBeenCalled();
     expect(getCenterExtent).toHaveBeenCalledWith(mockMeasurement);
     expect(result).toBe(true);
   });
@@ -57,7 +59,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -78,7 +80,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -99,7 +101,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -120,7 +122,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -141,7 +143,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -162,7 +164,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -183,7 +185,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -204,7 +206,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -225,7 +227,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -246,7 +248,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -267,7 +269,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -288,7 +290,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -309,7 +311,7 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
@@ -330,11 +332,23 @@ describe('isMeasurementWithinViewport', () => {
       },
     };
 
-    mockViewport.getCamera.mockReturnValue(mockCamera);
+    toICamera.mockReturnValue(mockCamera);
     (getCenterExtent as jest.Mock).mockReturnValue(mockExtent);
 
     const result = isMeasurementWithinViewport(mockViewport, mockMeasurement);
 
     expect(result).toBe(true);
+  });
+
+  it('should return false for a viewport that has no view yet', () => {
+    mockViewport.getResolvedView.mockReturnValue(undefined);
+    (getCenterExtent as jest.Mock).mockReturnValue({
+      extent: {
+        min: [0, 0, 0],
+        max: [10, 10, 10],
+      },
+    });
+
+    expect(isMeasurementWithinViewport(mockViewport, mockMeasurement)).toBe(false);
   });
 });

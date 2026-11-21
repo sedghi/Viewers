@@ -38,6 +38,23 @@ Measured on this Mac. "Before" is `master` on 5.18.3; "after" is this branch.
   (`getCornerstoneViewportType.test.ts`); 2 pin the cornerstone major of the runtime
   plugins (`@cornerstonejs/core@5`); the others are mocks of legacy viewports.
 
+## Progress
+
+| Step | State | Commit |
+|---|---|---|
+| 1. Measure the next path on 5.18.3 | done: 191 pass, 52 fail | entry M14 of the log |
+| 2. Delete the legacy path | done | `fbdd648d97` |
+| 3. OHIF's own data shape | done | `fbdd648d97` |
+| 4. The build passes | done | `fbdd648d97` |
+| 5. The other manual sites | done: the codemod reports 0 | package U2 |
+| 6. The review sites | done: 23 of 23 read | package U2 |
+| 7. The packages the codemod does not cover | open: 23 new type errors left | |
+| 8. jest | done: 158 suites, 1,907 tests pass | package U2 |
+| 9. Playwright on 6.0 | open: 215 pass, 28 fail (37 after step 4) | |
+| 10. By hand, on devices | open | |
+| 11. Clean names and docs | open | |
+| 12. Release | open | |
+
 ## What OHIF has that makes this smaller
 
 OHIF already has a full next path, used with `?useNextViewports=true`:

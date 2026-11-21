@@ -1,4 +1,5 @@
 import { Types, metaData, utilities as csUtils } from '@cornerstonejs/core';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import {
   AnnotationTool,
   annotation,
@@ -69,12 +70,9 @@ export default class DICOMSRDisplayTool extends AnnotationTool {
       trackingUniqueIdentifiers.includes(annotation.data?.TrackingUniqueIdentifier)
     );
 
-    const hasActors =
-      typeof viewport.getActors === 'function'
-        ? viewport.getActors().length > 0
-        : Boolean(viewport._actors?.size);
+    const actors = (viewport as PlanarViewport).getActors?.() ?? [];
 
-    if (!hasActors) {
+    if (!actors.length) {
       return;
     }
 

@@ -1,8 +1,8 @@
 {
   "react": "19",
   "react-dom": "19",
-  "@cornerstonejs/core": "5",
-  "@cornerstonejs/tools": "5",
+  "@cornerstonejs/core": "6",
+  "@cornerstonejs/tools": "6",
   "dcmjs": "0.52",
   "gl-matrix": "3",
   "react-router": "6",

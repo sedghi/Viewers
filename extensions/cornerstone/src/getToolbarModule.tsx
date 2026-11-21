@@ -541,7 +541,7 @@ export default function getToolbarModule({ servicesManager, extensionManager }: 
       evaluate: ({ viewportId, button }) => {
         const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
-        if (!viewport || viewport.isDisabled) {
+        if (!viewport || viewport.isDestroyed) {
           return;
         }
 

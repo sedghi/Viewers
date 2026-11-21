@@ -370,7 +370,7 @@ export class ViewportPageObject {
     const scrollBy = async (delta: number) => {
       const viewportId = await this.getViewportId(viewport);
       // Returns the slice the scroll is headed to. A stack viewport may load it after a short
-      // delay, so its target is read from getTargetImageIdIndex; a volume viewport is already on it.
+      // delay: getCurrentImageIdIndex is the requested index at once; a volume viewport is already on it.
       const targetSliceIndex = await page.evaluate(
         ({ services, viewportId, delta }) => {
           const cornerstoneViewport = (
@@ -380,9 +380,7 @@ export class ViewportPageObject {
             throw new Error(`No Cornerstone viewport found for ${viewportId}`);
           }
           cornerstoneViewport.scroll(delta);
-          return (
-            cornerstoneViewport.getTargetImageIdIndex?.() ?? cornerstoneViewport.getSliceIndex()
-          );
+          return cornerstoneViewport.getCurrentImageIdIndex();
         },
         {
           viewportId,

@@ -3,6 +3,7 @@ import { useSystem } from '@ohif/core';
 import { useViewportDisplaySets } from './useViewportDisplaySets';
 import { Types, utilities, Enums } from '@cornerstonejs/core';
 import { getViewportAdapter } from '../services/ViewportService/adapter';
+import { resolveOpacityScalar } from '../utils/resolveOpacityScalar';
 import { WindowLevelPreset } from '../types/WindowLevel';
 import { ColorbarPositionType, ColorbarOptions, ColorbarProperties } from '../types/Colorbar';
 import { VolumeRenderingConfig } from '../types/VolumeRenderingConfig';
@@ -85,28 +86,6 @@ const getPosition = (location: number): ColorbarPositionType => {
     default:
       return 'bottom'; // Default to bottom if location doesn't match a middle position
   }
-};
-
-/**
- * Normalizes a colormap opacity value to a single 0..1 scalar for the opacity
- * slider. `colormap.opacity` may be a plain number or an array of
- * `{ value, opacity }` points (e.g. the HP fusion opacity ramp); for the array
- * case we represent it by its maximum opacity. (A prior reduce ran over the point
- * objects directly, producing NaN and a mispositioned slider.)
- */
-const resolveOpacityScalar = (opacityVal: unknown): number | undefined => {
-  if (opacityVal === undefined || opacityVal === null) {
-    return undefined;
-  }
-
-  if (Array.isArray(opacityVal)) {
-    return opacityVal.reduce((max: number, point) => {
-      const value = typeof point === 'number' ? point : (point?.opacity ?? 0);
-      return Math.max(max, value);
-    }, 0);
-  }
-
-  return opacityVal as number;
 };
 
 /**
