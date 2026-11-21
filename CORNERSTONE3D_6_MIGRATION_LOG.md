@@ -237,12 +237,29 @@ failed first, a build, or a run that is named).
   other places of OHIF still choose a surface for a 3D viewport before they call
   (`_setSegmentationPresentation`, the hydration synchronizer, the default when no type
   is given), so only a caller that names `Labelmap` itself sees the difference.
-- **Fix, in OHIF:** not decided. Either keep it (a caller that asks for a labelmap gets
-  one), or make `NextSegmentationBackend.classifyAndPrepareLabelmapAdd` give a surface
-  for a 3D viewport as the legacy backend did. The owner's call.
-- **State:** open, the owner's call. The test is renamed "adds a labelmap that is asked
-  for on a 3D viewport as a labelmap" and holds what the one path does now
-  (`fbdd648d97`).
+- **Seen in the viewer (package U4):** no spec asks for a labelmap on a 3D viewport:
+  in every 3D pane of the Playwright suite the representation is a surface on 5.18.3
+  and on 6.0, because the callers choose it. Asked for by name, with a hydrated SEG on
+  the "3D only" layout,
+  `segmentationService.addSegmentationRepresentation(viewportId, { segmentationId, type: 'Labelmap' })`
+  threw `viewport.getCurrentImageId is not a function` and drew nothing: the backend
+  first calls `updateLabelmapSegmentationImageReferences` of the tools, which reads the
+  image on display. The legacy backend gave a surface. Added through cornerstone alone
+  (`segmentation.addSegmentationRepresentations`), the labelmap shows as flat coloured
+  outlines over the volume, not as bodies in it
+  (`laneU4/baselines/M11--surface-as-OHIF-adds-it--labelmap-through-cornerstone.png`).
+- **Fix, in OHIF:** decided: a surface again.
+  `NextSegmentationBackend.classifyAndPrepareLabelmapAdd` gives `Surface` for a 3D
+  viewport before it asks the tools anything, as the legacy backend did.
+- **Fix, in cornerstone:** `segmentation.state.updateLabelmapSegmentationImageReferences(viewportId, segmentationId)`
+  with the id of a 3D viewport throws on 6.0. The legacy 3D viewport had
+  `getCurrentImageId` (read in the code of 5.18.3, not run). To do: answer undefined
+  for a viewport without image slices.
+- **State:** the OHIF part is fixed in package U4 (not committed yet). Check:
+  `SegmentationService.test.ts`, "adds a labelmap that is asked for on a 3D viewport as
+  a surface" (the test of `master` again; it failed first), and in the viewer the call
+  above returns and the viewport has a `Surface` representation. The cornerstone part is
+  open.
 
 ## M12. The initial image of a hanging protocol is not applied to a volume viewport
 
@@ -342,6 +359,25 @@ failed first, a build, or a run that is named).
       of the contour once, right after the dialog closes); it passes alone, three
       times of three, and in the other two runs.
     - No baseline picture was updated.
+  - This branch on 6.0 after package U4, on cornerstone `3098597aa`: 239 pass, 4 fail
+    (4 pictures differ). 11 of the 15 pass now, none is new, 4 fail in both runs.
+    - 2 pass with the stack that becomes a volume for a labelmap of another series
+      (M29): `DataOverlayMenuFrameOfReference` and
+      `SEGDataOverlayForUnreferencedDisplaySetNoHydration`.
+    - 4 pass with the fix of M28 in cornerstone: `MPRThenSEGOverlayNoHydration`,
+      `SEGDataOverlayNoHydrationThenMPR` and two of `SegAcrossViewportTypes` ("keeps a
+      changed segment color after switching to MPR", "keeps every segment when
+      switching from 3D to MPR"). The third, "keeps the labelmap drawn from a stack
+      through MPR and back to one viewport", needed the page object of M34 too.
+    - 2 pass with the fixes of M23 and M24 in cornerstone:
+      `RTContourViewportLayoutChange` and `ManuallyDrawnSegmentation` "should jump to
+      and highlight the bidirectional".
+    - 2 pass with M28 and a new baseline for the fill of a labelmap (M36):
+      `SEGHydrationFromMPR` and `SEGHydrationThenMPR`.
+    - 4 wait for cornerstone: `RTHydrationFromMPR` and `SEGHydrationFrom3DFourUp`
+      "should properly hydrate" (M30), `MPRThenRTOverlayNoHydration` (M31), and
+      `SEGHydrationFrom3DFourUp` "should hydrate SEG only in the target viewport" (M32).
+    - Two baseline pictures were updated (M36).
 - **Why:** the next path was never the path of the test suite (M7). The 13 throws and
   some timeouts were OHIF's tests of the legacy viewport type (M8). The rest is not
   sorted yet. Three pictures read so far show three causes: a 3D volume is drawn about
@@ -355,8 +391,29 @@ failed first, a build, or a run that is named).
   test), then each group of step 9: a picture change that the cornerstone guide names
   gets a new baseline with the guide line; anything else is a defect, fixed in OHIF or
   in cornerstone with a test.
-- **State:** open. The 28 of the run after package U2, with the run after package U3
-  (the 9 that passed with U2 are named above):
+- **State:** open: 4 tests fail, and each waits for cornerstone. The 15 of the run
+  after package U3, with the run after package U4:
+
+| Spec | Test | On 6.0 after U4 | On 6.0 after U3 |
+|---|---|---|---|
+| `DataOverlayMenuFrameOfReference.spec.ts` | should only sync segmentations to viewports with same Frame of Reference | passes (M29) | timeout |
+| `MPRThenRTOverlayNoHydration.spec.ts` | should launch MPR with unhydrated RTSTRUCT chosen from the data overlay menu | picture differs (0.03) (M31) | picture differs (0.56, of the wrong clip: M35) |
+| `MPRThenSEGOverlayNoHydration.spec.ts` | should launch MPR with unhydrated SEG chosen from the data overlay menu | passes (M28) | picture differs (0.14) |
+| `ManuallyDrawnSegmentation.spec.ts` | should jump to and highlight the bidirectional of a segment that is not selected | passes (M24) | timeout |
+| `RTContourViewportLayoutChange.spec.ts` | should keep RT contours correctly positioned after maximizing and restoring the viewport | passes (M23) | value differs |
+| `RTHydrationFromMPR.spec.ts` | should hydrate an RTSTRUCT from MPR | picture differs (0.03) (M30) | picture differs (0.03) |
+| `SEGDataOverlayForUnreferencedDisplaySetNoHydration.spec.ts` | should overlay an unhydrated SEG over a display set that the SEG does NOT reference | passes (M29) | picture differs (0.04) |
+| `SEGDataOverlayNoHydrationThenMPR.spec.ts` | should launch MPR with unhydrated SEG chosen from the data overlay menu | passes (M28) | picture differs (0.14) |
+| `SEGHydrationFrom3DFourUp.spec.ts` | should hydrate SEG only in the target viewport and preserve other viewport orientations | picture differs (0.12) (M32) | picture differs (0.12) |
+| `SEGHydrationFrom3DFourUp.spec.ts` | should properly hydrate SEG from 3D four up layout | picture differs (0.10) (M30) | picture differs (0.10) |
+| `SEGHydrationFromMPR.spec.ts` | should properly display MPR for MR | passes (M28, and a new baseline: M36) | picture differs (0.14) |
+| `SEGHydrationThenMPR.spec.ts` | should properly display MPR for MR | passes (M28, and a new baseline: M36) | picture differs (0.27) |
+| `SegAcrossViewportTypes.spec.ts` | keeps a changed segment color after switching to MPR | passes (M28) | picture differs (0.26) |
+| `SegAcrossViewportTypes.spec.ts` | keeps every segment when switching from 3D to MPR | passes (M28) | picture differs (0.26) |
+| `SegAcrossViewportTypes.spec.ts` | keeps the labelmap drawn from a stack through MPR and back to one viewport | passes (M34, M28) | timeout |
+
+  The 28 of the run after package U2, with the run after package U3 (the 9 that passed
+  with U2 are named above):
 
 | Spec | Test | On 6.0 after U3 | On 6.0 after U2 | On 6.0 after U1 | On the next path of 5.18.3 |
 |---|---|---|---|---|---|
@@ -634,10 +691,12 @@ failed first, a build, or a run that is named).
   5.18.3 (legacy stack viewport): `[239, 166]` in a canvas of 478 by 331. On 6.0:
   `[478, 331]`, the centre of the old canvas. With `resize(false)` alone both give
   `[239, 166]`.
-- **Fix, in cornerstone:** to do (drop the cached size also when the resize is put
-  off, or when the engine copies a frame of another size to the canvas).
+- **Fix, in cornerstone:** the engine resizes the viewports whose size changed also
+  when a frame is scheduled (cornerstone3D `3098597aa`, rows 116 to 120 of its open
+  issues list).
 - **Fix, in OHIF:** none (rule 3).
-- **State:** open, waits for cornerstone. The test fails.
+- **State:** fixed in cornerstone. Check: `RTContourViewportLayoutChange.spec.ts`
+  passes on the linked checkout at `3098597aa` (the full run after package U4).
 
 ## M24. An annotation hydrated for points on another slice references the image on display
 
@@ -655,10 +714,12 @@ failed first, a build, or a run that is named).
   `LengthTool.hydrate(viewportId, [p, q])`. The `referencedImageId` of the annotation
   is image 10 on 5.18.3 and image 40 on 6.0;
   `utilities.getClosestStackImageIndexForPoint(p, viewport)` gives 10 on both.
-- **Fix, in cornerstone:** to do.
-- **Fix, in OHIF:** none (rule 3). OHIF could pass `referencedImageId` to `hydrate`,
-  which would hide it for this one tool.
-- **State:** open, waits for cornerstone. The test fails.
+- **Fix, in cornerstone:** `AnnotationTool.hydrateBase` references the image closest
+  to the points, as 5.x did (cornerstone3D `3098597aa`).
+- **Fix, in OHIF:** none (rule 3).
+- **State:** fixed in cornerstone. Check: `ManuallyDrawnSegmentation.spec.ts`, "should
+  jump to and highlight the bidirectional of a segment that is not selected", passes on
+  the linked checkout at `3098597aa` (the full run after package U4).
 
 ## M25. Every image of a stack was shown with the window of its first image
 
@@ -691,12 +752,15 @@ failed first, a build, or a run that is named).
   5.18.3: one event with `range: { lower: -25.5, upper: 710.5 }`. On 6.0: no event,
   `getDisplaySetPresentation(id).voiRange` is undefined and
   `getDefaultVOIRange(id)` gives `{ lower: -25.5, upper: 710.5 }`.
-- **Fix, in cornerstone:** to do (fire the event, or name in the guide what an
-  application listens to instead).
+- **Fix, in cornerstone:** a stack without a window set fires `VOI_MODIFIED` when a
+  scroll shows an image with another default window (cornerstone3D `3098597aa`).
 - **Fix, in OHIF:** none (rule 3). The pictures of a viewport hide the texts of the
   overlays, and no page picture of the Playwright suite is taken after such a scroll,
-  so no test shows it.
-- **State:** open, waits for cornerstone.
+  so no test of the suite shows it.
+- **State:** fixed in cornerstone. Check: the smallest case again in the viewer on the
+  linked checkout at `3098597aa` (`laneU4/voi-6-newbuild.log`): one event with
+  `{ lower: -25.5, upper: 710.5 }`, and the overlay goes from W: 95 L: 35 to W: 737
+  L: 343. Before: no event, and the overlay stayed.
 
 ## M27. The orientation command threw on a 3D viewport
 
@@ -739,11 +803,264 @@ failed first, a build, or a run that is named).
   stroke of a new labelmap. 5.18.3 (legacy stack viewport): no event, and the overlay
   stays W: 95 L: 35. 6.0: two events with `{ lower: 0, upper: -1 }`, and the overlay
   says W: 2 L: 0.
-- **Fix, in cornerstone:** to do (no `VOI_MODIFIED` for a labelmap layer, or the id of
-  the display set in the detail, so that a listener can keep the events of its own
-  display set).
-- **Fix, in OHIF:** none (rule 3). When the detail names the display set, the hook
-  compares it with the display set it shows.
+- **The second effect, found in package U4: the image goes black or white in an MPR.**
+  A planar viewport fired `VOI_MODIFIED` at the mount of every display set, the
+  labelmap overlay too. `voiSyncCallback` of the tools writes an event without a
+  `volumeId` to the default display set of each target. OHIF's MPR and its 3D four up
+  link their panes with a VOI synchronizer, so one labelmap in one pane set the window
+  of the image in the other panes to `{ lower: 0, upper: -1 }`. Measured after a SEG is
+  added from the data overlay menu of the axial pane of an MR in MPR: on 5.18.3 no
+  `VOI_MODIFIED` after the three of the mount, and the window stays
+  `{ -29.5, 658.5 }`; on 6.0 one event `{ 0, -1 }` without a volume id from the axial
+  pane, then `{ 0, -1 }` with the volume id of the MR from the two other panes, and
+  `getDisplaySetPresentation(<MR>).voiRange` is `{ 0, -1 }` in all of them
+  (`laneU4/all-base.log`, `laneU4/segmpr-alpha-6.log`).
+- **Tests it explained:** `MPRThenSEGOverlayNoHydration`,
+  `SEGDataOverlayNoHydrationThenMPR`, three of `SegAcrossViewportTypes` (one of them
+  with M34), and the first failing picture of `SEGHydrationFromMPR` and
+  `SEGHydrationThenMPR` (their last picture is M36). With the event stopped in the page
+  before any listener, and nothing else changed, the first four passed.
+- **Fix, in cornerstone:** a planar viewport fires no `VOI_MODIFIED` for a labelmap, for
+  an overlay drawn as images, or for a range with its upper end below its lower end
+  (cornerstone3D `3098597aa`).
+- **Fix, in OHIF:** none (rule 3).
 - **Note:** with M22 a SEG that is added to a stack from the data overlay menu stays
-  on a stack, so this shows there too; before M22 that viewport became a volume.
-- **State:** open, waits for cornerstone.
+  on a stack, so this showed there too; before M22 that viewport became a volume.
+- **State:** fixed in cornerstone. Check, on the linked checkout at `3098597aa`: the
+  seven tests above pass in the full run after package U4 with no script in the page;
+  one brush stroke on a stack fires no `VOI_MODIFIED` and the overlay stays W: 95
+  L: 35; a SEG added in an MPR fires none after the three of the mount
+  (`laneU4/voi-6-newbuild.log`).
+
+## M29. A labelmap of another series of the frame of reference did not reach a stack
+
+- **Seen:** `DataOverlayMenuFrameOfReference.spec.ts` ("should only sync segmentations to
+  viewports with same Frame of Reference", timeout): a SEG of the CT is added to the CT
+  viewport, and the PT viewport of the same frame of reference never lists it. The
+  console says `Skipping Labelmap representation of segmentation ... the viewport is not
+  a compatible destination for it`. `SEGDataOverlayForUnreferencedDisplaySetNoHydration`
+  (picture differs by 0.04): two of the four viewports show no segmentation where the
+  baseline has it.
+- **Why:** cornerstone draws a labelmap over a stack only when the stack shows the
+  images that the labelmap was made for; over a volume it draws any labelmap of the
+  frame of reference (`isSegmentationOverlayCompatible` of the tools, the same rule in
+  5.18.3). The legacy segmentation backend therefore turned such a stack into a volume
+  viewport first (`attemptStackToVolumeConversion`). The next backend had no such step:
+  its note said that a planar viewport draws every labelmap in place.
+- **Fix, in OHIF:** `NextSegmentationBackend.classifyAndPrepareLabelmapAdd` reports
+  `needsVolumeViewport` for a viewport in stack mode when the resolver of the tools
+  cannot map the labelmap, the labelmap is of the frame of reference of the viewport,
+  and the stack shows none of the images the labelmap was made for. The service then
+  asks the viewport grid for the same display sets with `viewportType: 'volume'`
+  (`_showViewportAsVolume`), waits for the mount (`VIEWPORT_DATA_CHANGED` with the
+  viewport in volume mode), puts the slice, the pan and the zoom back, and adds the
+  representation. A second request for the same viewport waits for the first mount. A
+  stack that shows the images of the labelmap keeps its viewport also when the resolver
+  cannot map yet, which the legacy backend did not tell apart.
+- **Measured in the viewer:** the PT stack on image 0 of 83 becomes a volume on slice 0
+  of 83 with the labelmap (without the position step it opened on slice 41). In the
+  other spec the two stacks become volumes on slice 0 of 40 and 0 of 22 with the
+  labelmap, on 6.0 as on the legacy path of 5.18.3.
+- **For cornerstone:** `segmentation.getLabelmapImageIds(segmentationId)` gives an array
+  and its declared return type is `string | undefined`. To do.
+- **Not done:** a labelmap that is a volume (`volumeId` in its data) asked for on a
+  stack. The legacy backend always made that viewport a volume. No test shows what 6.0
+  does there.
+- **State:** fixed in package U4 (not committed yet). Check:
+  `SegmentationService.test.ts`, "a labelmap that the resolver cannot map onto a stack"
+  (4 tests; "shows the stack as a volume ..." and "mounts the volume once ..." failed
+  first), and the two Playwright tests.
+
+## M30. A volume viewport takes a reference that names only an image
+
+- **Seen:** `RTHydrationFromMPR.spec.ts` (picture differs by 0.03): after the RTSTRUCT
+  series is dropped on the axial pane of an MPR, the pane is on slice 15 of 262, and the
+  baseline has it on slice 130. `SEGHydrationFrom3DFourUp.spec.ts`, "should properly
+  hydrate SEG from 3D four up layout" (0.10): the axial pane with the SEG is on slice 9
+  of 79, the baseline on slice 39.
+- **Why:** OHIF's RTSTRUCT and SEG viewports store a position presentation for the first
+  slice that has a segment: `viewReference: { referencedImageId }`, nothing else. The
+  viewport service applies it when `isReferenceViewable(viewRef, { withNavigation: true,
+  withOrientation: true })` is true. The legacy volume viewport said false, so the pane
+  stayed on the slice of the mount. A planar viewport of 6.0 in volume mode says true
+  and goes to the image. A stack went there in both versions (the baselines of
+  `RTHydration.spec.ts`).
+- **Smallest case:** a viewport that shows a CT of 262 images as a volume, in its
+  acquisition plane, on slice 131; `ref = { referencedImageId: imageIds[15] }`.
+
+  | Call | 5.18.3 (legacy volume viewport) | 6.0 |
+  |---|---|---|
+  | `isReferenceViewable(ref)` | false | false |
+  | `isReferenceViewable(ref, { withNavigation: true })` | false | true |
+  | `setViewReference(ref)` | throws `Incompatible view refs: undefined!==<frame of reference>`, slice 131 | slice 15 |
+  | `isReferenceViewable({ ...ref, FrameOfReferenceUID }, { withNavigation: true })` | true | true |
+
+  Measured in the viewer of each checkout (`laneU4/refview-base.log`,
+  `laneU4/probes-6-newbuild.log`; the 6.0 numbers are of cornerstone `3098597aa`).
+- **The guide:** `2-rendering-changes.md`, "A volume goes where the legacy volume went
+  for a part of a reference", says of a reference with another frame of reference or
+  with none: "a planar viewport moves nothing and does not throw". It moves.
+- **Fix, in cornerstone:** to do. Either the viewport leaves a reference without a
+  frame of reference where it is, as the guide says (then both tests pass as they are),
+  or the guide names the change (then the two baselines change: the pane opens on the
+  first slice with a segment, which is what OHIF asks for and what a stack does).
+- **Fix, in OHIF:** none (rule 3).
+- **With the rule of 5.18.3 put back in the page** (a script that makes
+  `isReferenceViewable` false for such a reference in volume mode, nothing else
+  changed): `RTHydrationFromMPR` passes. `SEGHydrationFrom3DFourUp` "should properly
+  hydrate" is on the slice of the baseline and stops on the same picture with 0.03:
+  the fill of the labelmap in the axial pane, (195, 106, 106) in the baseline and
+  (209, 81, 81) now, the change of M36. It will need its baseline then.
+- **State:** open, waits for cornerstone. Both tests fail.
+
+## M31. A contour set gets the plane of the pane that draws it first
+
+- **Seen:** `MPRThenRTOverlayNoHydration.spec.ts`: an RTSTRUCT is added from the data
+  overlay menu of the sagittal pane of an MPR. The baseline has the contours in the
+  axial pane. On 6.0 the axial pane has none and the sagittal pane has 51 flat lines.
+- **Why:** `addContourSetsToElement` of the tools (`contourHandler/
+  handleContourSegmentation.ts`, the same lines in 5.18.3) makes the annotations of a
+  contour set once, when the first viewport draws the representation, and gives each one
+  `viewPlaneNormal: getViewportICamera(viewport).viewPlaneNormal`: the normal of that
+  viewport, not of the points. The contours of an RTSTRUCT lie in axial planes. Which
+  pane draws first is the difference: on 5.18.3 the axial pane, on 6.0 the sagittal one,
+  the pane that the overlay was added to.
+- **Measured in the viewer of each checkout** (`laneU4/rtorder-base.log`,
+  `laneU4/probes-6-newbuild.log`), the same clicks:
+
+  | | 5.18.3 | 6.0 |
+  |---|---|---|
+  | `SEGMENTATION_REPRESENTATION_MODIFIED`, in order | sagittal, axial, coronal | sagittal, axial, coronal |
+  | viewports of the rendering engine, in order | axial, coronal, sagittal | axial, coronal, sagittal |
+  | the first contour annotation is made for | `mpr-axial` | `mpr-sagittal` |
+  | `viewPlaneNormal` of the 2,265 contour annotations | `[0, 0, -1]` | `[1, 0, 0]` |
+  | contour paths drawn: axial, sagittal, coronal | 13, 0, 0 | 0, 51, 0 |
+
+  On 6.0 the three panes say `viewportStatus: 'needsRender'` when the representation is
+  added, the sagittal pane still at the next frame. `contourDisplay.render` takes its
+  branch for a viewport whose plane does not match the contours only when
+  `viewport.viewportStatus === RENDERED`; otherwise it goes on to
+  `handleContourSegmentation` at once. The status on 5.18.3 at that moment was not
+  measured.
+- **Fix, in cornerstone:** to do: the plane of a contour comes from its points, not
+  from the viewport that draws it first.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone. The test fails.
+
+## M32. A resize keeps the parallel scale of a 3D viewport, not its zoom
+
+- **Seen:** `SEGHydrationFrom3DFourUp.spec.ts`, "should hydrate SEG only in the target
+  viewport and preserve other viewport orientations" (picture differs by 0.12): after
+  the layout goes from the 3D four up to a 3 by 2 grid, the 3D pane shows the volume
+  larger than its cell, cut at both sides. The baseline shows all of it.
+- **Why:** the cell of the 3D pane goes from 478 by 330 to 317 by 330 pixels. The
+  rendering engine of 5.18.3 kept the zoom of each viewport through a resize
+  (`resize(immediate, keepCamera = true)`: reset the camera for the new canvas, then put
+  the zoom and the pan back; read in its code). In 6.0 `_resizeVTKViewports` takes
+  `keepCamera` and does not read it, and `resize()` of the 3D viewport sets its size
+  only. So the camera keeps its parallel scale, and the zoom against the fit changes. A
+  planar viewport is not affected: its view state holds the scale against the fit.
+  OHIF's own step after a resize (`performResize`: store the position presentations,
+  resize, put them back) cannot help: it runs after the element has its new size, where
+  the zoom already reads 1.41.
+- **Smallest case:** a 3D viewport with a volume at zoom 1, its element made narrower
+  (478 by 330 to 317 by 330), `renderingEngine.resize()`.
+
+  | | 5.18.3 | 6.0 |
+  |---|---|---|
+  | parallel scale before | 130 | 130 |
+  | parallel scale after | 182.7 | 130 |
+  | `viewportProjection.getPresentation(viewport).zoom` after | | 1.405 |
+  | parallel scale after `resetViewState()` | | 182.7 |
+
+  Measured in OHIF's viewer on both (`laneU4/all-base.log`,
+  `laneU4/probes-6-newbuild.log`). On 5.18.3 OHIF's own step also runs, so the number
+  there is of both together.
+- **Fix, in cornerstone:** to do: a resize keeps the zoom and the pan of a 3D viewport
+  against its fit, as it does for a planar viewport, or the guide names it.
+- **Fix, in OHIF:** none for the resize (rule 3). M33 is the part that was OHIF's.
+- **State:** open, waits for cornerstone. The test fails.
+
+## M33. The zoom and the pan of a 3D viewport were not in its position presentation
+
+- **Seen:** read in the code while M32 was sorted, then in the viewer: 3D only, zoom
+  0.5, MPR, 3D only again: the zoom is 1.
+- **Why:** the legacy backend stored `getViewPresentation({ pan: true, zoom: true })`
+  for every viewport, a 3D one too. `NextViewportBackend.getPositionPresentation` stored
+  no view presentation for a 3D viewport, and `setPositionPresentation` did nothing for
+  one.
+- **Fix, in OHIF:** the backend stores the zoom and the pan of a 3D viewport
+  (`viewportProjection.getPresentation`) and writes them back against the fit of the
+  viewport as it is then (`withPresentation`, `setViewState`). The camera direction is
+  not stored, as before.
+- **State:** fixed in package U4 (not committed yet). Check:
+  `NextViewportBackend.test.ts`, "the position presentation of a 3D viewport" (3 tests,
+  2 failed first), and in the viewer: the zoom after the round trip is 0.5 with the
+  change and 1 without it (`laneU4/probes-6-newbuild.log`,
+  `laneU4/fit3d-back-6-without-newbuild.log`). It does not make the test of M32 pass.
+
+## M34. A page object of the Playwright tests read the type of the viewport
+
+- **Seen:** `SegAcrossViewportTypes.spec.ts`, "keeps the labelmap drawn from a stack
+  through MPR and back to one viewport": `expect.poll(() =>
+  initialStack.getViewportType()).toBe('stack')` receives `planar`.
+- **Why:** `getViewportType` of `ViewportPageObject` gave `viewport.type`. In 6.0 a
+  stack and a volume slice are both `planar` (it is what the test checks that no longer
+  exists: the type `stack`).
+- **Fix, in OHIF:** the page object gives the mode of a planar viewport
+  (`getCurrentMode()`: `stack` or `volume`) and the type of any other viewport
+  (`volume3d`). The spec is not changed. A pane of an MPR now reads `volume` where the
+  legacy type was `orthographic`; no spec compares with that word.
+- **State:** fixed in package U4 (not committed yet). Check: the test passes.
+
+## M35. The picture of a failed clipped screenshot was of the whole page
+
+- **Seen:** `MPRThenRTOverlayNoHydration.spec.ts` fails with "Expected an image 955px
+  by 496px, received 1280px by 540px", ratio 0.56, and its "actual" picture is the page
+  with the header and the study browser.
+- **Why:** `checkForScreenshot` takes a clipped picture of a locator as a picture of
+  the page, and it set `locator = page` for that. From the second attempt on the
+  bounding box was the one of the page. Only a test that fails its first attempt gets
+  there, so the size and the ratio of the failure were wrong, not its verdict.
+- **Fix, in OHIF:** the locator stays, each attempt reads its bounding box again.
+- **State:** fixed in package U4 (not committed yet). Check: the same spec, which still
+  fails for M31, now reports a picture of the size of the baseline and a ratio of 0.03
+  (the full run after package U4). `DicomTagBrowser.spec.ts`, the other user of the
+  clip, passes.
+
+## M36. Two baselines for the fill of a labelmap in an MPR
+
+- **Seen:** `SEGHydrationFromMPR.spec.ts` (`mprAfterSegHydratedAfterLayoutChange.png`)
+  and `SEGHydrationThenMPR.spec.ts` (`segPostHydrationMPRAxialPrimary.png`), both 0.05
+  once M28 was fixed: the same layout (axial primary, a hydrated SEG), the segments look
+  stronger.
+- **Why, the named change:** `2-rendering-changes.md`, "A labelmap fill is drawn with
+  the configured alpha". OHIF's style is `fillAlpha: 0.5`. Measured from a canvas
+  picture with and one without the labelmap, by the colour of each segment
+  (`laneU4/alpha.py`): the legacy volume viewport draws the fill at 0.32, 6.0 at 0.50;
+  a stack draws 0.50 in both; the outline is at 1.00 in all four. One pixel of the white
+  matter segment (colour 245): 184 in the baseline, 201 now; of the green segment
+  (0, 118, 14): (86, 123, 90) and (63, 122, 70).
+- **That it is this change:** with the fill lowered in the page to 0.64 of the style
+  (0.32, the recipe of the guide for the old look) and nothing else changed, both specs
+  pass against the old baselines (`laneU4/whatif/e.log`).
+- **What else differs, counted pixel by pixel** (a channel off by more than 16, on
+  `segPostHydrationMPRAxialPrimary.png`): 23,500 pixels, 5.0% of the picture. 13,055 of
+  them are the fill going from 0.32 to 0.50 over a grey image. With the fill at 0.32,
+  10,570 pixels (2.3%) still differ: the steps of the borders between segments. The outline pixels of one segment are the
+  same pixels in the sagittal pane (2,803 of 2,803), which is the acquisition plane of
+  this series, 95% the same in the coronal pane and 89% in the axial pane, and no shift
+  of the picture brings them closer. The two reformatted panes cut the voxel grid at an
+  angle: the legacy viewport sampled the 3D texture at each screen pixel, 6.0 cuts the
+  slice first and draws that image (the guide, "Slice first is on by default"). These
+  pixels are below the limit of the test by themselves, and the other pictures of both
+  specs pass with them.
+- **Fix, in OHIF:** the two baselines are new (`--update-snapshots` for the two specs).
+  They are byte for byte the "actual" pictures of the run before. The update also
+  rewrote `mprAfterSEG.png` from a first attempt taken while the labelmap loaded (it
+  passes on a later attempt in a normal run): that file was put back as it is in the
+  commit. **The new pictures were made on this Mac**; the other baselines come from
+  OHIF's CI runner (step 9 of the plan).
+- **Pictures:** `laneU4/baselines/`: the two side by side pictures, the old baselines
+  (`before/`), the same view with the fill at 0.32, and an enlarged border.
+- **State:** done in package U4 (not committed yet). Check: both specs pass.

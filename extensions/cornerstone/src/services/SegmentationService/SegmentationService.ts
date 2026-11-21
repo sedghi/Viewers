@@ -124,6 +124,8 @@ class SegmentationService extends PubSubService {
   // segment that is not selected has no entry. Each highlight runs as a
   // requestAnimationFrame loop that stops as soon as its entry is no longer current.
   private _segmentHighlights = new Map<string, SegmentHighlight>();
+  /** The mounts of `_showViewportAsVolume` that have not ended, by viewport id. */
+  private _pendingVolumeViewports = new Map<string, Promise<void>>();
   readonly EVENTS = EVENTS;
 
   constructor({ servicesManager }) {
@@ -351,13 +353,18 @@ class SegmentationService extends PubSubService {
     let representationTypeToUse = type || defaultRepresentationType;
 
     if (representationTypeToUse === LABELMAP) {
-      ({ representationTypeToUse } = await this._segBackend.classifyAndPrepareLabelmapAdd(
+      const classification = await this._segBackend.classifyAndPrepareLabelmapAdd(
         csViewport,
         segmentation,
         viewportId,
         segmentationId,
         representationTypeToUse
-      ));
+      );
+      representationTypeToUse = classification.representationTypeToUse;
+
+      if (classification.needsVolumeViewport) {
+        await this._showViewportAsVolume(viewportId);
+      }
 
       // Overlap precondition: an overlapping SEG is registered as multiple labelmap
       // layers, but cornerstone only stacks them (slice rendering) when the viewport
@@ -1774,6 +1781,66 @@ class SegmentationService extends PubSubService {
 
     cstSegmentation.addSegmentationRepresentations(viewportId, [representation]);
   }
+
+  /**
+   * Has a viewport that shows a stack show the same display sets as a volume,
+   * on the slice and with the pan and the zoom that it had, and resolves when
+   * the volume is mounted. Cornerstone draws a labelmap of other images of the
+   * frame of reference over a volume only. A second call for the same viewport
+   * waits for the mount of the first.
+   */
+  private _showViewportAsVolume(viewportId: string): Promise<void> {
+    const pending = this._pendingVolumeViewports.get(viewportId);
+
+    if (pending) {
+      return pending;
+    }
+
+    const { viewportGridService, cornerstoneViewportService } = this.servicesManager.services;
+    const gridViewport = viewportGridService.getState().viewports.get(viewportId);
+    const positionPresentation =
+      cornerstoneViewportService.getPresentations(viewportId)?.positionPresentation;
+
+    const mounted = new Promise<void>(resolve => {
+      const { unsubscribe } = cornerstoneViewportService.subscribe(
+        cornerstoneViewportService.EVENTS.VIEWPORT_DATA_CHANGED,
+        ({ viewportId: changedViewportId }: { viewportId: string }) => {
+          if (changedViewportId !== viewportId) {
+            return;
+          }
+
+          const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+
+          if (viewport && getViewportAdapter(viewport).getShape() === 'stack') {
+            return;
+          }
+
+          unsubscribe();
+          this._pendingVolumeViewports.delete(viewportId);
+
+          if (positionPresentation) {
+            cornerstoneViewportService.setPresentations(viewportId, { positionPresentation });
+          }
+
+          resolve();
+        }
+      );
+    });
+
+    this._pendingVolumeViewports.set(viewportId, mounted);
+
+    viewportGridService.setDisplaySetsForViewport({
+      viewportId,
+      displaySetInstanceUIDs: gridViewport.displaySetInstanceUIDs,
+      viewportOptions: {
+        ...gridViewport.viewportOptions,
+        viewportType: 'volume',
+      },
+    });
+
+    return mounted;
+  }
+
   private addSegmentationToSource(segmentationPublicInput: cstTypes.SegmentationPublicInput) {
     cstSegmentation.addSegmentations([segmentationPublicInput]);
   }

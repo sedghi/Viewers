@@ -1,4 +1,4 @@
-import type { Types as csTypes } from '@cornerstonejs/core';
+import { cache, type Types as csTypes } from '@cornerstonejs/core';
 import {
   Enums as csToolsEnums,
   segmentation as cstSegmentation,
@@ -9,11 +9,49 @@ import type {
   ISegmentationBackend,
   LabelmapAddClassification,
 } from './ISegmentationBackend';
+import { getViewportAdapter } from '../../ViewportService/adapter';
 
-const { Labelmap: LABELMAP } = csToolsEnums.SegmentationRepresentations;
+const { Labelmap: LABELMAP, Surface: SURFACE } = csToolsEnums.SegmentationRepresentations;
 const {
   state: { updateLabelmapSegmentationImageReferences },
 } = cstSegmentation;
+
+/**
+ * Whether a stack must be shown as a volume to draw this labelmap: the labelmap
+ * is of the frame of reference of the stack, and the stack shows none of the
+ * images that the labelmap was made for (a SEG of the CT over a stack of the
+ * PT). `getLabelmapImageIds` of the tools gives the ids as an array; its
+ * declared type says a string.
+ */
+function isLabelmapOfOtherImagesOfTheFrameOfReference(
+  viewport: csTypes.IViewport,
+  segmentation: cstTypes.Segmentation,
+  segmentationId: string
+): boolean {
+  const labelmapImageIds = (cstSegmentation.getLabelmapImageIds(segmentationId) ??
+    []) as unknown as string[];
+  const labelmapImages = labelmapImageIds.map(imageId => cache.getImage(imageId));
+  const labelmapFrameOfReferenceUID = labelmapImages[0]?.FrameOfReferenceUID;
+
+  if (
+    !labelmapFrameOfReferenceUID ||
+    labelmapFrameOfReferenceUID !== viewport.getFrameOfReferenceUID?.()
+  ) {
+    return false;
+  }
+
+  const labelmapData = segmentation?.representationData?.[LABELMAP] as
+    | { referencedImageIds?: string[] }
+    | undefined;
+  const referencedImageIds = new Set(
+    labelmapData?.referencedImageIds?.length
+      ? labelmapData.referencedImageIds
+      : labelmapImages.map(image => image?.referencedImageId).filter(Boolean)
+  );
+  const shownImageIds = (viewport as { getImageIds?: () => string[] }).getImageIds?.() ?? [];
+
+  return !shownImageIds.some(imageId => referencedImageIds.has(imageId));
+}
 
 /**
  * The segmentation backend.
@@ -22,25 +60,41 @@ const {
  * `resolveLabelmapRenderPlan` picks the stack image plan for a stack labelmap (no
  * volumeId, no VTK_VOLUME_SLICE precondition) and the duck-typed image-reference
  * resolver maps it onto the viewport's current image. So the backend never
- * recreates the viewport as a volume viewport.
+ * recreates the viewport as a volume viewport. A labelmap that is asked for on a
+ * 3D viewport is added as a surface. The one case that a stack cannot
+ * draw is a labelmap of other images of its frame of reference: the backend
+ * reports it, and the service has the viewport show its data as a volume.
  *
  * Needs nothing from the host service (it never touches servicesManager).
  */
 export class NextSegmentationBackend implements ISegmentationBackend {
   async classifyAndPrepareLabelmapAdd(
-    _csViewport: csTypes.IViewport,
-    _segmentation: cstTypes.Segmentation,
+    csViewport: csTypes.IViewport,
+    segmentation: cstTypes.Segmentation,
     viewportId: string,
     segmentationId: string,
     representationType: csToolsEnums.SegmentationRepresentations
   ): Promise<LabelmapAddClassification> {
-    // Try the duck-typed in-place resolver so the labelmap's images map onto the
-    // viewport's current image when the FrameOfReference matches. Its return value
-    // is intentionally ignored: the viewport is never recreated, even on a
-    // mount-timing race where the resolver cannot map yet.
-    updateLabelmapSegmentationImageReferences(viewportId, segmentationId);
+    // A 3D viewport shows a segmentation as the surface of each segment, also
+    // when the caller names a labelmap.
+    if (getViewportAdapter(csViewport).getShape() === 'volume3d') {
+      return { representationTypeToUse: SURFACE };
+    }
 
-    return { representationTypeToUse: representationType };
+    // Try the duck-typed in-place resolver so the labelmap's images map onto the
+    // viewport's current image when the FrameOfReference matches. A stack that
+    // the resolver cannot map yet (a mount-timing race) keeps its viewport.
+    const mappedLabelmapImageId = updateLabelmapSegmentationImageReferences(
+      viewportId,
+      segmentationId
+    );
+
+    const needsVolumeViewport =
+      !mappedLabelmapImageId &&
+      getViewportAdapter(csViewport).getShape() === 'stack' &&
+      isLabelmapOfOtherImagesOfTheFrameOfReference(csViewport, segmentation, segmentationId);
+
+    return { representationTypeToUse: representationType, needsVolumeViewport };
   }
 
   assembleSegmentationDataForSEG(

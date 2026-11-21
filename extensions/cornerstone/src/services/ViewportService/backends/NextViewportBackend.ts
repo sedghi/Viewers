@@ -5,8 +5,14 @@ import {
   utilities as csUtils,
   CONSTANTS as csConstants,
   isRegisteredRenderBackend,
+  viewportProjection,
 } from '@cornerstonejs/core';
-import type { RenderBackendValue, ECGViewport, PlanarViewport } from '@cornerstonejs/core';
+import type {
+  RenderBackendValue,
+  ECGViewport,
+  PlanarViewport,
+  VolumeViewport3D,
+} from '@cornerstonejs/core';
 import { utilities as csToolsUtils } from '@cornerstonejs/tools';
 import { getViewportRenderingOverride } from '../../../utils/nextViewports';
 import { getViewportDataShape } from '../../../utils/viewportDataShape';
@@ -72,6 +78,9 @@ type NativePlanarViewport = Types.IViewport<Record<string, unknown>> & {
   setViewReference: (ref: Types.ViewReference) => void;
   isReferenceViewable?: (ref: Types.ViewReference, opts?: unknown) => boolean;
 };
+
+/** The zoom and the pan of a 3D viewport, measured against the fit of its content. */
+type View3DPresentation = { zoom?: number; pan?: [number, number] };
 
 /** Picks the pan/zoom/rotation/flip subset out of a (deep-cloned) getViewState() result. */
 function pickNativeViewPresentation(viewState: Record<string, unknown>): Record<string, unknown> {
@@ -515,19 +524,35 @@ export class NextViewportBackend implements IViewportBackend {
     viewportInfo: ViewportInfo,
     viewportId: string
   ): PositionPresentation {
-    const is3D = csViewport.type === csEnums.ViewportType.VOLUME_3D;
+    if (csViewport.type === csEnums.ViewportType.VOLUME_3D) {
+      // The view state of a 3D viewport is its camera, in world units. Its zoom
+      // and its pan against the fit are what holds through a resize: the same
+      // zoom shows the content at the same share of a canvas of another size.
+      const presentation = viewportProjection.getPresentation<View3DPresentation>(csViewport, {
+        selector: { zoom: true, pan: true },
+      });
+
+      return {
+        viewportType: viewportInfo.getViewportType(),
+        viewReference: null,
+        viewPresentation: (presentation
+          ? { zoom: presentation.zoom, pan: presentation.pan }
+          : undefined) as unknown as Types.ViewPresentation,
+        viewportId,
+      };
+    }
+
     const vp = csViewport as NativePlanarViewport;
 
     // A direct PLANAR_NEXT viewport has no getViewPresentation; pan/zoom/rotation/flip
     // live in the semantic view state. getViewState() is already deep-cloned, normalized
     // and JSON-serializable, so snapshot the pan/zoom subset (slice/orientation come back
     // via the view reference).
-    const viewState =
-      !is3D && typeof vp.getViewState === 'function' ? vp.getViewState() : undefined;
+    const viewState = typeof vp.getViewState === 'function' ? vp.getViewState() : undefined;
 
     return {
       viewportType: viewportInfo.getViewportType(),
-      viewReference: is3D ? null : vp.getViewReference(),
+      viewReference: vp.getViewReference(),
       // Opaque native pan/zoom blob; cast at the boundary (legacy stores a Types.ViewPresentation).
       viewPresentation: (viewState
         ? pickNativeViewPresentation(viewState)
@@ -540,6 +565,14 @@ export class NextViewportBackend implements IViewportBackend {
     viewport: Types.IViewport,
     positionPresentation: PositionPresentation
   ): void {
+    if (viewport.type === csEnums.ViewportType.VOLUME_3D) {
+      this._set3DViewPresentation(
+        viewport as unknown as VolumeViewport3D,
+        positionPresentation?.viewPresentation as unknown as View3DPresentation | undefined
+      );
+      return;
+    }
+
     const vp = viewport as NativePlanarViewport;
 
     // 1) Slice + orientation first, via the view reference.
@@ -569,6 +602,27 @@ export class NextViewportBackend implements IViewportBackend {
         }
         vp.setViewState(patch);
       }
+    }
+  }
+
+  /**
+   * Gives a 3D viewport the zoom and the pan of a stored presentation, against
+   * the fit of the viewport as it is now. A viewport that shows nothing yet has
+   * no fit and is left as it is.
+   */
+  private _set3DViewPresentation(
+    viewport: VolumeViewport3D,
+    viewPresentation?: View3DPresentation
+  ): void {
+    if (viewPresentation?.zoom === undefined && viewPresentation?.pan === undefined) {
+      return;
+    }
+
+    const { zoom, pan } = viewPresentation;
+    const viewState = viewportProjection.withPresentation(viewport, { zoom, pan });
+
+    if (viewState) {
+      viewport.setViewState(viewState);
     }
   }
 

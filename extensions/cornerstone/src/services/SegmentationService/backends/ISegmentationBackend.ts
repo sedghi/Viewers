@@ -27,10 +27,18 @@ export interface AssembleSegmentationForSEGParams {
 }
 
 /**
- * Result of classifying a labelmap add: the representation type to actually use.
+ * Result of classifying a labelmap add: the representation type to actually use,
+ * and whether the viewport must show its data as a volume first.
  */
 export interface LabelmapAddClassification {
   representationTypeToUse: csToolsEnums.SegmentationRepresentations;
+  /**
+   * True for a viewport that shows a stack and a labelmap of other images of
+   * its frame of reference. Cornerstone draws a labelmap over a stack only when
+   * the stack shows the images the labelmap was made for; over a volume it
+   * draws any labelmap of the frame of reference.
+   */
+  needsVolumeViewport?: boolean;
 }
 
 /**
@@ -39,13 +47,14 @@ export interface LabelmapAddClassification {
  * implementation: it renders the labelmap IN PLACE on the planar viewport.
  *
  * BOUNDARY: viewport (re)creation is NOT a segmentation concern: the backend
- * never recreates a viewport.
+ * never recreates a viewport. It says when a stack must be shown as a volume
+ * (`needsVolumeViewport`), and the service asks the viewport grid for it.
  */
 export interface ISegmentationBackend {
   /**
    * Decide how a LABELMAP representation is added for `csViewport`. Called only
    * inside the LABELMAP gate of `addSegmentationRepresentation` (CONTOUR/SURFACE
-   * never reach here).
+   * never reach here). A 3D viewport gets a surface in its place.
    */
   classifyAndPrepareLabelmapAdd(
     csViewport: csTypes.IViewport,

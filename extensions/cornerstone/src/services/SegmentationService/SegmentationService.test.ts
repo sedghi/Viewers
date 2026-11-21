@@ -88,7 +88,13 @@ jest.mock('@cornerstonejs/tools', () => ({
 const serviceManagerMock = {
   services: {
     cornerstoneViewportService: {
+      EVENTS: {
+        VIEWPORT_DATA_CHANGED: 'event::cornerstoneViewportService:viewportDataChanged',
+      },
       getCornerstoneViewport: jest.fn(),
+      getPresentations: jest.fn(),
+      setPresentations: jest.fn(),
+      subscribe: jest.fn(),
     },
     displaySetService: {
       getDisplaySetByUID: jest.fn(),
@@ -713,10 +719,174 @@ describe('SegmentationService', () => {
         ).not.toHaveBeenCalled();
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
       });
+
+      describe('a labelmap that the resolver cannot map onto a stack', () => {
+        const labelmapImageId = 'labelmap-image-1';
+        const gridViewport = {
+          displaySetInstanceUIDs: ['pt-display-set'],
+          viewportOptions: { viewportType: 'stack', toolGroupId: 'default' },
+        };
+        const positionPresentation = { viewReference: { referencedImageId: 'pt-1' } };
+        let mode: string;
+        let viewportDataChanged: (event: { viewportId: string }) => void;
+        let unsubscribe: jest.Mock;
+
+        /** Lets the steps of the service that wait on a resolved promise run. */
+        const settle = () => new Promise(resolve => setTimeout(resolve));
+
+        /** A stack of the frame of reference `frame-1` that shows the image `pt-1`. */
+        const makeStack = () => ({
+          ...makeNextViewport(),
+          getCurrentMode: () => mode,
+          getFrameOfReferenceUID: () => 'frame-1',
+          getImageIds: () => ['pt-1'],
+        });
+
+        /** A labelmap whose first image is of `frameOfReferenceUID` and made for `referencedImageId`. */
+        const mockLabelmap = (frameOfReferenceUID: string, referencedImageId: string) => {
+          jest.spyOn(cstSegmentation, 'getLabelmapImageIds').mockReturnValue([labelmapImageId]);
+          jest.spyOn(cache, 'getImage').mockImplementation(imageId =>
+            imageId === labelmapImageId
+              ? ({
+                  FrameOfReferenceUID: frameOfReferenceUID,
+                  referencedImageId,
+                } as unknown as csTypes.IImage)
+              : undefined
+          );
+        };
+
+        beforeEach(() => {
+          mode = 'stack';
+          unsubscribe = jest.fn();
+          jest
+            .spyOn(cstSegmentation.state, 'getSegmentation')
+            .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
+          jest
+            .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
+            .mockReturnValue(makeStack() as unknown as PlanarViewport);
+          jest
+            .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
+            .mockReturnValue(undefined);
+          jest.spyOn(cstSegmentation, 'addSegmentationRepresentations').mockReturnValue(undefined);
+          jest
+            .spyOn(serviceManagerMock.services.viewportGridService, 'getState')
+            .mockReturnValue({ viewports: new Map([[viewportId, gridViewport]]) });
+          jest
+            .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getPresentations')
+            .mockReturnValue({ positionPresentation });
+          jest
+            .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'subscribe')
+            .mockImplementation((_eventName, callback) => {
+              viewportDataChanged = callback;
+              return { unsubscribe };
+            });
+        });
+
+        afterEach(() => {
+          jest.restoreAllMocks();
+        });
+
+        it('shows the stack as a volume when the labelmap is of other images of its frame of reference, and adds the labelmap after the mount', async () => {
+          mockLabelmap('frame-1', 'ct-1');
+
+          const added = service.addSegmentationRepresentation(viewportId, {
+            segmentationId: mockCornerstoneSegmentation.segmentationId,
+            type: csToolsEnums.SegmentationRepresentations.Labelmap,
+          });
+          await settle();
+
+          expect(
+            serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
+          ).toHaveBeenCalledTimes(1);
+          expect(
+            serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
+          ).toHaveBeenCalledWith({
+            viewportId,
+            displaySetInstanceUIDs: ['pt-display-set'],
+            viewportOptions: { viewportType: 'volume', toolGroupId: 'default' },
+          });
+          expect(cstSegmentation.addSegmentationRepresentations).not.toHaveBeenCalled();
+
+          viewportDataChanged({ viewportId: 'another-viewport' });
+          viewportDataChanged({ viewportId });
+          await settle();
+          expect(cstSegmentation.addSegmentationRepresentations).not.toHaveBeenCalled();
+
+          mode = 'volume';
+          viewportDataChanged({ viewportId });
+          await added;
+
+          expect(unsubscribe).toHaveBeenCalledTimes(1);
+          expect(
+            serviceManagerMock.services.cornerstoneViewportService.setPresentations
+          ).toHaveBeenCalledTimes(1);
+          expect(
+            serviceManagerMock.services.cornerstoneViewportService.setPresentations
+          ).toHaveBeenCalledWith(viewportId, { positionPresentation });
+          expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
+          expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
+            {
+              type: csToolsEnums.SegmentationRepresentations.Labelmap,
+              segmentationId: mockCornerstoneSegmentation.segmentationId,
+              config: { colorLUTOrIndex: undefined },
+            },
+          ]);
+        });
+
+        it('mounts the volume once when the labelmap is asked for twice', async () => {
+          mockLabelmap('frame-1', 'ct-1');
+
+          const first = service.addSegmentationRepresentation(viewportId, {
+            segmentationId: mockCornerstoneSegmentation.segmentationId,
+            type: csToolsEnums.SegmentationRepresentations.Labelmap,
+          });
+          const second = service.addSegmentationRepresentation(viewportId, {
+            segmentationId: mockCornerstoneSegmentation.segmentationId,
+            type: csToolsEnums.SegmentationRepresentations.Labelmap,
+          });
+          await settle();
+
+          mode = 'volume';
+          viewportDataChanged({ viewportId });
+          await Promise.all([first, second]);
+
+          expect(
+            serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
+          ).toHaveBeenCalledTimes(1);
+        });
+
+        it('leaves the stack when the labelmap is of another frame of reference', async () => {
+          mockLabelmap('frame-2', 'ct-1');
+
+          await service.addSegmentationRepresentation(viewportId, {
+            segmentationId: mockCornerstoneSegmentation.segmentationId,
+            type: csToolsEnums.SegmentationRepresentations.Labelmap,
+          });
+
+          expect(
+            serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
+          ).not.toHaveBeenCalled();
+          expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
+        });
+
+        it('leaves the stack when it shows an image that the labelmap was made for', async () => {
+          mockLabelmap('frame-1', 'pt-1');
+
+          await service.addSegmentationRepresentation(viewportId, {
+            segmentationId: mockCornerstoneSegmentation.segmentationId,
+            type: csToolsEnums.SegmentationRepresentations.Labelmap,
+          });
+
+          expect(
+            serviceManagerMock.services.viewportGridService.setDisplaySetsForViewport
+          ).not.toHaveBeenCalled();
+          expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
+        });
+      });
     });
 
     describe('volume viewport', () => {
-      it('adds a labelmap that is asked for on a 3D viewport as a labelmap', async () => {
+      it('adds a labelmap that is asked for on a 3D viewport as a surface', async () => {
         jest
           .spyOn(cstSegmentation.state, 'getSegmentation')
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
@@ -739,9 +909,12 @@ describe('SegmentationService', () => {
         expect(serviceManagerMock.services.viewportGridService.getState).not.toHaveBeenCalled();
 
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledTimes(1);
+        expect(
+          cstSegmentation.state.updateLabelmapSegmentationImageReferences
+        ).not.toHaveBeenCalled();
         expect(cstSegmentation.addSegmentationRepresentations).toHaveBeenCalledWith(viewportId, [
           {
-            type: csToolsEnums.SegmentationRepresentations.Labelmap,
+            type: csToolsEnums.SegmentationRepresentations.Surface,
             segmentationId: mockCornerstoneSegmentation.segmentationId,
             config: { colorLUTOrIndex: undefined },
           },

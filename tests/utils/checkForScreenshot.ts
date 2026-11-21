@@ -92,7 +92,7 @@ const _checkForScreenshot = async (props: CheckForScreenshotProps) => {
     beforeAttempt,
   } = props;
 
-  let { locator = page } = props;
+  const { locator = page } = props;
   const testOutputDir = test.info().outputDir;
 
   await page.waitForLoadState('networkidle');
@@ -101,6 +101,7 @@ const _checkForScreenshot = async (props: CheckForScreenshotProps) => {
     try {
       await beforeAttempt?.();
       let clip;
+      let screenshotTarget = locator;
       if (normalizedClip) {
         let boundingBox;
         if (locator === page) {
@@ -109,9 +110,10 @@ const _checkForScreenshot = async (props: CheckForScreenshotProps) => {
           boundingBox = await (locator as Locator).boundingBox();
 
           // clip does not work for locator screen shots, so lets do some trickery
-          // set page as the locator here and below add the locator bounding box origin to the
-          // clip area
-          locator = page;
+          // take the screenshot of the page here and below add the locator bounding box origin
+          // to the clip area. The locator itself stays, so that the next attempt reads its
+          // bounding box again.
+          screenshotTarget = page;
         }
 
         clip = {
@@ -122,7 +124,7 @@ const _checkForScreenshot = async (props: CheckForScreenshotProps) => {
         };
       }
 
-      await expect(locator).toHaveScreenshot(screenshotPath, {
+      await expect(screenshotTarget).toHaveScreenshot(screenshotPath, {
         maxDiffPixelRatio,
         threshold,
         clip,

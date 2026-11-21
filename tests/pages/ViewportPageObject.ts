@@ -96,7 +96,10 @@ export interface IViewportPageObject {
     };
   };
   pane: Locator;
-  /** The Cornerstone viewport type, e.g. 'stack', 'orthographic' or 'volume3d'. */
+  /**
+   * What the Cornerstone viewport shows: 'stack' or 'volume' for a planar
+   * viewport (its mode), and the type of any other viewport, e.g. 'volume3d'.
+   */
   getViewportType: () => Promise<string | undefined>;
   svg: (innerElement?: SvgInnerElement) => Locator;
   getSvgAnnotationStatTextLines: (uid: string) => Locator;
@@ -498,8 +501,13 @@ export class ViewportPageObject {
       getViewportType: async () => {
         const viewportId = await this.getViewportId(viewport);
         return this.page.evaluate(
-          ({ services, viewportId }) =>
-            (services as any).cornerstoneViewportService.getCornerstoneViewport(viewportId)?.type,
+          ({ services, viewportId }) => {
+            const viewport = (services as any).cornerstoneViewportService.getCornerstoneViewport(
+              viewportId
+            );
+
+            return viewport?.type === 'planar' ? viewport.getCurrentMode() : viewport?.type;
+          },
           { viewportId, services: await this.page.evaluateHandle('window.services') }
         );
       },
