@@ -1,11 +1,15 @@
-import type { PlanarViewport } from '@cornerstonejs/core';
+import type { PlanarViewport, VolumeViewport3D } from '@cornerstonejs/core';
 import {
   utilities as csUtils,
   CONSTANTS as csConstants,
+  Enums as csEnums,
   Types as CoreTypes,
+  viewportProjection,
 } from '@cornerstonejs/core';
 import { vec3 } from 'gl-matrix';
 import { getViewportAdapter } from '../adapter';
+import { getCenterExtent } from '../../../utils/getCenterExtent';
+import { isMeasurementWithinViewport } from '../../../utils/isMeasurementWithinViewport';
 import type {
   IViewportOperations,
   FlipValue,
@@ -113,15 +117,79 @@ export const nextViewportOperations: IViewportOperations = {
     }
   },
 
+  setOrientation(viewport: CoreTypes.IViewport, orientation: csEnums.OrientationAxis): boolean {
+    if (viewport.type !== csEnums.ViewportType.VOLUME_3D) {
+      (viewport as PlanarViewport).setOrientation(orientation);
+
+      return true;
+    }
+
+    const vectors = csConstants.MPR_CAMERA_VALUES[orientation];
+
+    if (!vectors) {
+      console.warn(`A 3D viewport cannot be turned to the orientation "${orientation}"`);
+
+      return false;
+    }
+
+    const viewport3D = viewport as VolumeViewport3D;
+    const { viewPlaneNormal, viewUp } = vectors;
+
+    viewport3D.setViewState({ viewPlaneNormal, viewUp });
+    viewport3D.resetViewState();
+
+    return true;
+  },
+
   getViewPlaneNormal(viewport: CoreTypes.IViewport): CoreTypes.Point3 | undefined {
     return getViewportAdapter(viewport).getViewPlaneNormal();
   },
 
-  centerOnMeasurement(): boolean {
-    // CS-14: native PLANAR_NEXT has no getCamera/setCamera for in-plane pan; the
-    // caller's setViewReference already navigated to the measurement's slice.
-    // TODO(next): port in-plane centering via the camera bridge + setViewState pan.
-    return false;
+  centerOnMeasurement(
+    viewport: CoreTypes.IViewport,
+    measurement: Record<string, unknown>
+  ): boolean {
+    if (viewport.type !== csEnums.ViewportType.PLANAR) {
+      return false;
+    }
+
+    if (isMeasurementWithinViewport(viewport, measurement)) {
+      return false;
+    }
+
+    const planarViewport = viewport as PlanarViewport;
+    const camera = planarViewport.getResolvedView()?.toICamera();
+    const presentation = viewportProjection.getPresentation(planarViewport, {
+      selector: { zoom: true, pan: true },
+    });
+
+    if (!camera || !presentation) {
+      return false;
+    }
+
+    const { zoom = 1, pan = [0, 0] } = presentation;
+    const { center, extent } = getCenterExtent(measurement);
+    const [canvasX, canvasY] = planarViewport.worldToCanvas(center);
+    const { clientWidth, clientHeight } = planarViewport.canvas;
+    const measurementSize = vec3.dist(extent.min, extent.max);
+    const nextViewState = viewportProjection.withPresentation(planarViewport, {
+      zoom:
+        measurementSize > camera.parallelScale
+          ? zoom / (measurementSize / camera.parallelScale)
+          : zoom,
+      pan: [
+        pan[0] + (clientWidth / 2 - canvasX) / zoom,
+        pan[1] + (clientHeight / 2 - canvasY) / zoom,
+      ],
+    });
+
+    if (!nextViewState) {
+      return false;
+    }
+
+    planarViewport.setViewState(nextViewState);
+
+    return true;
   },
 
   setWindowLevel(viewport: CoreTypes.IViewport, params: WindowLevelParams): void {

@@ -5,7 +5,7 @@ import { vec3 } from 'gl-matrix';
 import getLabelFromDCMJSImportedToolData from './getLabelFromDCMJSImportedToolData';
 import { adaptersSR } from '@cornerstonejs/adapters';
 import { annotation as CsAnnotation, type Types as ToolTypes } from '@cornerstonejs/tools';
-import { Enums as CSExtensionEnums } from '@ohif/extension-cornerstone';
+import { Enums as CSExtensionEnums, VOLUME_LOADER_SCHEME } from '@ohif/extension-cornerstone';
 
 const { locking } = CsAnnotation;
 const { guid } = OHIF.utils;
@@ -395,7 +395,7 @@ function getReferenceData3D(
 
   const viewReference = {
     ...cameraView,
-    volumeId: ds.displaySetInstanceUID,
+    volumeId: `${ds.volumeLoaderSchema ?? VOLUME_LOADER_SCHEME}:${ds.displaySetInstanceUID}`,
     FrameOfReferenceUID,
   };
   utilities.updatePlaneRestriction(points, viewReference);

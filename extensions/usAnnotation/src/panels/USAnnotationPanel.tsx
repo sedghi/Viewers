@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Enums as csToolsEnums, UltrasoundPleuraBLineTool } from '@cornerstonejs/tools';
 import { eventTarget, utilities } from '@cornerstonejs/core';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import { useSystem } from '@ohif/core';
 import { useTranslation } from 'react-i18next';
 
@@ -130,7 +131,9 @@ export default function USAnnotationPanel() {
   const addCurrentImageId = () => {
     if (!autoAdd) {
       const activeViewportId = viewportGridService.getActiveViewportId();
-      const viewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(
+        activeViewportId
+      ) as PlanarViewport;
       const currentImageId = viewport.getCurrentImageId();
       const imageIds = [...imageIdsToObserve];
       if (!imageIds.includes(currentImageId)) {
@@ -147,7 +150,9 @@ export default function USAnnotationPanel() {
    */
   const handleRowClick = item => {
     const activeViewportId = viewportGridService.getActiveViewportId();
-    const viewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
+    const viewport = cornerstoneViewportService.getCornerstoneViewport(
+      activeViewportId
+    ) as PlanarViewport;
     utilities.scroll(viewport, { delta: item.frame - viewport.getCurrentImageIdIndex() });
   };
 

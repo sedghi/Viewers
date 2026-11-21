@@ -2,6 +2,7 @@ import React, { ReactElement, useCallback, useEffect, useState } from 'react';
 import { Switch } from '@ohif/ui-next';
 import { VolumeShadeProps } from '../../types/ViewportPresets';
 import { useSystem } from '@ohif/core';
+import type { VolumeViewport3D } from '@cornerstonejs/core';
 import { useTranslation } from 'react-i18next';
 
 export function VolumeShade({
@@ -21,7 +22,9 @@ export function VolumeShade({
     [commandsManager, viewportId]
   );
   useEffect(() => {
-    const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+    const viewport = cornerstoneViewportService.getCornerstoneViewport(
+      viewportId
+    ) as VolumeViewport3D;
     const { actor } = viewport.getActors()[0];
     const shade = actor.getProperty().getShade();
     setShade(shade);

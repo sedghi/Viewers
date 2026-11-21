@@ -2,6 +2,7 @@ import React, { ReactElement, useCallback, useState, useEffect } from 'react';
 import { VolumeRenderingQualityProps } from '../../types/ViewportPresets';
 import { Numeric } from '@ohif/ui-next';
 import { useSystem } from '@ohif/core';
+import type { VolumeViewport3D } from '@cornerstonejs/core';
 import { useTranslation } from 'react-i18next';
 
 export function VolumeRenderingQuality({
@@ -26,7 +27,9 @@ export function VolumeRenderingQuality({
   );
 
   useEffect(() => {
-    const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+    const viewport = cornerstoneViewportService.getCornerstoneViewport(
+      viewportId
+    ) as VolumeViewport3D;
     const { actor } = viewport.getActors()[0];
     const mapper = actor.getMapper();
     const image = mapper.getInputData();

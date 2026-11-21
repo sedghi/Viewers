@@ -9,6 +9,7 @@ import {
   utilities as csUtils,
   metaData,
 } from '@cornerstonejs/core';
+import type { PlanarViewport } from '@cornerstonejs/core';
 
 import {
   Enums as csToolsEnums,
@@ -1485,7 +1486,7 @@ class SegmentationService extends PubSubService {
       }
 
       // Get the current slice index
-      const currentSliceIndex = viewport.getCurrentImageIdIndex();
+      const currentSliceIndex = (viewport as PlanarViewport).getCurrentImageIdIndex();
       let nearestSliceIndex = null;
       let loopSliceIndex = null;
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSystem } from '@ohif/core/src';
 import { useViewportDisplaySets } from './useViewportDisplaySets';
 import { utilities as csUtils } from '@cornerstonejs/core';
+import type { PlanarViewport } from '@cornerstonejs/core';
 
 /**
  * Hook that provides measurement tracking information for a viewport
@@ -51,7 +52,9 @@ export function useMeasurementTracking({ viewportId }: { viewportId: string }) {
       return;
     }
 
-    const viewport = cornerstoneViewportService?.getCornerstoneViewport(viewportId);
+    const viewport = cornerstoneViewportService?.getCornerstoneViewport(
+      viewportId
+    ) as PlanarViewport;
     const SeriesInstanceUID = backgroundDisplaySet.SeriesInstanceUID;
 
     if (csUtils.viewportIsInVolumeMode(viewport)) {

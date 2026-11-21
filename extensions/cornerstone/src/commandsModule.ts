@@ -264,10 +264,6 @@ function commandsModule({
         viewport.setViewReference(metadata);
         viewport.render();
 
-        // If the measurement is not visible inside the current viewport, move the
-        // camera to it. The operations backend handles the lane: legacy re-centers
-        // in-plane (getCamera/setCamera), native skips it (no in-plane pan yet, CS-14)
-        // since setViewReference above already navigated to the measurement's slice.
         if (ops.centerOnMeasurement(viewport, measurement)) {
           viewport.render();
         }
@@ -1128,7 +1124,9 @@ function commandsModule({
       );
 
       const activeViewport = viewportGridService.getActiveViewportId();
-      const viewport = cornerstoneViewportService.getCornerstoneViewport(activeViewport);
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(
+        activeViewport
+      ) as PlanarViewport;
       const metadata = viewport.getImageData().metadata;
 
       const modality = metadata.Modality;
@@ -2260,8 +2258,6 @@ function commandsModule({
     setViewportOrientation: ({ viewportId, orientation }) => {
       const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
-      // Accept any viewport already rendering volume content (legacy ORTHOGRAPHIC
-      // or a native viewport in volume mode) — both expose setOrientation().
       if (!viewport || !getViewportAdapter(viewport).canReorientInPlace()) {
         console.warn('Orientation can only be set on volume viewports');
         return;
@@ -2276,7 +2272,10 @@ function commandsModule({
         return;
       }
 
-      viewport.setOrientation(orientation);
+      if (!ops.setOrientation(viewport, orientation)) {
+        return;
+      }
+
       viewport.render();
 
       // update the orientation in the viewport info

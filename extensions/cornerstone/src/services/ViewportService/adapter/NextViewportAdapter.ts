@@ -13,7 +13,7 @@ import type {
  * These accessors live on IGenericViewport (not IViewport), so we cast at this
  * boundary rather than import core-internal PlanarViewport types.
  */
-type NativeViewport = CoreTypes.IViewport & {
+type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentation> & {
   getSourceDataId?: () => string | undefined;
   getDisplaySetPresentation?: (dataId: string) => ViewportPresentation | undefined;
   getDefaultVOIRange?: (dataId?: string) => VOIRange | undefined;

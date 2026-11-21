@@ -1,4 +1,4 @@
-import type { Types as CoreTypes } from '@cornerstonejs/core';
+import type { Enums as csEnums, Types as CoreTypes } from '@cornerstonejs/core';
 
 export type FlipValue = 'toggle' | boolean;
 export type RotationMode = 'apply' | 'set';
@@ -52,13 +52,23 @@ export interface IViewportOperations {
   /** Zoom by direction: >0 in, <0 out, 0 = fit-to-window (reset). */
   scaleBy(viewport: CoreTypes.IViewport, direction: number): void;
 
+  /**
+   * Turns the view of a viewport that shows a volume to an orientation. A planar
+   * viewport takes any orientation. A 3D viewport turns its camera to axial, sagittal
+   * or coronal and fits what it shows; for another orientation it stays as it is.
+   * Returns true when the view was turned (the caller renders).
+   */
+  setOrientation(viewport: CoreTypes.IViewport, orientation: csEnums.OrientationAxis): boolean;
+
   /** Read the view-plane normal. */
   getViewPlaneNormal(viewport: CoreTypes.IViewport): CoreTypes.Point3 | undefined;
 
   /**
-   * In-plane re-center (+ zoom-to-fit) of a measurement AFTER the caller's setViewReference
-   * slice jump. Returns true when it re-centered (caller should render), false when the
-   * measurement was already visible or in-plane centering is unsupported.
+   * Brings a measurement into view after the caller's setViewReference went to its slice:
+   * pans its centre to the centre of the canvas, and zooms out when it is larger than
+   * what the viewport shows. Returns true when the view changed (the caller renders),
+   * false when the measurement was in view already, on a viewport without data and on
+   * a 3D viewport.
    */
   centerOnMeasurement(viewport: CoreTypes.IViewport, measurement: Record<string, unknown>): boolean;
 

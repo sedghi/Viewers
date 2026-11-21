@@ -305,4 +305,59 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       ).toBe('volume');
     });
   });
+
+  describe('a viewport that could show a measurement as a volume', () => {
+    const measurementMetadata = {
+      volumeId: 'cornerstoneStreamingImageVolume:measured',
+      FrameOfReferenceUID: 'frame-measured',
+      referencedImageId: 'image-0',
+    };
+
+    function findWithDisplaySet(displaySet: Record<string, unknown>) {
+      const servicesManager = makeServicesManager();
+      (servicesManager.services.displaySetService.getDisplaySetByUID as jest.Mock).mockReturnValue(
+        displaySet
+      );
+      const service = new CornerstoneViewportService(servicesManager);
+      service.enableViewport('viewport-1', makeElement());
+      const isReferenceViewable = jest.fn().mockReturnValue(true);
+      jest
+        .spyOn(service, 'getCornerstoneViewport')
+        .mockReturnValue({ isReferenceViewable } as never);
+
+      const found = service.findViewportConvertibleToVolume(
+        measurementMetadata,
+        'measured',
+        'volume'
+      );
+
+      return { found, reference: isReferenceViewable.mock.calls[0][0] };
+    }
+
+    it('asks with the volume id of the display set that the viewport shows', () => {
+      const { found, reference } = findWithDisplaySet({
+        displaySetInstanceUID: 'display-set',
+        FrameOfReferenceUID: 'frame-shown',
+      });
+
+      expect(reference.volumeId).toBe('cornerstoneStreamingImageVolume:display-set');
+      expect(reference.FrameOfReferenceUID).toBe('frame-shown');
+      expect(reference.referencedImageId).toBeNull();
+      expect(found).toEqual({
+        viewportId: 'viewport-1',
+        displaySetInstanceUID: 'measured',
+        viewportOptions: { viewportType: 'volume' },
+      });
+    });
+
+    it('takes the volume loader of a display set that names one', () => {
+      const { reference } = findWithDisplaySet({
+        displaySetInstanceUID: 'display-set',
+        FrameOfReferenceUID: 'frame-shown',
+        volumeLoaderSchema: 'cornerstoneStreamingDynamicImageVolume',
+      });
+
+      expect(reference.volumeId).toBe('cornerstoneStreamingDynamicImageVolume:display-set');
+    });
+  });
 });

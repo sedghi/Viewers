@@ -15,6 +15,7 @@ import {
 import { utilities as csToolsUtils, Enums as csToolsEnums } from '@cornerstonejs/tools';
 import { IViewportService } from './IViewportService';
 import { RENDERING_ENGINE_ID } from './constants';
+import { VOLUME_LOADER_SCHEME } from '../../constants';
 import ViewportInfo, {
   DisplaySetOptions,
   PublicViewportOptions,
@@ -781,7 +782,7 @@ class CornerstoneViewportService
       }
 
       if (metadata.volumeId) {
-        altMetadata.volumeId = viewportDisplaySetUID;
+        altMetadata.volumeId = this._getVolumeId(viewportDisplaySetUID);
       }
       altMetadata.FrameOfReferenceUID = this._getFrameOfReferenceUID(viewportDisplaySetUID);
 
@@ -1470,6 +1471,18 @@ class CornerstoneViewportService
 
       return slabThickness;
     }
+  }
+
+  /**
+   * The id of the volume that a display set is shown as: the volume loader of the
+   * display set, or the default one, and its display set instance UID.
+   */
+  _getVolumeId(displaySetInstanceUID: string): string {
+    const { displaySetService } = this.servicesManager.services;
+    const displaySet = displaySetService.getDisplaySetByUID(displaySetInstanceUID);
+    const volumeLoaderSchema = displaySet?.volumeLoaderSchema ?? VOLUME_LOADER_SCHEME;
+
+    return `${volumeLoaderSchema}:${displaySetInstanceUID}`;
   }
 
   _getFrameOfReferenceUID(displaySetInstanceUID) {

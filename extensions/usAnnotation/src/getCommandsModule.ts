@@ -1,6 +1,7 @@
 import { UltrasoundPleuraBLineTool, Enums as csToolsEnums } from '@cornerstonejs/tools';
 import { Types as OhifTypes, utils } from '@ohif/core';
 import { eventTarget, triggerEvent, utilities } from '@cornerstonejs/core';
+import type { PlanarViewport } from '@cornerstonejs/core';
 import getInstanceByImageId from './getInstanceByImageId';
 import { setShowPercentage } from './PleuraBlinePercentage';
 
@@ -184,7 +185,9 @@ function commandsModule({
      */
     generateUSPleuraBLineAnnotationsJSON: (labels: string[] = [], imageIds: string[] = []) => {
       const activeViewportId = viewportGridService.getActiveViewportId();
-      const viewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(
+        activeViewportId
+      ) as PlanarViewport;
       if (!viewport) {
         return;
       }

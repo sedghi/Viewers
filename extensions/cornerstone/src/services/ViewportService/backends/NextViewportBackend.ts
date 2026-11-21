@@ -65,7 +65,7 @@ const NATIVE_VIEW_PRESENTATION_KEYS = [
 // Minimal structural view of a native PlanarViewport's semantic accessors. These
 // live on IGenericViewport (not IStackViewport/IViewport), so we cast at the boundary
 // rather than import core-internal PlanarViewport/PlanarViewState types.
-type NativePlanarViewport = Types.IViewport & {
+type NativePlanarViewport = Types.IViewport<Record<string, unknown>> & {
   getViewState: () => Record<string, unknown>;
   setViewState: (patch: Record<string, unknown>) => void;
   getViewReference: () => Types.ViewReference;
@@ -82,31 +82,6 @@ function pickNativeViewPresentation(viewState: Record<string, unknown>): Record<
     }
   }
   return out;
-}
-
-/**
- * Derives a default VOI window/level range from an image's DICOM voiLutModule
- * metadata (first WindowCenter/WindowWidth pair). Used to seed native viewport
- * windowing, which (unlike legacy StackViewport) is not auto-applied from
- * metadata. Returns undefined when the metadata has no usable window.
- */
-function getDefaultVoiRangeFromMetadata(
-  imageId: string
-): { lower: number; upper: number } | undefined {
-  if (!imageId) {
-    return;
-  }
-  const voiLutModule = metaData.get('voiLutModule', imageId);
-  const wc = Array.isArray(voiLutModule?.windowCenter)
-    ? voiLutModule.windowCenter[0]
-    : voiLutModule?.windowCenter;
-  const ww = Array.isArray(voiLutModule?.windowWidth)
-    ? voiLutModule.windowWidth[0]
-    : voiLutModule?.windowWidth;
-  if (wc == null || ww == null) {
-    return;
-  }
-  return csUtils.windowLevel.toLowHighRange(ww, wc);
 }
 
 /**
@@ -226,17 +201,6 @@ export class NextViewportBackend implements IViewportBackend {
         ...(stackRenderBackend ? { renderBackend: stackRenderBackend } : {}),
       },
     });
-
-    // Native viewports are presentation-driven and do NOT auto-derive a default
-    // window/level from the image's DICOM VOI metadata the way legacy StackViewport
-    // does, so without this the image renders with a raw/full-range VOI (too dark).
-    // When no explicit VOI is provided, seed it from the voiLutModule metadata.
-    if (!properties.voiRange) {
-      const defaultVoi = getDefaultVoiRangeFromMetadata(imageIds[initialImageIndex] ?? imageIds[0]);
-      if (defaultVoi) {
-        properties.voiRange = defaultVoi;
-      }
-    }
 
     const presentationProps: Record<string, unknown> = {};
     if (properties.voiRange) {

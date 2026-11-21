@@ -83,8 +83,10 @@ export interface IViewportBackend {
   ): Promise<void>;
 
   /**
-   * Mounts an image stack: register the dataId, setDisplaySets, seed VOI from
-   * metadata, apply presentation + view state.
+   * Mounts an image stack: register the dataId, setDisplaySets, apply presentation +
+   * view state. A window is set only when the properties give one: without it the
+   * viewport shows each image of the stack with the window of its own metadata, and a
+   * window set here would hold for every image.
    */
   mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void>;
 

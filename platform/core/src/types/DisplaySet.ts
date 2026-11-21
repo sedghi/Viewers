@@ -32,6 +32,11 @@ export type DisplaySet = {
   isDerivedDisplaySet?: boolean;
   /** flag indicating if it supports window level */
   supportsWindowLevel?: boolean;
+  /**
+   * The scheme of the volume loader that loads this display set as a volume. Its volume
+   * id is this scheme and the display set instance UID. The default loader when not set.
+   */
+  volumeLoaderSchema?: string;
 
   // Details about how to display:
   /**

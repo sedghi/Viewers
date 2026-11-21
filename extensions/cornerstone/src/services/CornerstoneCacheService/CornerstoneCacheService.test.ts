@@ -23,6 +23,26 @@ function makeDisplaySets() {
   ];
 }
 
+/** An image display set that can be shown as a volume. */
+function makeImageDisplaySet(displaySetInstanceUID: string, Modality: string) {
+  return { displaySetInstanceUID, StudyInstanceUID: 'study-1', Modality, isReconstructable: true };
+}
+
+/**
+ * A segmentation display set over an image display set. As the SEG and the RTSTRUCT
+ * display sets of the viewer, it takes `isReconstructable` from the display set it
+ * references.
+ */
+function makeOverlayDisplaySet(Modality: string) {
+  return {
+    displaySetInstanceUID: 'overlay-1',
+    StudyInstanceUID: 'study-1',
+    Modality,
+    isOverlayDisplaySet: true,
+    isReconstructable: true,
+  };
+}
+
 function makeServiceInternals(): jest.Mocked<IViewportServiceInternals> {
   return {
     _setStackViewport: jest.fn().mockResolvedValue(undefined),
@@ -40,11 +60,11 @@ function makeServiceInternals(): jest.Mocked<IViewportServiceInternals> {
  * viewport: the cache service builds the viewport data, the viewport info
  * takes the options and the data, and the backend picks the mount.
  */
-async function hangViewport(viewportType: string) {
+async function hangViewport(viewportType: string, displaySets = makeDisplaySets()) {
   const cacheService = new CornerstoneCacheService({} as AppTypes.ServicesManager);
   const viewportOptions = { viewportType } as AppTypes.ViewportGrid.GridViewportOptions;
   const viewportData = await cacheService.createViewportData(
-    makeDisplaySets() as never,
+    displaySets as never,
     viewportOptions,
     dataSource
   );
@@ -191,5 +211,29 @@ describe('the viewport type words of a hanging protocol', () => {
 
     expect(invalidated.viewportType).toBe(ViewportType.PLANAR);
     expect(invalidated.dataShapeType).toBe('stack');
+  });
+
+  it.each(['RTSTRUCT', 'SEG'])(
+    'a stack with a reconstructable %s over it stays a stack',
+    async Modality => {
+      const { viewportData, service } = await hangViewport('stack', [
+        makeImageDisplaySet('display-set-1', 'CT'),
+        makeOverlayDisplaySet(Modality),
+      ]);
+
+      expect(viewportData.dataShapeType).toBe('stack');
+      expect(service._setStackViewport).toHaveBeenCalledTimes(1);
+      expect(service._setVolumeViewport).not.toHaveBeenCalled();
+    }
+  );
+
+  it('two reconstructable image display sets with a segmentation over them are shown as a volume', async () => {
+    const { viewportData } = await hangViewport('stack', [
+      makeImageDisplaySet('display-set-1', 'CT'),
+      makeImageDisplaySet('display-set-2', 'PT'),
+      makeOverlayDisplaySet('SEG'),
+    ]);
+
+    expect(viewportData.dataShapeType).toBe('volume');
   });
 });

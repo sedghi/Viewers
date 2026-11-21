@@ -54,10 +54,12 @@ class CornerstoneCacheService {
     // must render as a volume viewport so the source and overlay share one
     // representation (volume slice). Without this, the viewport keeps the source
     // in stack mode while the added overlay is a volume slice, producing the
-    // broken/unstable fusion. SEG/RT overlays are non-reconstructable, so they
-    // are not affected.
+    // broken/unstable fusion. A SEG or an RTSTRUCT over one image display set is
+    // not a fusion: it takes isReconstructable from the display set it references,
+    // so only the image display sets are counted.
+    const imageDisplaySets = displaySets.filter(ds => !ds.isOverlayDisplaySet);
     const isReconstructableFusion =
-      displaySets.length > 1 && displaySets.every(ds => ds.isReconstructable);
+      imageDisplaySets.length > 1 && imageDisplaySets.every(ds => ds.isReconstructable);
     if (isReconstructableFusion && dataShapeType === 'stack') {
       dataShapeType = 'volume';
     }

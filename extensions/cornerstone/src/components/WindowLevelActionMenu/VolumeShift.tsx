@@ -2,7 +2,11 @@ import React, { ReactElement, useEffect, useState, useRef } from 'react';
 import { VolumeShiftProps } from '../../types/ViewportPresets';
 import { Numeric } from '@ohif/ui-next';
 import { useSystem } from '@ohif/core';
+import type { VolumeViewport3D } from '@cornerstonejs/core';
 import { useTranslation } from 'react-i18next';
+
+/** A 3D viewport with the shift of its opacity transfer function stashed on it. */
+type ShiftedViewport = VolumeViewport3D & { shiftedBy?: number };
 
 /**
  * Records the shift applied to a viewport's opacity transfer function.
@@ -14,7 +18,7 @@ import { useTranslation } from 'react-i18next';
  * the compiler key the callback on the viewport reference rather than on a
  * property path it would have to dereference during render.
  */
-function setShiftedBy(viewport, shift) {
+function setShiftedBy(viewport: ShiftedViewport | null, shift: number) {
   if (!viewport) {
     return;
   }
@@ -27,14 +31,15 @@ export function VolumeShift({ viewportId }: VolumeShiftProps): ReactElement<any>
   const [minShift, setMinShift] = useState<number | null>(null);
   const [maxShift, setMaxShift] = useState<number | null>(null);
   const [shift, setShift] = useState<number | null>(
-    cornerstoneViewportService.getCornerstoneViewport(viewportId)?.shiftedBy || 0
+    (cornerstoneViewportService.getCornerstoneViewport(viewportId) as ShiftedViewport)?.shiftedBy ||
+      0
   );
   const [step, setStep] = useState<number | null>(null);
   const [isBlocking, setIsBlocking] = useState(false);
 
   const prevShiftRef = useRef<number>(shift);
 
-  const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+  const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId) as ShiftedViewport;
   const { actor } = viewport.getActors()[0];
   const ofun = actor.getProperty().getScalarOpacity(0);
   const { t } = useTranslation('WindowLevelActionMenu');

@@ -2,6 +2,7 @@ import React, { ReactElement, useState, useEffect, useCallback } from 'react';
 import { VolumeLightingProps } from '../../types/ViewportPresets';
 import { Numeric } from '@ohif/ui-next';
 import { useSystem } from '@ohif/core';
+import type { VolumeViewport3D } from '@cornerstonejs/core';
 import { useTranslation } from 'react-i18next';
 
 export function VolumeLighting({ viewportId, hasShade }: VolumeLightingProps): ReactElement<any> {
@@ -30,7 +31,9 @@ export function VolumeLighting({ viewportId, hasShade }: VolumeLightingProps): R
   );
 
   useEffect(() => {
-    const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+    const viewport = cornerstoneViewportService.getCornerstoneViewport(
+      viewportId
+    ) as VolumeViewport3D;
     const { actor } = viewport.getActors()[0];
     const property = actor.getProperty();
 
