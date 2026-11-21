@@ -64,8 +64,9 @@ On `master`, turn the next viewports on for every mode (`genericViewports.enable
 list of specs that change because of the path, apart from 6.0. It separates the two
 causes of a failure in step 9.
 
-Done when: a table of the 101 specs (same picture, other picture, fails) is in this
-file.
+Done (21 November): on 5.18.3 the legacy path passes 243 of 243; the next path passes
+191 and fails 52. On 6.0 after step 4 the branch passes 206 and fails 37. The lists
+are entry M14 of the migration log.
 
 ### Step 2. Delete the legacy path
 

@@ -66,7 +66,7 @@ failed first, a build, or a run that is named).
 - **Fix, in cornerstone:** the migration guide should name this case: an application
   that stores `ViewportType.STACK` or `ORTHOGRAPHIC` as a marker of its data needs its
   own values. To do.
-- **State:** the OHIF part is fixed in package U1 (not committed yet). Checks:
+- **State:** the OHIF part is fixed in package U1 (`fbdd648d97`). Checks:
   `getCornerstoneViewportType.test.ts`, `viewportDataShape.test.ts` and
   `CornerstoneCacheService.test.ts` (each word of a hanging protocol gives its 6.0 type,
   its shape and its mount); `git grep -E "ViewportType\.(STACK|ORTHOGRAPHIC)"` finds
@@ -175,7 +175,7 @@ failed first, a build, or a run that is named).
   should say it: a 5.x test of a legacy type that was false for a next viewport can be
   true in 6.0, and a comparison with both names is one comparison after the rewrite. The
   codemod could report `x === A || x === A`. To do.
-- **State:** the OHIF part is fixed in package U1 (not committed yet). Check: the type
+- **State:** the OHIF part is fixed in package U1 (`fbdd648d97`). Check: the type
   comparison no longer has `Property 'getProperties' does not exist on type
   'PlanarViewport'` in `CornerstoneViewportService.ts`. The cornerstone part is open.
 
@@ -195,7 +195,7 @@ failed first, a build, or a run that is named).
 - **Fix, in OHIF:** the sites type the viewport as `PlanarViewport`.
 - **Fix, in cornerstone:** the row should say that the members are on `PlanarViewport`
   (`getViewport<PlanarViewport>(id)`), and that an empty viewport gives 0. To do.
-- **State:** the OHIF part is fixed in package U1 (not committed yet). Check: no new
+- **State:** the OHIF part is fixed in package U1 (`fbdd648d97`). Check: no new
   type error for `getNumberOfSlices` in the files of the package. The cornerstone part
   is open.
 
@@ -252,3 +252,66 @@ failed first, a build, or a run that is named).
   not checked. To do: check, and fix if so.
 - **State:** fixed for the comparison (package U1 used it); the cornerstone question is
   open.
+
+## M14. 52 Playwright tests fail on the next path of 5.18.3, and 37 on 6.0
+
+- **Seen:** the 101 specs (247 tests) on this Mac, 6 workers, about 9 minutes a run.
+  - `master` with 5.18.3, legacy path: 243 pass, 4 skipped, twice in a row. One baseline
+    of CI differs on this Mac (`SEGHydrationFromMPR`, `mprAfterSEG.png`).
+  - `master` with 5.18.3, next path on (`genericViewports: { enabled: true }` in
+    `config/e2e.js`): 191 pass, 52 fail: 24 pictures differ, 14 time out, 13 throw
+    "Unsupported viewport type" from the `jumpToImage` command, 1 value differs.
+  - This branch on 6.0 after package U1: 206 pass, 37 fail: 27 pictures differ, 9 time
+    out, 1 value differs. 16 of the 52 pass now (all 13 of `jumpToImage`, the three of
+    `Crosshairs`, `MultiframeRendering`, `TMTVCSVReport`), 36 fail in both, and 1 is new
+    (`LabelMapSegmentationColorChange`).
+- **Why:** the next path was never the path of the test suite (M7). The 13 throws and
+  some timeouts were OHIF's tests of the legacy viewport type (M8). The rest is not
+  sorted yet. Three pictures read so far show three causes: a 3D volume is drawn about
+  twice as large (`3DOnly`), an MPR opens on another axial slice (`MPR`), and the image
+  sits elsewhere after a jump to a hydrated measurement (`SRHydration`).
+- **Fix:** steps 5 and 6 first (calls of members that 6.0 does not have can stop a
+  test), then each group of step 9: a picture change that the cornerstone guide names
+  gets a new baseline with the guide line; anything else is a defect, fixed in OHIF or
+  in cornerstone with a test.
+- **State:** open. The 37, as measured after package U1:
+
+| Spec | Test | On 6.0 | On the next path of 5.18.3 |
+|---|---|---|---|
+| `3DFourUp.spec.ts` | should render 3D four up correctly. | picture differs (0.29) | picture differs (0.30) |
+| `3DMain.spec.ts` | should render 3D main correctly. | picture differs (0.29) | picture differs (0.30) |
+| `3DOnly.spec.ts` | should render 3D only correctly. | picture differs (0.74) | picture differs (0.73) |
+| `3DPrimary.spec.ts` | should render 3D primary correctly. | picture differs (0.37) | picture differs (0.39) |
+| `AxialPrimary.spec.ts` | should render Axial Primary correctly. | picture differs (0.21) | picture differs (0.21) |
+| `ContourCombineOperations.spec.ts` | merge Big Sphere with Small Sphere (nested, no edge crossing) produces the Big Sphere shape | timeout | timeout |
+| `ContourCombineOperations.spec.ts` | subtract Big Sphere minus Small Sphere (nested, no edge crossing) produces Big Sphere with a hole | picture differs (0.04) | picture differs (0.04) |
+| `ContourSmoothOperation.spec.ts` | remove points leaves an already decimated contour unchanged | timeout | timeout |
+| `ContourSmoothOperation.spec.ts` | remove points reduces the active segment contour points | timeout | timeout |
+| `DataOverlayMenuFrameOfReference.spec.ts` | should only sync segmentations to viewports with same Frame of Reference | timeout | timeout |
+| `LabelMapSegmentationColorChange.spec.ts` | does not change the labelmap segment color when the user cancels | picture differs (0.22) | passed |
+| `MPR.spec.ts` | should render MPR correctly. | picture differs (0.07) | picture differs (0.07) |
+| `MPRThenRTOverlayNoHydration.spec.ts` | should launch MPR with unhydrated RTSTRUCT chosen from the data overlay menu | picture differs (0.03) | picture differs (0.03) |
+| `MPRThenSEGOverlayNoHydration.spec.ts` | should launch MPR with unhydrated SEG chosen from the data overlay menu | picture differs (0.03) | picture differs (0.07) |
+| `ManuallyDrawnSegmentation.spec.ts` | should jump to and highlight the bidirectional of a segment that is not selected | timeout | throws: Unsupported viewport type |
+| `RTContourViewportLayoutChange.spec.ts` | should keep RT contours correctly positioned after maximizing and restoring the viewport | value differs | value differs |
+| `RTDataOverlayNoHydrationThenMPR.spec.ts` | should launch MPR with unhydrated RTSTRUCT chosen from the data overlay menu | picture differs (0.03) | picture differs (0.03) |
+| `RTHydrationFromMPR.spec.ts` | should hydrate an RTSTRUCT from MPR | picture differs (0.03) | picture differs (0.03) |
+| `RTHydrationThenMPR.spec.ts` | should hydrate an RTSTRUCT and then launch MPR | picture differs (0.06) | picture differs (0.06) |
+| `SEGDataOverlayForUnreferencedDisplaySetNoHydration.spec.ts` | should overlay an unhydrated SEG over a display set that the SEG does NOT reference | picture differs (0.04) | picture differs (0.05) |
+| `SEGDataOverlayNoHydrationThenMPR.spec.ts` | should launch MPR with unhydrated SEG chosen from the data overlay menu | picture differs (0.91) | picture differs (0.91) |
+| `SEGHydrationFrom3DFourUp.spec.ts` | should hydrate SEG only in the target viewport and preserve other viewport orientations | picture differs (0.16) | picture differs (0.21) |
+| `SEGHydrationFrom3DFourUp.spec.ts` | should properly hydrate SEG from 3D four up layout | picture differs (0.29) | picture differs (0.30) |
+| `SEGHydrationFromMPR.spec.ts` | should properly display MPR for MR | picture differs (0.03) | picture differs (0.07) |
+| `SEGHydrationThenMPR.spec.ts` | should properly display MPR for MR | picture differs (0.27) | picture differs (0.10) |
+| `SEGNoHydrationThenMPR.spec.ts` | should launch MPR with unhydrated SEG | picture differs (0.08) | picture differs (0.08) |
+| `SRHydration.spec.ts` | should hydrate SR reports correctly | picture differs (0.77) | picture differs (0.77) |
+| `SRHydrationArrowNavigation.spec.ts` | should keep arrows visible and functional after clicking measurement in right panel | timeout | timeout |
+| `SRHydrationArrowNavigation.spec.ts` | should navigate SR measurements with next/prev arrows after hydration for 3D SR | timeout | timeout |
+| `Scoord3dProbe.spec.ts` | should hydrate SCOORD3D probe measurements correctly | picture differs (0.57) | picture differs (0.57) |
+| `ScoordRectangle.spec.ts` | should hydrate SCOORD rectangle measurements correctly | picture differs (0.70) | picture differs (0.70) |
+| `SegAcrossViewportTypes.spec.ts` | keeps a changed segment color after switching to MPR | picture differs (0.26) | picture differs (0.04) |
+| `SegAcrossViewportTypes.spec.ts` | keeps every segment when switching from 3D to MPR | picture differs (0.26) | timeout |
+| `SegAcrossViewportTypes.spec.ts` | keeps the labelmap drawn from a stack through MPR and back to one viewport | timeout | timeout |
+| `SegAcrossViewportTypes.spec.ts` | keeps the selected segment selected across viewport types | timeout | timeout |
+| `ZoomIn.spec.ts` | should render the magnified region with the same horizontal flip as the source viewport | picture differs (0.94) | throws: Unsupported viewport type |
+| `mpr2.spec.ts` | should properly display MPR for MR | picture differs (0.10) | picture differs (0.07) |
