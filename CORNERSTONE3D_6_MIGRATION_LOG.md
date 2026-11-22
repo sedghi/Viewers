@@ -386,6 +386,14 @@ failed first, a build, or a run that is named).
     and redo was compared with the first value. It passes alone, five times of
     five, and in the second full run. The spec is the one of `master`. No baseline
     picture was updated.
+  - This branch on 6.0 after package U6, on cornerstone `1b3b2247e`: 242 pass, 1 fails
+    (a picture differs, 0.08), 4 skipped. Against the run after package U4: 0 new, 3 no
+    longer failing: `RTHydrationFromMPR` (M30), `MPRThenRTOverlayNoHydration` (M31) and
+    `SEGHydrationFrom3DFourUp` "should properly hydrate" (M30, then two new baselines of
+    the fill alpha, M36). The one left, `SEGHydrationFrom3DFourUp` "should hydrate SEG
+    only in the target viewport and preserve other viewport orientations", has its 3D
+    pane right now (M32) and fails for M42, an OHIF cause that is not small
+    (`laneU6/pw/run-full.json`, `laneU6/pw/run-full.tsv`).
 - **Why:** the next path was never the path of the test suite (M7). The 13 throws and
   some timeouts were OHIF's tests of the legacy viewport type (M8). The rest is not
   sorted yet. Three pictures read so far show three causes: a 3D volume is drawn about
@@ -399,7 +407,8 @@ failed first, a build, or a run that is named).
   test), then each group of step 9: a picture change that the cornerstone guide names
   gets a new baseline with the guide line; anything else is a defect, fixed in OHIF or
   in cornerstone with a test.
-- **State:** open: 4 tests fail, and each waits for cornerstone. The 15 of the run
+- **State:** open: 1 test fails, for M42 (OHIF, not small). The 4 that waited for
+  cornerstone after package U4 are settled: 3 pass, and the fourth now fails for M42. The 15 of the run
   after package U3, with the run after package U4:
 
 | Spec | Test | On 6.0 after U4 | On 6.0 after U3 |
@@ -697,7 +706,8 @@ failed first, a build, or a run that is named).
   (`isOverlayDisplaySet`).
 - **Left as it is:** the registry still keeps a volume registration of a data id for a
   later stack mount of the same display set (a stack opened after its MPR, in another
-  viewport, is drawn as a volume slice). Not seen in a failing test. Step 11.
+  viewport, is drawn as a volume slice). Not seen in a failing test. Step 11. Seen in a
+  failing test in package U6, once M32 was fixed: M42.
 - **Also explained by it:** `LabelMapSegmentationColorChange.spec.ts` ("does not
   change the labelmap segment color when the user cancels"),
   `SEGNoHydrationThenMPR.spec.ts` and `SegAcrossViewportTypes.spec.ts` ("keeps the
@@ -947,7 +957,16 @@ failed first, a build, or a run that is named).
   hydrate" is on the slice of the baseline and stops on the same picture with 0.03:
   the fill of the labelmap in the axial pane, (195, 106, 106) in the baseline and
   (209, 81, 81) now, the change of M36. It will need its baseline then.
-- **State:** open, waits for cornerstone. Both tests fail.
+- **Fixed in cornerstone** `1b3b2247e` (open issues 123 to 128 there): in volume mode a
+  view reference that names an image and no frame of reference is not viewable with any
+  option, as on the legacy volume viewport, so OHIF leaves the pane where it is.
+  `setViewReference` with such a reference still goes to the image, where 5.18.3 threw
+  (decided there).
+- **State:** fixed in cornerstone. Checks (package U6, on the linked checkout at
+  `1b3b2247e`): `RTHydrationFromMPR.spec.ts` passes; `SEGHydrationFrom3DFourUp.spec.ts`
+  "should properly hydrate SEG from 3D four up layout" is on the slice of the baseline and
+  passes with the two new pictures of the fill alpha (M36) and three times in a row
+  (`laneU6/pw/waited-1.json`, `laneU6/pw/m36b-repeat.json`).
 
 ## M31. A contour set gets the plane of the pane that draws it first
 
@@ -978,10 +997,11 @@ failed first, a build, or a run that is named).
   `viewport.viewportStatus === RENDERED`; otherwise it goes on to
   `handleContourSegmentation` at once. The status on 5.18.3 at that moment was not
   measured.
-- **Fix, in cornerstone:** to do: the plane of a contour comes from its points, not
-  from the viewport that draws it first.
+- **Fix, in cornerstone:** the plane of a contour comes from its points, not from the
+  viewport that draws it first (cornerstone3D `1b3b2247e`, open issues 123 to 128 there).
 - **Fix, in OHIF:** none (rule 3).
-- **State:** open, waits for cornerstone. The test fails.
+- **State:** fixed in cornerstone. Check (package U6, on the linked checkout at
+  `1b3b2247e`): `MPRThenRTOverlayNoHydration.spec.ts` passes (`laneU6/pw/waited-1.json`).
 
 ## M32. A resize keeps the parallel scale of a 3D viewport, not its zoom
 
@@ -1012,10 +1032,16 @@ failed first, a build, or a run that is named).
   Measured in OHIF's viewer on both (`laneU4/all-base.log`,
   `laneU4/probes-6-newbuild.log`). On 5.18.3 OHIF's own step also runs, so the number
   there is of both together.
-- **Fix, in cornerstone:** to do: a resize keeps the zoom and the pan of a 3D viewport
-  against its fit, as it does for a planar viewport, or the guide names it.
+- **Fix, in cornerstone:** `renderingEngine.resize(immediate, keepCamera)` reads
+  `keepCamera` again for the planar and 3D viewports, and the fit of a 3D viewport uses
+  the size the engine draws at (cornerstone3D `1b3b2247e`, open issues 123 to 128 there).
 - **Fix, in OHIF:** none for the resize (rule 3). M33 is the part that was OHIF's.
-- **State:** open, waits for cornerstone. The test fails.
+- **State:** fixed in cornerstone. Check (package U6, on the linked checkout at
+  `1b3b2247e`): in `SEGHydrationFrom3DFourUp.spec.ts` "should hydrate SEG only in the
+  target viewport and preserve other viewport orientations" the 3D pane of the 3 by 2 grid
+  shows all of the volume, as the baseline does. **The test still fails, for another
+  cause: M42** (the pane of the SEG, 0.08). With only the cause of M42 taken away in the
+  page, the whole test passes, its 3D pictures included (`laneU6/whatif/stackPayload.json`).
 
 ## M33. The zoom and the pan of a 3D viewport were not in its position presentation
 
@@ -1100,6 +1126,17 @@ failed first, a build, or a run that is named).
 - **Pictures:** `laneU4/baselines/`: the two side by side pictures, the old baselines
   (`before/`), the same view with the fill at 0.32, and an enlarged border.
 - **State:** done in package U4 (not committed yet). Check: both specs pass.
+- **Two more pictures (package U6), once M30 was fixed:** `SEGHydrationFrom3DFourUp.spec.ts`,
+  "should properly hydrate SEG from 3D four up layout", `threeDFourUpAfterSEG.png` (0.03)
+  and the picture after it, `threeDFourUpAfterSegHydrated.png`, which the test had not
+  reached before. The same cause: the commonest changes are the red segment from
+  (192, 104, 104) to (208, 80, 80) and the green one from (104, 192, 104) to
+  (80, 208, 80); 0.3% and 0.07% of the pixels differ by more than 32. With the fill
+  lowered in the page to 0.64 of the style and nothing else changed, the test passes
+  against the old pictures (`laneU6/whatif/alpha.json`). The two pictures were made with
+  `--update-snapshots=changed` for this one test (`-g`): no other file changed, and the
+  test passes with them three times in a row (`laneU6/pw/m36b-repeat.json`). Made on
+  this Mac. The old pictures and a side by side of each are in `laneU6/baselines/`.
 
 ## M37. Two traps of the renames of step 11
 
@@ -1124,3 +1161,347 @@ failed first, a build, or a run that is named).
   untracked files finds no `Next(Viewport|Segmentation)`, no `nextViewports` and no
   `_NEXT` name in `extensions`, `modes`, `tests` and `platform` (the hits left are listed
   in the report of the package), and jest passes with `viewportOperations.test.ts`.
+
+## M38. A window level drag in an MPR changes the window twice as much
+
+- **Seen (package U6, step 10):** basic mode, the CT "CT WB 5.0 B35f" (174 images) of
+  the test study "PETCT", MPR, one drag of the window level tool over the axial pane
+  (8% of the pane to the right, 5% up). The window goes from W: 752 L: -164 to W: 844
+  L: -336 on 6.0 and to W: 798 L: -250 on 5.18.3 (legacy path). On the GPU and on the
+  CPU. The same drag on the stack gives the same window on both.
+- **Why:** the multiplier of `WindowLevelTool`. On 5.18.3 the tool gives the volume id of
+  a volume viewport to `_getMultiplierFromDynamicRange`, which takes the range of the
+  middle slice of the volume. On 6.0 it gives no volume id (`volumeId: undefined`, after
+  `utilities.getScalingDescriptor(viewport)`), so the multiplier comes from
+  `viewport.getImageData().voxelManager.getRange()`: the range of the whole volume. For
+  this CT that range is [-1024, 2572], twice the range of the middle slice.
+- **Smallest case:** the MPR of that CT;
+  `ToolGroupManager.getToolGroupForViewport(id).getToolInstance('WindowLevel')._getMultiplierFromDynamicRange(viewport, volumeId)`
+  as each version calls it: 2 on 5.18.3, 4 on 6.0 (each of the three panes). On the stack:
+  2 on both (`laneU6/probes/wlmpr.log`). The same on cornerstone `62cf392da` and
+  `1b3b2247e`.
+- **The guide:** says nothing of the window level tool.
+- **Fix, in cornerstone:** to do: the tool gives the volume id of the volume on display
+  in volume mode, as 5.x did, or the guide names the change.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone.
+
+## M39. On the CPU a planar viewport misses a resize back to its first size
+
+- **Seen (package U6, step 10):** basic mode on the CPU (`?viewportRendering=cpu`), the
+  same CT stack: layout 1 by 2, then 1 by 1. In the 1 by 1 layout the image is drawn
+  stretched to twice its width, and a length drawn with the same two clicks reads 365 mm
+  where the GPU reads 241 mm. The overlay and the slice are right. On the GPU the
+  viewport comes back as it was.
+- **Why, read in the code and measured:** `ContextPoolRenderingEngine._resizeVTKViewports`
+  resizes a viewport when the size of its element differs from `canvas.width` and
+  `canvas.height` of the canvas that `getOrCreateCanvas(element)` gives. On the CPU path
+  that canvas keeps its first size (1115 by 842 in all three steps below: the CPU draws
+  into a second canvas). The change to half the width differs from 1115 and runs
+  `viewport.resize()`. The change back to 1115 equals the stale 1115, so the viewport is
+  not told, and it keeps the geometry of the half width.
+- **Smallest case**, with cornerstone calls only (`laneU6/specs/resizecore.spec.ts`,
+  `laneU6/probes/resizecore.log`): a stack in a viewport of 1115 by 842,
+  `viewport.setPan([89, 50])`, the element at half its width and
+  `renderingEngine.resize(true)`, then the element at its width again and
+  `renderingEngine.resize(true)`. `viewport.worldToCanvas(<centre of the image>)`:
+
+  | | panned | half width | full width again |
+  |---|---|---|---|
+  | 6.0, GPU | [647.3, 471.8] | [324.1, 471.5] | [647.3, 471.8] |
+  | 6.0, CPU | [647.3, 471.8] | [324.1, 471.5] | [324.1, 471.5] |
+  | 5.18.3, GPU (legacy stack) | [647.3, 471.8] | [368.5, 471.5] | [647.3, 471.8] |
+
+  5.18.3 on the CPU is wrong in its own way: `setPan([89, 50])` reads back
+  [91.6, -130.6], and each resize moves the image further up (the centre at y 206, -98,
+  -409), out of the viewport. The 6.0 rows are the same on cornerstone `62cf392da` and
+  `1b3b2247e`.
+- **Second effect, a jump:** in the longitudinal mode on the CPU (the MR "SAG T-1" of the
+  test study "BRAIN SELLA"), layout 1 by 2 and back, two measurements, then a click on a
+  measurement in the panel: the panel opens, the viewport is resized, and the centring on
+  the measurement (M20) works from the stale geometry. The pan goes to [-788.7, -268.3]
+  and the image leaves the viewport; the length reads 146 mm where the GPU reads 96.5 mm.
+  On the GPU the same steps keep the image in view.
+- **Fix, in cornerstone:** to do: the engine compares the element with the size that the
+  viewport draws at (the CPU canvas on the CPU path).
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone.
+
+## M40. A resize keeps the pan of a planar viewport as a share of the canvas
+
+- **Seen (package U6, step 10):** basic mode, the CT stack, panned, then the measurement
+  panel opens: the canvas goes from 1115 to 868 pixels wide and the image moves about 20
+  pixels towards the centre on 6.0. On 5.18.3 it keeps its place. On the GPU and on the
+  CPU.
+- **Why:** the view state of a planar viewport holds the pan as `anchorCanvas`, a share
+  of the canvas (`[0.5, 0.5]` is the centre). After a resize the same share is a smaller
+  distance in pixels. The legacy viewports kept the focal point of the camera, so the
+  image kept its distance from the centre in screen pixels.
+- **Smallest case:** the table of M39: `getPan()` after the element goes to half its
+  width is [44.5, 50] on 6.0 and [89, 50] on 5.18.3, and the centre of the image is at x
+  324.1 against 368.5. Back at full width both read [89, 50]. The same on cornerstone
+  `1b3b2247e`, whose `resize(immediate, keepCamera)` reads `keepCamera` again.
+- **The guide:** the row of `resetCameraForResize()` in `3-api-map.md` says "The same in
+  both modes", and "Display area and stretch" in `2-rendering-changes.md` does not name
+  a resize.
+- **Fix, in cornerstone:** to do: keep the pan in screen pixels through a resize, as 5.x
+  did, or name the change in the guide.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone. A small move, seen only after a pan.
+
+## M41. A console warning of Chrome on the CPU path
+
+- **Seen (package U6, step 10):** on the CPU, at the first image of a stack and at the
+  first image of an MPR: `Canvas2D: Multiple readback operations using getImageData are
+  faster with the willReadFrequently attribute set to true`. 5.18.3 on the CPU has no
+  such warning.
+- **Why, read in the code:** the CPU draw step of a planar viewport reads its canvas back
+  with `getImageData` (for example `planarSampledSliceCanvas.ts`, the blend of a slice
+  over what is drawn below it), and no 2D context of `core` or `tools` is made with
+  `willReadFrequently`. Chrome warns once for each such canvas.
+- **Fix, in cornerstone:** to do: `getContext('2d', { willReadFrequently: true })` for the
+  canvases that are read back on each draw.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone. A warning, nothing else is seen.
+
+## M42. A stack of a series that another pane shows as a volume is drawn as a volume slice
+
+- **Seen (package U6):** `SEGHydrationFrom3DFourUp.spec.ts`, "should hydrate SEG only in
+  the target viewport and preserve other viewport orientations" (0.08 on
+  `afterSEGHydrated.png`), once M32 was fixed: the SEG is loaded into the third pane of a
+  3 by 2 grid made from the 3D four up. On 5.18.3 that pane is a stack on image 1 of 52 (a
+  slice of the chest, with three segments). On 6.0 OHIF mounts it as a stack too
+  (`viewportType: 'stack'`), but `viewport.getCurrentMode()` is `volume`, and it stays on
+  slice 26 of 52 (the abdomen) (`laneU6/probes/seg3x2-base.json`,
+  `laneU6/probes/seg3x2-v6.json`). The slice follows from the mode: a stack goes to the
+  first image with a segment, a volume does not (M30).
+- **Why:** OHIF registers one data id per display set, its UID
+  (`DataIdRegistry`, `dataIdRegistry.ts`), and the first registration wins, except that a
+  volume one replaces a stack one. The panes of the 3D four up register the CT with its
+  `volumeId`. The stack mount of the SEG viewport registers `{ imageIds }` under the same
+  id, which is ignored, so cornerstone finds a `volumeId`. A planar data set with a
+  `volumeId` always takes the volume path (`isVolumeBackedDataSet` in
+  `PlanarRenderPathDecisionService.ts` of core). The guide registers a stack as `{ imageIds }` and a
+  volume as `{ imageIds, volumeId }` under a display set id each (the rows of `setStack()`
+  and `setVolumes()` in `3-api-map.md`), so a series shown both ways at once needs two ids.
+  On the legacy path the stack was a `StackViewport`. M22 named this case ("left as it
+  is", no failing test then).
+- **Smallest case:** the steps of the test above; read the third pane after the
+  hydration: 5.18.3 `stack` on image index 0 of 52; 6.0 `planar`, mode `volume`, on index
+  25 of 52.
+  With the `volumeId` taken out of the registration of the CT in the page just before the
+  SEG is loaded, and nothing else changed: mode `stack` on index 0 of 52, and the whole
+  test passes against its baselines (`laneU6/whatif/`, `stackPayload.json`, the picture
+  `laneU6/baselines/afterSEGHydrated-whatif-stackPayload.png`).
+- **What a user sees:** a series opened as a stack after it was shown as a volume in
+  another pane (an MPR, a 3D layout) is drawn as a volume slice: the slice of an RTSTRUCT
+  or a SEG, the window level drag (M38) and the texture of the volume (reduced with
+  `lossyDownsampling`) follow the volume.
+- **Fix, in OHIF:** to do, not small. A stack mount needs a data id of its own when its
+  display set is registered as a volume (for example `${displaySetInstanceUID}::stack`,
+  as the overlays have `::overlay`). The adapter (`getDataIdForDisplaySet`,
+  `setLayerOpacity`, the presentation calls), `useViewportRendering`, the window level
+  panel and the view references of measurements read the data id as the display set UID,
+  so each of them changes with it. Replacing the registration at the stack mount is not
+  a fix: a mounted planar viewport reads its registration again after the mount
+  (`PlanarViewport.getDataSet`, eight places, the render path decision among them), so
+  the MPR panes would lose their volume.
+- **Fix, in cornerstone:** none needed; the guide's model has one id for each.
+- **State:** open, for the owner (not small). The test fails.
+
+## M43. A jump to an empty segment put every pane on slice NaN
+
+- **Seen (package U6, step 10):** TMTV mode, the test study "LUNG DELAYS": a segmentation
+  with an empty segment (the rectangle threshold throws on both versions, see the note),
+  then a click on the segment in the panel. On 6.0 all ten panes go to slice NaN, stop
+  reporting rendered, and the console says `ImageId not found for sliceIndex: NaN` and
+  `No imageId found within the specified criteria`; the crosshairs after it do nothing.
+  On 5.18.3 nothing moves.
+- **Why:** the statistics of an empty segment have the centre `[NaN, NaN, NaN]` (the CSV
+  export says `NaN NaN NaN`, on both versions). `SegmentationService.jumpToSegmentCenter`
+  checked only that a centre exists and handed it to the backend. The legacy backend
+  called `viewport.jumpToWorld`, which left the viewport where it was; the backend of 6.0
+  calls `setViewReference({ cameraFocalPoint })`, which takes the NaN.
+- **Smallest case**, cornerstone calls only, the axial pane of an MPR of a CT on slice
+  87 of 174 (`laneU6/specs/nanref.spec.ts`, `laneU6/probes/nanref.log`):
+  `viewport.setViewReference({ cameraFocalPoint: [NaN, NaN, NaN] })`: 5.18.3 (legacy
+  volume viewport) throws `Incompatible view refs` and stays on 87; 6.0 (planar, volume
+  mode) takes it and the slice is NaN. `jumpToWorld([NaN, NaN, NaN])` of 5.18.3 stays on
+  87.
+- **Fix, in OHIF:** `jumpToSegmentCenter` treats a centre that is not a finite point as no
+  centre: it warns `No center found for segmentation` and moves nothing, as 5.x did.
+- **Fix, in cornerstone:** to do: `setViewReference` ignores a focal point that is not
+  finite, as the legacy viewport did (it threw).
+- **Note:** the "Run" of the rectangle threshold tool throws
+  `getVolume: volumeId must not be undefined` on 5.18.3 and on 6.0 alike (the same
+  steps), so the segment stays empty on both: not a difference of the upgrade.
+- **State:** the OHIF part is fixed in package U6 (not committed yet). Check:
+  `SegmentationService.test.ts`, "does not move the viewport when the centre of the
+  segment is not a point" (it failed first, `laneU6/jest-before-fix.log`), with "moves the
+  viewport to the centre of the segment"; in the TMTV mode the same steps now warn
+  `No center found` and the panes stay on slice 52, as on 5.18.3
+  (`laneU6/runs/tmtv/v6-gpu-fix/`). The cornerstone part is open.
+
+## M44. An SR, SEG or RTSTRUCT viewport showed no window text
+
+- **Seen (package U6, step 10):** longitudinal mode, the SR "SR_LEN_BDIR" of the test study
+  "BRAIN SELLA" opened in a viewport: the bottom left of the overlay is empty on 6.0;
+  5.18.3 shows `W: 1997 L: 998`. The same for a SEG before its hydration (segmentation
+  mode, the MR "MPRAGE": empty against `W: 603 L: 270`). The picture is the same.
+- **Why:** the overlay reads the window through `useViewportRendering`, which asks the
+  presentation and the default window of the display set of the grid. In such a
+  viewport that is the SR (or SEG), while the viewport shows the images it references.
+  The viewport has no binding for the SR's id, so both answers are empty. The legacy
+  `getProperties()` gave the applied window whatever the display set
+  (`laneU6/probes/srwindow.log`: `viewport.getDisplaySets()` lists the MR,
+  `getDefaultVOIRange()` of the source gives -0.5 to 1995.5, the 5.x window).
+- **Fix, in OHIF:** `ViewportAdapter.getDataIdForDisplaySet` gives `undefined` when the
+  viewport shows other display sets and not this one (it lists them with
+  `getDisplaySets()`), and `readPresentation` of `useViewportRendering` passes that on, so
+  a call without a data id reads the source. A viewport that shows the display set, or
+  that shows nothing yet, gets the UID as before. The colour bar service already took an
+  undefined data id as "the active binding".
+- **State:** fixed in package U6 (not committed yet). Checks:
+  `IViewportAdapter.contract.test.ts`, "getDataIdForDisplaySet gives undefined for a
+  display set that the viewport does not show" (it failed first), with "gives the UID of
+  a display set that the viewport shows"; in the viewer the SR viewport shows
+  `W: 1997 L: 998` again (`laneU6/probes/srwindow.log`, the last line), and the SEG
+  preview `W: 603 L: 270`, as on 5.18.3 (`laneU6/runs/segmentation/v6-gpu-fix/`).
+
+## M45. The PET of a TMTV fusion tints the whole pane red
+
+- **Seen (package U6, step 10):** TMTV mode, the test study "LUNG DELAYS" (PT and CT), the
+  three fusion panes: where the PET is zero, also outside the body, the pane is dark red,
+  (96, 0, 0), where 5.18.3 (legacy path) has black. 0.22 of the pixels of the page
+  differ by more than 16 from the first step on, almost all in the fusion panes
+  (`laneU6/sbs/tmtv-gpu-01.png`).
+- **Why:** the hanging protocol of `master` gives the PET of the fusion the colour map
+  `hsv` with an opacity ramp, `[{ value: 0, opacity: 0 }, { value: 0.1, opacity: 0.8 },
+  { value: 1, opacity: 0.9 }]`, so a zero PET is transparent. The next path of 5.x
+  replaced the ramp with a flat 0.4 (`NEXT_FUSION_PT_OPACITY` in
+  `getHangingProtocolModule.ts`), and step 2 of the plan kept the flat value for the one
+  path (`FUSION_PT_OPACITY` in `extensions/tmtv/src/utils/hpViewports.ts`). The comment
+  of `master` gave the reason: a next viewport applies the ramp as it is, so the
+  opacity slider at 100% would not cover the CT. With the flat value the lowest colour
+  of `hsv`, red, is drawn at 0.4 everywhere: 0.4 of 255 is the 96 measured.
+- **The guide:** "A labelmap fill is drawn with the configured alpha" says that a colour
+  layer with a numeric opacity is drawn as given. It does not cover this: the number
+  here is OHIF's choice in place of the ramp. The brighter CT in the same panes is
+  named ("An opaque slice of a volume is drawn at its window").
+- **Fix, in OHIF:** the owner's call. The 5.x look needs the ramp back and an opacity
+  slider that scales the ramp (the slider of the fusion writes one number today,
+  `setLayerOpacity`). Not done here.
+- **Fix, in cornerstone:** none.
+- **State:** open, for the owner.
+
+## M46. The ultrasound pleura and B-line tool throws before the first image is drawn
+
+- **Seen (package U6, step 10):** US annotation mode, a US study of the public demo server
+  (1 series, 9 instances): at the opening of the mode, on the GPU and on the CPU, one page
+  error `getImage: imageId must not be undefined`. 5.18.3 has none. After it the mode
+  works: the depth guide shows, and the pleura line, the B-lines and their percentage
+  (39.14% on both versions), the frame table, the jump to a frame and the JSON export are
+  as on 5.18.3.
+- **Why, from the stack:** `UltrasoundPleuraBLineTool.renderAnnotation` ->
+  `getFanShapeGeometryParameters` -> `deriveFanGeometryFromViewport` ->
+  `calculateFanGeometry(viewport.getCurrentImageId())` -> `getPixelData` ->
+  `cache.getImage(undefined)`. The tools draw before the first image of the stack is
+  drawn, and `getCurrentImageId()` of a planar viewport gives the image that is drawn, so
+  it is undefined then (the guide says so in "Events and image loading of a planar
+  viewport"). The legacy stack viewport gave the image of the current index at once.
+- **Fix, in cornerstone:** to do: `deriveFanGeometryFromViewport` waits for an image (no
+  image id, no fan geometry) instead of asking the cache for `undefined`.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone. One error at the opening, nothing else seen.
+
+## M47. A view reference that names the PET of a fusion makes the PET the source
+
+- **Seen (package U6, step 10):** TMTV mode, the test study "LUNG DELAYS": a click in the
+  MIP jumps the PET panes to the brightest point, and the synchronizers take the fusion
+  panes there too. After it the three fusion panes show the CT only: the PET is under the
+  CT, red only where the CT has no image, and the sagittal and coronal fusion panes count
+  their slices in the grid of the PET (64 of 128 where they had 258 of 512). On the GPU
+  and on the CPU. On 5.18.3 the fusion keeps the PET over the CT and the CT's grid
+  (`laneU6/sbs/tmtv-step12-gpu-cpu-base.png`: branch GPU, branch CPU, base GPU).
+- **Smallest case**, cornerstone calls only, the sagittal fusion pane (CT source, PET
+  overlay) and the sagittal PET pane of that study (`laneU6/specs/fusionref.spec.ts`,
+  `laneU6/probes/fusionref.log`): `fusion.setViewReference(pt.getViewReference())`.
+
+  | | 5.18.3 (legacy volume viewport) | 6.0 |
+  |---|---|---|
+  | the reference | no `dataId` | `dataId` of the PET display set |
+  | source before / after | (none) | CT / **PET** |
+  | display sets after | | `overlay:CT`, `source:PET` |
+  | actors before / after | CT, PET / CT, PET | CT, PET / **PET, CT** |
+  | slice before / after | 256/512 / 256/512 | 258/512 / **64/128** |
+
+- **Why:** a planar viewport that is given a reference naming one of its overlays as
+  `dataId` makes that binding its source. The guide says what a reference does to the
+  time point of a dynamic volume, not to the source of a fusion.
+- **Fix, in cornerstone:** to do: a view reference that names an overlay of the viewport
+  moves the view and keeps the source, or the synchronizers send no `dataId` to a
+  viewport that shows that data as an overlay.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone.
+
+## M48. A whole slide viewport never reports that it has rendered
+
+- **Seen (package U6, step 10):** the SM study of the test data in the basic viewer
+  (cornerstone's whole slide viewport): the test helper `waitForViewportsRendered` waits
+  its full time after every step. The slide shows and pans, zooms and measures as on
+  5.18.3.
+- **Why:** `WSIViewport.setRendered()` of 6.0 does nothing ("DOM-driven WSI rendering"), so
+  `viewportStatus` stays `preRender`. The legacy whole slide viewport took `setRendered`
+  of the base class. `3-api-map.md` lists `viewportStatus` as "Same name".
+- **Smallest case:** the slide open for 8 s: `viewport.viewportStatus` is `rendered` on
+  5.18.3 and `preRender` on 6.0 (`laneU6/specs/wsiprobe.spec.ts`,
+  `laneU6/probes/wsiprobe.log`).
+- **Who reads it:** OHIF's Playwright helpers (every spec that waits for the viewports
+  of a layout with a slide), and code that waits for `RENDERED` before it draws (the
+  contour display of the tools takes another branch when a viewport is not rendered,
+  M31).
+- **Fix, in cornerstone:** to do: the viewport sets `RENDERED` when the map has drawn, or
+  the guide names the difference.
+- **Fix, in OHIF:** none (rule 3).
+- **Also measured:** three wheel ticks over the slide add 0.88 to the zoom of 6.0, three
+  times alike; 5.18.3 adds between 0.90 and 1.08 from run to run (the map's animated wheel
+  zoom). Not counted as a difference.
+- **State:** open, waits for cornerstone.
+
+## M49. The cine of a stack with a labelmap plays at 15 to 17 images a second
+
+- **Seen (package U6, step 10):** segmentation mode, the MR "MPRAGE" (128 images) of the
+  test data: after one brush stroke the cine set to 24 per second shows fewer images per
+  second on 6.0. Without a labelmap both versions show 24.
+- **Measured** (`laneU6/specs/cinespeed.spec.ts`, `laneU6/probes/cinespeed.log`; images
+  shown in 5 s, counted from `IMAGE_RENDERED`, two runs of two plays each, GPU):
+
+  | | 5.18.3 | 6.0 |
+  |---|---|---|
+  | no labelmap | 24.0, 24.2, 24.1, 24.2 | 24.0, 24.2, 24.2, 24.2 |
+  | one labelmap | 24.1, 24.2, 24.3, 24.1 | 15.3, 16.4, 15.1, 16.7 |
+
+- **Why:** not looked into: each image of a stack with a labelmap takes longer to show on
+  6.0.
+- **Fix, in cornerstone:** to do (find what each new image of a stack with a labelmap
+  costs).
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone.
+
+## M50. The TMTV CSV export does nothing on the CPU
+
+- **Seen (package U6, step 10):** TMTV mode on the CPU (`?viewportRendering=cpu`), the test
+  study "LUNG DELAYS": add a segmentation, click CSV: no file, and no message in the
+  console. On the GPU the same steps download `ACRIN-NSCLC-FDG-PET-042_tmtv.csv`. 5.18.3
+  draws no volume on the CPU, so it cannot be compared there.
+- **What is known:** on the CPU the new segment has no statistics (`cachedStats` is
+  empty; on the GPU it has `namedStats` with min, max, mean, count, center, volume and
+  `lesionGlycolysis`). `exportTMTVReportCSV` reads
+  `report['namedStats_lesionGlycolysis'].value` of each segment, so it throws inside an
+  async command, which shows nothing. A jump to that segment says `No center found` for
+  the same reason (`laneU6/probes/tmtvexport.log`).
+- **Why the statistics are missing on the CPU:** not found in this package.
+- **Fix:** to do: find where the statistics of a new segmentation are computed and why
+  that gives nothing with the CPU backend; then decide where it belongs. The export could
+  also say so when a segment has no statistics (the same code on `master`).
+- **State:** open, cause not found.

@@ -1555,7 +1555,7 @@ class SegmentationService extends PubSubService {
     center?: { image?: csTypes.Point3; world: csTypes.Point3 }
   ): void {
     const resolvedCenter = center ?? this._getSegmentCenter(segmentationId, segmentIndex);
-    if (!resolvedCenter) {
+    if (!resolvedCenter?.world?.every(Number.isFinite)) {
       console.warn('No center found for segmentation', segmentationId, segmentIndex);
       return;
     }

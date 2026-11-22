@@ -1957,6 +1957,44 @@ describe('SegmentationService', () => {
     });
   });
 
+  describe('jumpToSegmentCenter', () => {
+    const jumpViewport = {
+      id: viewportId,
+      setViewReference: jest.fn(),
+      render: jest.fn(),
+    };
+
+    /** A segmentation whose segment 1 has this centre in its statistics. */
+    const withCenter = (world: number[]) =>
+      ({
+        segmentationId: 'segmentationId',
+        segments: { 1: { segmentIndex: 1, cachedStats: { center: { world } } } },
+      }) as unknown as ReturnType<SegmentationServiceClass['getSegmentation']>;
+
+    beforeEach(() => {
+      jest.mocked(getEnabledElementByViewportId).mockReturnValue({
+        viewport: jumpViewport,
+      } as unknown as ReturnType<typeof getEnabledElementByViewportId>);
+    });
+
+    it('moves the viewport to the centre of the segment', () => {
+      jest.spyOn(service, 'getSegmentation').mockReturnValue(withCenter([1, 2, 3]));
+
+      service.jumpToSegmentCenter('segmentationId', 1, viewportId, 0.9, false);
+
+      expect(jumpViewport.setViewReference).toHaveBeenCalledWith({ cameraFocalPoint: [1, 2, 3] });
+    });
+
+    it('does not move the viewport when the centre of the segment is not a point', () => {
+      jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      jest.spyOn(service, 'getSegmentation').mockReturnValue(withCenter([NaN, NaN, NaN]));
+
+      service.jumpToSegmentCenter('segmentationId', 1, viewportId, 0.9, false);
+
+      expect(jumpViewport.setViewReference).not.toHaveBeenCalled();
+    });
+  });
+
   describe('setActiveSegmentation', () => {
     it('should set the active segmentation for a viewport', () => {
       const viewportId = 'viewportId';

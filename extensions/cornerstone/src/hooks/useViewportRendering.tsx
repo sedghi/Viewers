@@ -136,7 +136,7 @@ function readPresentation(viewport, activeDisplaySetInstanceUID) {
   try {
     const adapter = getViewportAdapter(viewport);
     const dataId = adapter.getDataIdForDisplaySet(activeDisplaySetInstanceUID);
-    const properties = adapter.getPresentation(dataId ?? activeDisplaySetInstanceUID);
+    const properties = adapter.getPresentation(dataId);
 
     if (!properties) {
       return null;
@@ -149,7 +149,7 @@ function readPresentation(viewport, activeDisplaySetInstanceUID) {
       // computed default VOI (the legacy getProperties always returned the
       // applied VOI). Without this, changing
       // the series left the overlay showing the previous series' window level.
-      voiRange = adapter.getDefaultVOIRange(dataId ?? activeDisplaySetInstanceUID);
+      voiRange = adapter.getDefaultVOIRange(dataId);
     }
 
     return { voiRange, colormap: properties.colormap };

@@ -261,6 +261,22 @@ describe('data addressing', () => {
     expect(getViewportAdapter(makeViewport()).getDataIdForDisplaySet('ds-1')).toBe('ds-1');
   });
 
+  it('getDataIdForDisplaySet gives the UID of a display set that the viewport shows', () => {
+    const viewport = makeViewport({
+      getDisplaySets: jest
+        .fn()
+        .mockReturnValue([{ displaySetId: 'ct-1' }, { displaySetId: 'pt-1' }]),
+    });
+    expect(getViewportAdapter(viewport).getDataIdForDisplaySet('pt-1')).toBe('pt-1');
+  });
+
+  it('getDataIdForDisplaySet gives undefined for a display set that the viewport does not show', () => {
+    const viewport = makeViewport({
+      getDisplaySets: jest.fn().mockReturnValue([{ displaySetId: 'mr-1' }]),
+    });
+    expect(getViewportAdapter(viewport).getDataIdForDisplaySet('sr-1')).toBeUndefined();
+  });
+
   it('getVolumeIds is empty for a viewport without actors', () => {
     expect(getViewportAdapter(makeViewport()).getVolumeIds()).toEqual([]);
   });

@@ -144,7 +144,9 @@ export interface IViewportAdapter {
 
   /**
    * Resolve the dataId to address a display set's binding on this viewport:
-   * the bare display set UID.
+   * the bare display set UID. Undefined when the viewport shows other display
+   * sets and not this one, as an SR, SEG or RTSTRUCT viewport shows the images
+   * they reference: a call without a dataId then addresses the source.
    */
   getDataIdForDisplaySet(displaySetInstanceUID: string): string | undefined;
 

@@ -15,6 +15,7 @@ import type {
  */
 type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentation> & {
   getSourceDataId?: () => string | undefined;
+  getDisplaySets?: () => Array<{ displaySetId: string }>;
   getDisplaySetPresentation?: (dataId: string) => ViewportPresentation | undefined;
   getDefaultVOIRange?: (dataId?: string) => VOIRange | undefined;
   setDisplaySetPresentation?: {
@@ -188,6 +189,11 @@ export class ViewportAdapter implements IViewportAdapter {
   // ---- data addressing ----
 
   getDataIdForDisplaySet(displaySetInstanceUID: string): string | undefined {
+    const shown = this.viewport.getDisplaySets?.();
+    if (shown?.length && !shown.some(entry => entry.displaySetId === displaySetInstanceUID)) {
+      return undefined;
+    }
+
     // Native viewports key their per-display-set presentation by the bare display
     // set UID (the dataId used by get/setDisplaySetPresentation). Returning it
     // directly keeps fusion layer reads on the intended binding instead of falling
