@@ -378,6 +378,14 @@ failed first, a build, or a run that is named).
       "should properly hydrate" (M30), `MPRThenRTOverlayNoHydration` (M31), and
       `SEGHydrationFrom3DFourUp` "should hydrate SEG only in the target viewport" (M32).
     - Two baseline pictures were updated (M36).
+  - This branch on 6.0 after package U5, on cornerstone `62cf392da`: 239 pass, 4 fail
+    (4 pictures differ, the same four with the same ratios), 4 skipped; none is new and
+    none passes now. The run was made twice. In the first, `UndoRedoMeasurements.spec.ts`
+    "should undo and redo a handle move" failed once: it reads the length at the first
+    change of the text after the handle move (283 mm), the text then settled on 292 mm,
+    and redo was compared with the first value. It passes alone, five times of
+    five, and in the second full run. The spec is the one of `master`. No baseline
+    picture was updated.
 - **Why:** the next path was never the path of the test suite (M7). The 13 throws and
   some timeouts were OHIF's tests of the legacy viewport type (M8). The rest is not
   sorted yet. Three pictures read so far show three causes: a 3D volume is drawn about
@@ -542,9 +550,9 @@ failed first, a build, or a run that is named).
   would throw, so it never fails. The codemod does not report `setZoom`, because a
   planar viewport has it. The type check does:
   `Property 'setZoom' does not exist on type 'IViewport'`.
-- **Fix, in OHIF:** the helper sets the zoom through `viewportProjection`
-  (`withPresentation(viewport, { zoom: 0.5 })`, then `setViewState`), as the guide says
-  for a 3D viewport.
+- **Fix, in OHIF, first (package U2):** the helper set the zoom through
+  `viewportProjection` (`withPresentation(viewport, { zoom: 0.5 })`, then
+  `setViewState`), as the guide said for a 3D viewport then.
 - **`attemptAction`** (package U3): its loop ended one attempt before the one that
   throws, so a failed action never failed a test. It runs all its attempts now and
   throws after the last one, with the error of the action as its cause. Five specs use
@@ -553,16 +561,44 @@ failed first, a build, or a run that is named).
   `viewport.getZoom()` in its listener of `CAMERA_MODIFIED` for every viewport, and
   threw there on a 3D viewport when the parallel scale changed. It asks
   `getViewportZoom`, which gives undefined for a viewport without `getZoom`, and the
-  listener leaves the scale then. **This guard goes when cornerstone has the
-  members:** the 3D viewport of cornerstone will get `getZoom`, `setZoom`, `getPan` and
-  `setPan` (the owner's decision: every other next viewport has them and the legacy 3D
+  listener leaves the scale then. This guard was to go when cornerstone had the
+  members (the owner's decision: every other next viewport has them and the legacy 3D
   viewport had them).
-- **Fix, in cornerstone:** the codemod could report `getZoom`, `setZoom`, `getPan` and
-  `setPan` for review ("a 3D viewport has none of them, a whole slide viewport has no
-  pan"). To do.
-- **State:** the helper is fixed in package U2, `attemptAction` and the overlay in
-  package U3 (not committed yet). Check: the four specs pass (run alone, and in the
-  full run). The guard of the overlay and the cornerstone part are open.
+- **Fix, in cornerstone:** the 3D viewport has `getZoom`, `setZoom`, `getPan` and
+  `setPan` (cornerstone3D `62cf392da`, open issue 122 there; the rows of the four in
+  `3-api-map.md`). They read and write through `viewportProjection`: zoom 1 is the fit
+  for the direction of the camera now, and a viewport that shows nothing gives 1 and
+  keeps its camera on `setZoom`, as the legacy one did. So the codemod need not report
+  the four any more: every viewport of 6.0 has them, and a whole slide viewport has
+  `getZoom` and `setZoom`, as in 5.x.
+- **Fix, in OHIF, then (package U5):** each site is as on `master` again.
+  - The overlay calls `viewport.getZoom()` for every viewport. `getViewportZoom` is
+    gone.
+  - The helper calls `viewport.setZoom(0.5)`. The one thing it has beyond `master` is
+    the type of the viewport (`VolumeViewport3D`): `Types.IViewport` of 6.0 has no
+    `setZoom`, and the type check said so (M10, the same for every member that is on
+    the classes only). The overlay types the viewport as `PlanarViewport` or
+    `VolumeViewport3D` for the same reason.
+  - `scaleBy` of the viewport operations (the zoom in and zoom out commands) has no
+    note any more that a 3D viewport lacks the members. It zooms any viewport that has
+    them, so **these commands now zoom a 3D viewport**. On `master` they zoomed a stack
+    only (the legacy operations asked `isStackViewportType`), and on the next path of
+    5.x a stack and a volume slice. The fit command (`fitViewportToWindow`) is as
+    before.
+- **State:** fixed: the helper in package U2, `attemptAction` and the overlay in package
+  U3, the overlay and the helper as on `master` in package U5 on cornerstone
+  `62cf392da` (not committed yet). Checks: the four specs pass, three times each
+  (`--repeat-each=3`), and the two of `SEGHydrationFrom3DFourUp` fail as before with
+  the same ratios (0.10 and 0.12, M30 and M32). In the viewer, the four 3D layouts with
+  the helper of U2 and with the helper of `master` give the same zoom (0.5) and the
+  same parallel scale (221.82, 200, 220.92 and 333.08), and their pictures differ by as
+  much as two pictures of the same helper do (the noise of the volume rendering: 4.7%,
+  1.4%, 1.2% and 2.1% of the pixels by more than 16 either way). When the helper runs
+  the 3D viewport shows its volume already, so the case of a viewport that shows
+  nothing does not come up. The type comparison has no new error. The overlay of the
+  stock 3D hanging protocols is hidden (`hideOverlays`), so no picture shows the zoom
+  text of a 3D viewport; `viewport.getZoom()` of the 3D viewport, which the listener
+  calls, gives 0.75 there after `setZoom(0.75)`.
 
 ## M19. The error text of the slice loading indicator never showed, on 5.x too
 
@@ -1064,3 +1100,27 @@ failed first, a build, or a run that is named).
 - **Pictures:** `laneU4/baselines/`: the two side by side pictures, the old baselines
   (`before/`), the same view with the fill at 0.32, and an enlarged border.
 - **State:** done in package U4 (not committed yet). Check: both specs pass.
+
+## M37. Two traps of the renames of step 11
+
+- **Seen (package U5):**
+  - `git grep -nE "Next(Viewport|Segmentation)"` found nothing in the renamed files, also
+    while their comments still said `PLANAR_NEXT` and native ("next"). A file moved with
+    `mv` is untracked until it is committed, and `git grep` reads tracked files only.
+  - The plain name of `NextViewportOperations` would be `ViewportOperations.ts`, in the
+    folder that has `viewportOperations.ts` (the one alias of `nextViewportOperations`).
+    The disk of this Mac is case-insensitive and the checkout has `core.ignorecase=true`:
+    the two names are one file there, and git keeps the case of the path it knows. The
+    commit would have the old name, and a build on Linux (CI) would not find
+    `./ViewportOperations`.
+- **Fix, in OHIF:** the search of the package reads tracked and untracked files
+  (`git ls-files --cached --others --exclude-standard`, then `grep`). The operations are
+  `viewportOperations` in `viewportOperations.ts`: the alias file holds the
+  implementation now, and `NextViewportOperations.ts` is gone. The object is no class, so
+  its plain name is that of the alias.
+- **For the commit:** `git grep` sees the renamed files once they are committed; until
+  then the check of a rename needs the untracked files too.
+- **State:** fixed in package U5 (not committed yet). Check: the search over tracked and
+  untracked files finds no `Next(Viewport|Segmentation)`, no `nextViewports` and no
+  `_NEXT` name in `extensions`, `modes`, `tests` and `platform` (the hits left are listed
+  in the report of the package), and jest passes with `viewportOperations.test.ts`.

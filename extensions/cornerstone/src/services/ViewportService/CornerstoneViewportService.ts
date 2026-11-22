@@ -44,7 +44,7 @@ import { isAutoHydrateViewportType } from '../../utils/autoHydrateViewportTypes'
 import { getViewportDataShape } from '../../utils/viewportDataShape';
 import type { IViewportBackend } from './backends/IViewportBackend';
 import type { IViewportServiceInternals } from './backends/IViewportServiceInternals';
-import { NextViewportBackend } from './backends/NextViewportBackend';
+import { ViewportBackend } from './backends/ViewportBackend';
 
 const EVENTS = {
   VIEWPORT_DATA_CHANGED: 'event::cornerstoneViewportService:viewportDataChanged',
@@ -98,7 +98,7 @@ class CornerstoneViewportService
     this.renderingEngine = null;
     this.viewportGridResizeObserver = null;
     this.servicesManager = servicesManager;
-    this.backend = new NextViewportBackend(this);
+    this.backend = new ViewportBackend(this);
   }
   hangingProtocolService: unknown;
   viewportsInfo: unknown;

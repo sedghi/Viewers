@@ -43,7 +43,7 @@ export interface LabelmapAddClassification {
 
 /**
  * Segmentation backend (the counterpart of the viewport backend at
- * `ViewportService/backends/`). NextSegmentationBackend is the one
+ * `ViewportService/backends/`). SegmentationBackend is the one
  * implementation: it renders the labelmap IN PLACE on the planar viewport.
  *
  * BOUNDARY: viewport (re)creation is NOT a segmentation concern: the backend

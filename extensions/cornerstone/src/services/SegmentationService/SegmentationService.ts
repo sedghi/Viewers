@@ -26,7 +26,7 @@ import { mapROIContoursToRTStructData } from './RTSTRUCT/mapROIContoursToRTStruc
 import { SegmentationPresentation, SegmentationPresentationItem } from '../../types/Presentation';
 import { EasingFunctionEnum, EasingFunctionMap } from '../../utils/transitions';
 import { ViewReference } from '@cornerstonejs/core/types';
-import { NextSegmentationBackend, type ISegmentationBackend } from './backends';
+import { SegmentationBackend, type ISegmentationBackend } from './backends';
 import { getViewportAdapter } from '../ViewportService/adapter';
 
 const { DefaultHistoryMemo } = csUtils.HistoryMemo;
@@ -137,7 +137,7 @@ class SegmentationService extends PubSubService {
 
     this._segmentationGroupStatsMap = new Map();
 
-    this._segBackend = new NextSegmentationBackend();
+    this._segBackend = new SegmentationBackend();
   }
 
   public onModeEnter(): void {

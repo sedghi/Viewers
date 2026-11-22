@@ -1,5 +1,5 @@
 import { CONSTANTS, Enums, viewportProjection } from '@cornerstonejs/core';
-import { nextViewportOperations } from './NextViewportOperations';
+import { viewportOperations } from './viewportOperations';
 
 jest.mock('@cornerstonejs/core', () => {
   const actual = jest.requireActual('@cornerstonejs/core');
@@ -53,7 +53,7 @@ function makeViewport({
 }
 
 const center = (viewport, measurement) =>
-  nextViewportOperations.centerOnMeasurement(viewport as never, measurement);
+  viewportOperations.centerOnMeasurement(viewport as never, measurement);
 
 describe('centerOnMeasurement', () => {
   beforeEach(() => {
@@ -132,7 +132,7 @@ describe('setOrientation', () => {
   it('turns a planar viewport with its own call', () => {
     const viewport = { type: ViewportType.PLANAR, setOrientation: jest.fn() };
 
-    expect(nextViewportOperations.setOrientation(viewport as never, OrientationAxis.SAGITTAL)).toBe(
+    expect(viewportOperations.setOrientation(viewport as never, OrientationAxis.SAGITTAL)).toBe(
       true
     );
     expect(viewport.setOrientation).toHaveBeenCalledWith(OrientationAxis.SAGITTAL);
@@ -149,7 +149,7 @@ describe('setOrientation', () => {
       };
       const { viewPlaneNormal, viewUp } = CONSTANTS.MPR_CAMERA_VALUES[orientation];
 
-      expect(nextViewportOperations.setOrientation(viewport as never, orientation)).toBe(true);
+      expect(viewportOperations.setOrientation(viewport as never, orientation)).toBe(true);
       expect(viewport.setViewState).toHaveBeenCalledWith({ viewPlaneNormal, viewUp });
       expect(calls).toEqual(['setViewState', 'resetViewState']);
     }
@@ -163,9 +163,9 @@ describe('setOrientation', () => {
     };
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    expect(
-      nextViewportOperations.setOrientation(viewport as never, OrientationAxis.ACQUISITION)
-    ).toBe(false);
+    expect(viewportOperations.setOrientation(viewport as never, OrientationAxis.ACQUISITION)).toBe(
+      false
+    );
     expect(viewport.setViewState).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();

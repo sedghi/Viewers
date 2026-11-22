@@ -9,9 +9,9 @@ import type {
 } from './IViewportAdapter';
 
 /**
- * Structural view of the native ("next") viewport surface used by the adapter.
- * These accessors live on IGenericViewport (not IViewport), so we cast at this
- * boundary rather than import core-internal PlanarViewport types.
+ * Structural view of the viewport surface used by the adapter. These accessors
+ * are on the viewport classes (not on IViewport), so we cast at this boundary
+ * rather than import core-internal PlanarViewport types.
  */
 type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentation> & {
   getSourceDataId?: () => string | undefined;
@@ -43,7 +43,7 @@ const voiRangesClose = (a: VOIRange, b: VOIRange, eps = 0.001): boolean =>
  * API of the viewport (view state, per-binding display-set presentation, view
  * reference). Instantiated only by `getViewportAdapter`.
  */
-export class NextViewportAdapter implements IViewportAdapter {
+export class ViewportAdapter implements IViewportAdapter {
   constructor(private readonly viewport: NativeViewport) {}
 
   // ---- classification ----

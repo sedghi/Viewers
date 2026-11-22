@@ -16,7 +16,11 @@ This guide covers changes when upgrading from OHIF version 3.13 to version 3.14.
   `DisplaySetService.getDisplaySetCache()` is deprecated and returns a
   read-only snapshot.
 - **[Cornerstone3D 6](./cornerstone3d-6.md)** — the viewer moves to
-  `@cornerstonejs` 6. A runtime plugin that imports `@cornerstonejs/core` or
+  `@cornerstonejs` 6 and has one viewport path. The settings
+  `useGenericViewport`, `genericViewports.enabled` and `?useNextViewports` are
+  gone, `isNextViewportsEnabled` and `isNextViewport` are removed, and
+  `NEXT_FUSION_PT_OPACITY` and `NEXT_OVERLAY_OPACITY` are `FUSION_PT_OPACITY`
+  and `OVERLAY_OPACITY`. A runtime plugin that imports `@cornerstonejs/core` or
   `@cornerstonejs/tools` must be rebuilt against Cornerstone3D 6.
 - **[React 19](./react-19.md)** — the monorepo moves to **React 19.2.7**.
   `@ohif/ui-next` now declares react/react-dom as `peerDependencies`, so

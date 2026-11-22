@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { vec3 } from 'gl-matrix';
 import { metaData, Enums, eventTarget } from '@cornerstonejs/core';
 import { Enums as csToolsEnums, UltrasoundPleuraBLineTool } from '@cornerstonejs/tools';
-import type { PlanarViewport, Types } from '@cornerstonejs/core';
+import type { PlanarViewport, VolumeViewport3D } from '@cornerstonejs/core';
 import type { ImageSliceData } from '@cornerstonejs/core/types';
 import { ViewportOverlay, formatDICOMDate } from '@ohif/ui-next';
 import type { InstanceMetadata } from '@ohif/core/src/types';
@@ -25,16 +25,6 @@ const EPSILON = 1e-4;
 const { formatPN, formatValue } = utils;
 
 type ViewportData = StackViewportData | VolumeViewportData;
-
-/**
- * The zoom of a viewport, for the scale of the overlay. Undefined when there is no
- * viewport, and for a 3D viewport, which has no getZoom in Cornerstone3D 6.0 yet.
- */
-function getViewportZoom(viewport: Types.IViewport | null): number | undefined {
-  const { getZoom } = (viewport ?? {}) as Partial<PlanarViewport>;
-
-  return typeof getZoom === 'function' ? getZoom.call(viewport) : undefined;
-}
 
 interface OverlayItemProps {
   element: HTMLElement;
@@ -152,13 +142,18 @@ function CustomizableViewportOverlay({
         previousCamera.parallelScale !== camera.parallelScale ||
         previousCamera.scale !== camera.scale
       ) {
-        const zoom = getViewportZoom(cornerstoneViewportService.getCornerstoneViewport(viewportId));
+        const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId) as
+          | PlanarViewport
+          | VolumeViewport3D
+          | null;
 
-        if (zoom === undefined) {
+        if (!viewport) {
           return;
         }
 
-        setScale(zoom);
+        const scale = viewport.getZoom();
+
+        setScale(scale);
       }
     };
 

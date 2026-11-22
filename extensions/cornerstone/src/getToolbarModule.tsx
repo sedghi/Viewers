@@ -310,10 +310,9 @@ export default function getToolbarModule({ servicesManager, extensionManager }: 
           };
         }
 
-        // Recognize native "next" volume viewports too. A next MPR/volume viewport
-        // runs as PLANAR_NEXT (requestedType PLANAR_NEXT, not ORTHOGRAPHIC), so this
-        // checks volume content via getCurrentMode(). Without it the PT threshold
-        // control stayed disabled on the next backend (e.g. TMTV fusion/PT).
+        // An MPR or volume viewport is a planar viewport (type PLANAR, not
+        // ORTHOGRAPHIC), so this checks volume content via getCurrentMode().
+        // Without it the PT threshold control stayed disabled (e.g. TMTV fusion/PT).
         if (!isVolumeRenderingViewport(viewport)) {
           return {
             disabled: true,

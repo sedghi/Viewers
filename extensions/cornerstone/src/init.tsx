@@ -27,7 +27,7 @@ import initCornerstoneTools from './initCornerstoneTools';
 import { connectToolsToMeasurementService } from './initMeasurementService';
 import initCineService from './initCineService';
 import initStudyPrefetcherService from './initStudyPrefetcherService';
-import { resolveViewportRendering, setViewportRenderingOverrides } from './utils/nextViewports';
+import { resolveViewportRendering, setViewportRenderingOverrides } from './utils/viewportRendering';
 import interleaveCenterLoader from './utils/interleaveCenterLoader';
 import nthLoader from './utils/nthLoader';
 import interleaveTopToBottom from './utils/interleaveTopToBottom';

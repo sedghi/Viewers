@@ -28,8 +28,7 @@ export type DataIdPayload =
  *   - unmounting one pane of a shared-volume triptych does not unregister data the
  *     other panes still need.
  *
- * Used by the native ("next") backend for all families, and by the legacy
- * backend for its one provider-backed family (WSI mounts via mountOther).
+ * Used by the viewport backend for all families.
  */
 export class DataIdRegistry {
   // Global ref-count keyed by dataId (the provider store is a single global namespace).

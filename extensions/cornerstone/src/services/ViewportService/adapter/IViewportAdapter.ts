@@ -34,7 +34,7 @@ export type ViewportViewState = Record<string, unknown>;
 /**
  * The single OHIF-facing per-viewport contract over the cornerstone viewport
  * API (view state, per-display-set presentation keyed by dataId, view
- * reference). `NextViewportAdapter` is the one implementation, a thin
+ * reference). `ViewportAdapter` is the one implementation, a thin
  * pass-through.
  *
  * Obtain an instance ONLY via `getViewportAdapter(viewport)`. UI code (hooks,

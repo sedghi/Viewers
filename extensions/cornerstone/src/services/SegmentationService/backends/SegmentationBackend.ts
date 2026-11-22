@@ -67,7 +67,7 @@ function isLabelmapOfOtherImagesOfTheFrameOfReference(
  *
  * Needs nothing from the host service (it never touches servicesManager).
  */
-export class NextSegmentationBackend implements ISegmentationBackend {
+export class SegmentationBackend implements ISegmentationBackend {
   async classifyAndPrepareLabelmapAdd(
     csViewport: csTypes.IViewport,
     segmentation: cstTypes.Segmentation,

@@ -31,9 +31,9 @@ import {
   callInputDialog,
 } from '@ohif/extension-default';
 import toggleImageSliceSync from './utils/imageSliceSync/toggleImageSliceSync';
-// Sanctioned flag read: RTSTRUCT contour hydration pins the referenced image to
-// stack mode on the native ("next") path, a decision made before a target viewport exists.
-import { getHydrationViewportTypeForModality } from './utils/nextViewportPolicies';
+// RTSTRUCT contour hydration pins the referenced image to stack mode, a decision
+// made before a target viewport exists.
+import { getHydrationViewportTypeForModality } from './utils/viewportPolicies';
 import { getFirstAnnotationSelected } from './utils/measurementServiceMappings/utils/selection';
 import { getViewportEnabledElement } from './utils/getViewportEnabledElement';
 import getActiveViewportEnabledElement from './utils/getActiveViewportEnabledElement';
@@ -406,7 +406,7 @@ function commandsModule({
           displaySetInstanceUIDs: [referencedDisplaySet.displaySetInstanceUID],
           derivedDisplaySetInstanceUID: displaySet.displaySetInstanceUID,
           // RTSTRUCT-on-next pins the referenced image to stack mode on hydrate;
-          // see the policy's rationale in utils/nextViewportPolicies.
+          // see the policy's rationale in utils/viewportPolicies.
           viewportType: getHydrationViewportTypeForModality(displaySet.Modality),
         });
 
@@ -1612,8 +1612,8 @@ function commandsModule({
         const toolGroup = toolGroupService.getToolGroup(toolGroupId);
         // Only fetch the instance when Crosshairs is registered in this tool
         // group. getToolInstance logs a warning for an unregistered tool, and a
-        // viewport's default tool group does not always include Crosshairs (e.g.
-        // next viewports), which made Reset Viewport log a spurious warning.
+        // viewport's default tool group does not always include Crosshairs,
+        // which made Reset Viewport log a spurious warning.
         if (toolGroup?.hasTool('Crosshairs')) {
           crosshairInstances.push(toolGroup.getToolInstance('Crosshairs'));
         }
@@ -2233,8 +2233,8 @@ function commandsModule({
         csViewport?.setNeedsRender?.();
       });
 
-      // A pinned viewportType (RTSTRUCT contour hydration on a native "next"
-      // viewport requests 'stack') is a statement about the pane hydration was
+      // A pinned viewportType (RTSTRUCT contour hydration requests 'stack')
+      // is a statement about the pane hydration was
       // invoked on, whose background is being set to the referenced image. The
       // other panes here were matched because they already show something the
       // segmentation can be drawn over - by frame of reference, and keeping the

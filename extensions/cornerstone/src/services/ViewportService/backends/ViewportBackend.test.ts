@@ -1,6 +1,6 @@
 import { Enums, metaData, viewportProjection } from '@cornerstonejs/core';
 import type { PlanarViewport, Types } from '@cornerstonejs/core';
-import { NextViewportBackend } from './NextViewportBackend';
+import { ViewportBackend } from './ViewportBackend';
 import type { StackMountContext } from './IViewportBackend';
 import type { IViewportServiceInternals } from './IViewportServiceInternals';
 import type ViewportInfo from '../Viewport';
@@ -48,7 +48,7 @@ function makeViewport() {
 
 /** Mounts a stack whose images each have a window in their metadata. */
 async function mountStack(properties: Record<string, unknown>) {
-  const backend = new NextViewportBackend(makeService());
+  const backend = new ViewportBackend(makeService());
   const viewport = makeViewport();
 
   await backend.mountStack(
@@ -115,7 +115,7 @@ describe('the position presentation of a 3D viewport', () => {
   });
 
   it('holds the zoom and the pan of the view, and no view reference', () => {
-    const backend = new NextViewportBackend(makeService());
+    const backend = new ViewportBackend(makeService());
     const viewport = make3DViewport();
     getPresentation.mockReturnValue({ zoom: 0.5, pan: [12, -4] });
 
@@ -132,7 +132,7 @@ describe('the position presentation of a 3D viewport', () => {
   });
 
   it('writes the zoom and the pan back against the fit of the viewport as it is now', () => {
-    const backend = new NextViewportBackend(makeService());
+    const backend = new ViewportBackend(makeService());
     const viewport = make3DViewport();
     withPresentation.mockReturnValue(nextViewState);
 
@@ -153,7 +153,7 @@ describe('the position presentation of a 3D viewport', () => {
   });
 
   it('leaves a 3D viewport that shows nothing yet', () => {
-    const backend = new NextViewportBackend(makeService());
+    const backend = new ViewportBackend(makeService());
     const viewport = make3DViewport();
     getPresentation.mockReturnValue(undefined);
     withPresentation.mockReturnValue(undefined);

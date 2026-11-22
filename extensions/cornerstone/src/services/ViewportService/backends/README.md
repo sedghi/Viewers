@@ -9,9 +9,18 @@ says where each concern of that path lives.
 
 | Home | What belongs there |
 |---|---|
-| `../adapter/` (`IViewportAdapter`, `NextViewportAdapter`) | Reads and writes on a live viewport: view state, per-display-set presentation keyed by dataId, view reference, the shape of what the viewport shows. Code outside the viewport service asks the adapter (`getViewportAdapter(viewport)`) instead of the raw viewport. |
-| `./` (`IViewportBackend`, `IViewportOperations`, and the segmentation counterpart in `../../SegmentationService/backends/`) | Lifecycle and interaction bodies: mount and re-mount, presentation capture and restore, dataId registration, the operations of the commands (flip, rotate, window level and so on), labelmap add and assembly. |
-| `../../../utils/nextViewportPolicies.ts` | Behavioral policy: appearance defaults and workflow rules (fusion opacity, overlay opacity, the stack pin when an RTSTRUCT is hydrated). |
+| `../adapter/` (`IViewportAdapter`, `ViewportAdapter`) | Reads and writes on a live viewport: view state, per-display-set presentation keyed by dataId, view reference, the shape of what the viewport shows. Code outside the viewport service asks the adapter (`getViewportAdapter(viewport)`) instead of the raw viewport. |
+| `./` (`IViewportBackend` and `ViewportBackend`, `IViewportOperations` and `viewportOperations`, and the segmentation counterpart `ISegmentationBackend` and `SegmentationBackend` in `../../SegmentationService/backends/`) | Lifecycle and interaction bodies: mount and re-mount, presentation capture and restore, dataId registration, the operations of the commands (flip, rotate, window level and so on), labelmap add and assembly. |
+| `../../../utils/viewportPolicies.ts` | Behavioral policy: appearance defaults and workflow rules (fusion opacity, overlay opacity, the stack pin when an RTSTRUCT is hydrated). |
+
+## One implementation behind each interface
+
+`ViewportAdapter`, `ViewportBackend`, `viewportOperations` and
+`SegmentationBackend` are the one implementation of their interface. The
+interfaces stay: a server-side renderer is a later goal and would be a second
+implementation, and the contract test of the adapter
+(`../adapter/IViewportAdapter.contract.test.ts`) is written against
+`IViewportAdapter`.
 
 ## The shape of the data
 

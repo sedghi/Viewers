@@ -1,6 +1,6 @@
 import { Types as CoreTypes } from '@cornerstonejs/core';
 import type { IViewportAdapter } from './IViewportAdapter';
-import { NextViewportAdapter } from './NextViewportAdapter';
+import { ViewportAdapter } from './ViewportAdapter';
 
 const adapterCache = new WeakMap<object, IViewportAdapter>();
 
@@ -17,9 +17,7 @@ export function getViewportAdapter(viewport: unknown): IViewportAdapter {
   }
   let adapter = adapterCache.get(viewport);
   if (!adapter) {
-    adapter = new NextViewportAdapter(
-      viewport as ConstructorParameters<typeof NextViewportAdapter>[0]
-    );
+    adapter = new ViewportAdapter(viewport as ConstructorParameters<typeof ViewportAdapter>[0]);
     adapterCache.set(viewport, adapter);
   }
   return adapter;

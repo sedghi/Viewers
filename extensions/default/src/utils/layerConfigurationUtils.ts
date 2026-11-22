@@ -1,4 +1,4 @@
-import { getViewportAdapter, NEXT_OVERLAY_OPACITY } from '@ohif/extension-cornerstone';
+import { getViewportAdapter, OVERLAY_OPACITY } from '@ohif/extension-cornerstone';
 
 export const DERIVED_OVERLAY_MODALITIES = ['SEG', 'RTSTRUCT'];
 export const DEFAULT_COLORMAP = 'hsv';
@@ -95,7 +95,7 @@ export function configureViewportForLayerAddition(params: {
     }
   }
 
-  // A live viewport starts an overlay at the NEXT_OVERLAY_OPACITY policy of
+  // A live viewport starts an overlay at the OVERLAY_OPACITY policy of
   // @ohif/extension-cornerstone.
   const hasLiveViewport = !!cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
@@ -119,7 +119,7 @@ export function configureViewportForLayerAddition(params: {
     );
 
     if (hasLiveViewport && typeof overlayOptions.colormap?.opacity === 'number') {
-      overlayOptions.colormap.opacity = NEXT_OVERLAY_OPACITY;
+      overlayOptions.colormap.opacity = OVERLAY_OPACITY;
     }
 
     return overlayOptions;

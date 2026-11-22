@@ -638,7 +638,7 @@ describe('SegmentationService', () => {
       // A PlanarViewport exposes setDisplaySets / setDisplaySetPresentation /
       // setViewState. It has NO getViewPresentation: the viewport must never be
       // recreated as a volume viewport.
-      const makeNextViewport = () => ({
+      const makeViewport = () => ({
         element: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
         id: viewportId,
         type: ViewportType.PLANAR,
@@ -653,7 +653,7 @@ describe('SegmentationService', () => {
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          .mockReturnValue(makeNextViewport() as unknown as PlanarViewport);
+          .mockReturnValue(makeViewport() as unknown as PlanarViewport);
         jest
           .spyOn(cstSegmentation.state, 'updateLabelmapSegmentationImageReferences')
           .mockReturnValue('labelmapImageId');
@@ -699,7 +699,7 @@ describe('SegmentationService', () => {
           .mockReturnValue(mockCornerstoneSegmentation as cstTypes.Segmentation);
         jest
           .spyOn(serviceManagerMock.services.cornerstoneViewportService, 'getCornerstoneViewport')
-          .mockReturnValue(makeNextViewport() as unknown as PlanarViewport);
+          .mockReturnValue(makeViewport() as unknown as PlanarViewport);
         // resolver fails (FrameOfReference mismatch / mount-timing race): the
         // viewport must still not be recreated.
         jest
@@ -736,7 +736,7 @@ describe('SegmentationService', () => {
 
         /** A stack of the frame of reference `frame-1` that shows the image `pt-1`. */
         const makeStack = () => ({
-          ...makeNextViewport(),
+          ...makeViewport(),
           getCurrentMode: () => mode,
           getFrameOfReferenceUID: () => 'frame-1',
           getImageIds: () => ['pt-1'],

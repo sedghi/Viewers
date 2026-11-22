@@ -11,4 +11,4 @@ export {
   getViewportFocalPoint,
   isVolumeRenderingViewport,
 } from './getViewportAdapter';
-export { NextViewportAdapter } from './NextViewportAdapter';
+export { ViewportAdapter } from './ViewportAdapter';

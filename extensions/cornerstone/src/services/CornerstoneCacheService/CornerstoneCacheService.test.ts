@@ -2,7 +2,7 @@ import { cache, Enums, volumeLoader } from '@cornerstonejs/core';
 import type { Types } from '@cornerstonejs/core';
 import CornerstoneCacheService from './CornerstoneCacheService';
 import ViewportInfo from '../ViewportService/Viewport';
-import { NextViewportBackend } from '../ViewportService/backends/NextViewportBackend';
+import { ViewportBackend } from '../ViewportService/backends/ViewportBackend';
 import type { IViewportServiceInternals } from '../ViewportService/backends/IViewportServiceInternals';
 
 const { ViewportType } = Enums;
@@ -75,7 +75,7 @@ async function hangViewport(viewportType: string, displaySets = makeDisplaySets(
 
   const service = makeServiceInternals();
   const viewport = { id: 'viewport-1', type: viewportInfo.getViewportType() };
-  await new NextViewportBackend(service).dispatchMount(
+  await new ViewportBackend(service).dispatchMount(
     viewport as unknown as Types.IViewport,
     viewportData,
     viewportInfo

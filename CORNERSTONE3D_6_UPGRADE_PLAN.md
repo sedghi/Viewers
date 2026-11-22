@@ -52,7 +52,7 @@ Measured on this Mac. "Before" is `master` on 5.18.3; "after" is this branch.
 | 8. jest | done: 158 suites, 1,907 tests pass | package U2 |
 | 9. Playwright on 6.0 | open: 239 pass, 4 fail (15 after package U3, 28 after step 8, 37 after step 4); the 4 wait for cornerstone (M30, M31, M32); two baselines are new (M36) | packages U3 and U4 |
 | 10. By hand, on devices | open | |
-| 11. Clean names and docs | open | |
+| 11. Clean names and docs | done: the four `Next*` classes and the two `next*` files have plain names, the two `NEXT_*` exports too; the interfaces stay (open point 1); the migration guide and the configuration docs name the gone settings; M18 closed | package U5 |
 | 12. Release | open | |
 
 ## What OHIF has that makes this smaller
@@ -209,6 +209,31 @@ iPhone (a video and a stack).
   that are gone, and what an extension author changes (the cornerstone guide and the
   codemod).
 
+Done (21 November, package U5):
+
+- Plain names: `NextViewportAdapter` is `ViewportAdapter`, `NextViewportBackend` is
+  `ViewportBackend`, `NextSegmentationBackend` is `SegmentationBackend`, with their files
+  and tests. `nextViewportOperations` is `viewportOperations`, in `viewportOperations.ts`,
+  the file of its one alias: `ViewportOperations.ts` beside `viewportOperations.ts` cannot
+  exist on a case-insensitive disk, and git would keep the old case. `utils/nextViewports.ts`
+  is `utils/viewportRendering.ts` (the render backend selection, all that is left of it after
+  step 2) and `utils/nextViewportPolicies.ts` is `utils/viewportPolicies.ts`; each has more
+  than one user, so they keep their files. The comments and test names that said "next"
+  or named a 5.x type (`PLANAR_NEXT` and its kin) for the one path say it in plain words.
+- Public: the four classes were never exports of the extension. Its exports
+  `NEXT_FUSION_PT_OPACITY` and `NEXT_OVERLAY_OPACITY` are `FUSION_PT_OPACITY` and
+  `OVERLAY_OPACITY`. With `isNextViewportsEnabled` and `isNextViewport` (removed in step 2)
+  they are in the migration guide.
+- The interfaces stay (open point 1).
+- Docs: the migration guide page `migration-guide/3p13-to-3p14/cornerstone3d-6.md` (the
+  settings that are gone, what an extension author does, the removed and renamed
+  exports and classes), its line in the index of the guide, `genericViewports` in
+  `configuration/configurationFiles.md`, and `development/multiresolution-testing.md`.
+  `AppTypes` and the config files of `platform/app/public/config/` named no gone setting
+  any more (package U1).
+- M18 is closed: cornerstone `62cf392da` gives the 3D viewport `getZoom`, `setZoom`,
+  `getPan` and `setPan`; the overlay and the 3D test helper call them as on `master`.
+
 ### Step 12. Release
 
 A pull request to OHIF on a cornerstone 6.0 beta; cornerstone's OHIF downstream check
@@ -217,7 +242,11 @@ points at this branch; `@cornerstonejs` moves to 6.0.0 when it is out.
 ## Open points for the owner
 
 1. Step 11: fold the one-implementation interfaces, or keep them for a future backend
-   (a server-side renderer was named as a later goal).
+   (a server-side renderer was named as a later goal). **Decided: they stay**
+   (`IViewportAdapter`, `IViewportBackend`, `IViewportOperations`,
+   `ISegmentationBackend`). A server-side renderer is named as a later goal and would be a
+   second implementation, and the contract test of the adapter
+   (`IViewportAdapter.contract.test.ts`) is written against the interface and stays.
 2. Step 9: how the CI baselines are updated (from CI artefacts, or another way).
 3. A 6.0.0-beta.2 for the babel fix, or work on the linked checkout until more fixes
    are in.

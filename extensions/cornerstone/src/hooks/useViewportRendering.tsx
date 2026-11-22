@@ -144,10 +144,10 @@ function readPresentation(viewport, activeDisplaySetInstanceUID) {
 
     let voiRange = properties.voiRange;
     if (!voiRange) {
-      // Native ("next") viewports store only explicit VOI overrides in the
-      // per-display-set presentation; a freshly shown series has none, so fall
-      // back to its computed default VOI (undefined on legacy, whose
-      // getProperties always returns the applied VOI). Without this, changing
+      // A viewport stores only explicit VOI overrides in the per-display-set
+      // presentation; a freshly shown series has none, so fall back to its
+      // computed default VOI (the legacy getProperties always returned the
+      // applied VOI). Without this, changing
       // the series left the overlay showing the previous series' window level.
       voiRange = adapter.getDefaultVOIRange(dataId ?? activeDisplaySetInstanceUID);
     }

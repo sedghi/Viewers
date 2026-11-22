@@ -93,7 +93,7 @@ export function resolveViewportRendering(appConfigValue: unknown): ViewportRende
 
 /**
  * Per-viewport-type render backend overrides, captured once at extension init
- * and read by the mount paths in NextViewportBackend, which pass the override
+ * and read by the mount paths in ViewportBackend, which pass the override
  * as the per-mount `renderBackend` option on `setDisplaySets`.
  */
 let renderBackendByViewportType: Record<string, string> = {};

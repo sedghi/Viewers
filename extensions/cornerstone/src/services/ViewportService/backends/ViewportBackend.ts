@@ -14,7 +14,7 @@ import type {
   VolumeViewport3D,
 } from '@cornerstonejs/core';
 import { utilities as csToolsUtils } from '@cornerstonejs/tools';
-import { getViewportRenderingOverride } from '../../../utils/nextViewports';
+import { getViewportRenderingOverride } from '../../../utils/viewportRendering';
 import { getViewportDataShape } from '../../../utils/viewportDataShape';
 import type ViewportInfo from '../Viewport';
 import type {
@@ -100,7 +100,7 @@ function pickNativeViewPresentation(viewState: Record<string, unknown>): Record<
  * (mountStack/mountVolumes/mountEcg/mountOther/remount), and owns the ref-counted
  * dataId lifecycle over cornerstone's global display set metadata provider.
  */
-export class NextViewportBackend implements IViewportBackend {
+export class ViewportBackend implements IViewportBackend {
   private readonly registry = new DataIdRegistry();
 
   constructor(private readonly service: IViewportServiceInternals) {}
@@ -156,11 +156,11 @@ export class NextViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Native stack mount: register the display set and mount it with
+   * Stack mount: register the display set and mount it with
    * setDisplaySets (render path inferred from the data), then apply
    * VOI/colormap via setDisplaySetPresentation and pan/zoom/rotate/flip/
-   * displayArea via setViewState — instead of the legacy setStack/setProperties/
-   * setCamera surface, which a direct PLANAR_NEXT viewport does not expose.
+   * displayArea via setViewState — a planar viewport has no setStack,
+   * setProperties or setCamera.
    */
   async mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void> {
     const {
@@ -266,7 +266,7 @@ export class NextViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Native volume/MPR mount: a direct PLANAR_NEXT viewport renders a volume by
+   * Volume/MPR mount: a planar viewport renders a volume by
    * registering the dataset (with the already-cached volumeId) and calling
    * setDisplaySets with the requested orientation; cornerstone selects the image
    * vs reformatted-volume render path from that orientation. Returns true when it
@@ -317,8 +317,8 @@ export class NextViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Native ECG_NEXT has no setEcg; register the waveform under the display set's
-   * dataId and mount it through the generic setDisplaySets API (the native ECG data
+   * An ECG viewport has no setEcg; register the waveform under the display set's
+   * dataId and mount it through the generic setDisplaySets API (the ECG data
    * provider reads sourceDataId). Ref-counted via the registry (§4.7).
    */
   async mountEcg(
@@ -337,11 +337,11 @@ export class NextViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Native VIDEO_NEXT / WHOLE_SLIDE_NEXT: register the family-specific dataId, then
-   * mount through the generic setDisplaySets API. The native video data provider
+   * Video and whole slide viewports: register the family-specific dataId, then
+   * mount through the generic setDisplaySets API. The video data provider
    * reads sourceDataId; the WSI provider reads imageIds + a DICOMweb client, which
    * we resolve from the WADO_WEB_CLIENT metadata exactly as the legacy WSI adapter
-   * does. Ref-counted via the registry (§4.7).
+   * did. Ref-counted via the registry (§4.7).
    */
   async mountOther(
     viewport: Types.IViewport,
@@ -369,9 +369,9 @@ export class NextViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Native re-mount: no getCamera/setCamera. Snapshot/restore the camera via the
+   * Re-mount: no getCamera/setCamera. Snapshot/restore the camera via the
    * semantic view state, and route the mount through dispatchMount (it routes by
-   * data shape, since native stack and volume both report PLANAR_NEXT).
+   * data shape, since a stack and a volume both report PLANAR).
    */
   remount(
     viewport: Types.IViewport,
@@ -404,7 +404,7 @@ export class NextViewportBackend implements IViewportBackend {
     overlayProcessingResults: VolumeMountContext['overlayProcessingResults']
   ): Promise<void> {
     const orientation = viewportInfo.getOrientation();
-    // A native VOLUME_3D_NEXT viewport renders the volume as a 3D VTK volume
+    // A 3D viewport renders the volume as a 3D VTK volume
     // (renderMode 'vtkVolume3d'), not a reformatted planar slice; its appearance is
     // driven by a volume-rendering preset, not orientation/role.
     const is3D = (viewport as { type?: string }).type === csEnums.ViewportType.VOLUME_3D;
@@ -544,7 +544,7 @@ export class NextViewportBackend implements IViewportBackend {
 
     const vp = csViewport as NativePlanarViewport;
 
-    // A direct PLANAR_NEXT viewport has no getViewPresentation; pan/zoom/rotation/flip
+    // A planar viewport has no getViewPresentation; pan/zoom/rotation/flip
     // live in the semantic view state. getViewState() is already deep-cloned, normalized
     // and JSON-serializable, so snapshot the pan/zoom subset (slice/orientation come back
     // via the view reference).
@@ -631,9 +631,9 @@ export class NextViewportBackend implements IViewportBackend {
       return;
     }
     const { properties } = lutPresentation;
-    // Native LUT presentation is the getDisplaySetPresentation shape (voiRange/
-    // colormap/invert), not a per-volumeId Map; a PLANAR_NEXT viewport applies it via
-    // setDisplaySetPresentation (it has no legacy setProperties).
+    // The LUT presentation is the getDisplaySetPresentation shape (voiRange/
+    // colormap/invert), not a per-volumeId Map; a planar viewport applies it via
+    // setDisplaySetPresentation (it has no setProperties).
     if (!properties || properties instanceof Map) {
       return;
     }

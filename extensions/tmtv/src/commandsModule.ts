@@ -263,11 +263,11 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
 
     setStartSliceForROIThresholdTool: () => {
       const { viewport } = _getActiveViewportsEnabledElement();
-      // Native ("next") viewports have no getCamera; the slice-center focal point
-      // comes from the view reference. Bridged so both lanes work.
+      // A viewport has no getCamera; the slice-center focal point comes from
+      // the view reference.
       const focalPoint = getViewportFocalPoint(viewport);
 
-      // Native viewports may not resolve a focal point; writing undefined into the
+      // A viewport may not resolve a focal point; writing undefined into the
       // annotation would invalidate its ROI-threshold coordinates.
       if (!focalPoint) {
         return;

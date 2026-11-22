@@ -169,7 +169,7 @@ export function useViewportSliceSync({
     };
 
     element.addEventListener(eventId, updateIndex);
-    // Native ("next") viewports keep the same viewportData across a stack->volume
+    // A viewport keeps the same viewportData across a stack->volume
     // transition or an orientation change, so this effect does not re-run and the
     // slice-navigation event above may not fire until the first scroll, leaving the
     // scrollbar unseeded (or stale, with a now-wrong slice count). CAMERA_MODIFIED

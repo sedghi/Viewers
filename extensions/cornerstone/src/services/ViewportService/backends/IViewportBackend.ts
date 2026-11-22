@@ -59,7 +59,7 @@ export interface VolumeMountContext {
 }
 
 /**
- * How OHIF drives cornerstone viewports. NextViewportBackend is the one
+ * How OHIF drives cornerstone viewports. ViewportBackend is the one
  * implementation.
  *
  * The service holds exactly one backend for its lifetime and routes these

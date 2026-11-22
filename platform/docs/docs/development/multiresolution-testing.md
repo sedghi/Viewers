@@ -79,8 +79,10 @@ developer builds turn it on. Cornerstone3D also keeps it off by default.
 
 ## How OHIF reaches a reduced texture
 
-The diagram gives the OHIF side of the sequence, with the default viewports of OHIF
-(`genericViewports.enabled: false`). Each `CS3D n` note names a sequence of the
+The diagram gives the OHIF side of the sequence, with the legacy viewports of OHIF 3.13
+on Cornerstone3D 5 (the `ORTHOGRAPHIC` viewports and `viewport.setVolumes`). OHIF 3.14
+runs on Cornerstone3D 6, which has only the viewports of
+[The new viewports](#the-new-viewports). Each `CS3D n` note names a sequence of the
 Cornerstone3D page
 [Volume Render Sequences](https://github.com/cornerstonejs/cornerstone3D/blob/feat/multires-voxel-manager-base/packages/docs/docs/concepts/cornerstone-core/volumeRenderSequences.md).
 
@@ -251,8 +253,10 @@ data, and not the grid that the viewport draws.
 
 ### The new viewports
 
-Add `&useNextViewports=true` to a URL to draw through the generic viewports of
-Cornerstone3D. With the Cornerstone3D branch `feat/multires-voxel-manager-base`
+OHIF 3.13 drew through the generic viewports of Cornerstone3D when a URL had
+`&useNextViewports=true`. OHIF 3.14 runs on Cornerstone3D 6, which has only these
+viewports: every URL draws through them, and the parameter is gone. The comparison below
+is of OHIF 3.13, where both kinds were there. With the Cornerstone3D branch `feat/multires-voxel-manager-base`
 ([cornerstonejs/cornerstone3D#2931](https://github.com/cornerstonejs/cornerstone3D/pull/2931),
 which now holds the acquisition-plane work of cornerstonejs/cornerstone3D#3018), the acquisition plane draws the
 original frames when the preset reduces the volume.
@@ -260,7 +264,8 @@ The legacy viewports draw the acquisition plane from the reduced texture. Thus a
 view of the 2464-image CT under `gpu/medium` shows the average of two acquired slices on
 the legacy viewports, and one acquired slice on the new viewports.
 
-An example URL on the deploy preview of OHIF/Viewers#6295:
+An example URL on the deploy preview of OHIF/Viewers#6295, a build of 3.13 where the
+parameter still picks the new viewports:
 
 ```
 https://deploy-preview-6295--ohif-dev.netlify.app/viewer?StudyInstanceUIDs=1.3.6.1.4.1.14519.5.2.1.99.1071.24993177073256607564948872275593&hangingProtocolId=mpr&customization=gpu/medium&useNextViewports=true
@@ -306,7 +311,8 @@ failure. A later pull request will add an automatic mode that probes the device.
   (`fi-root`) has a z-index of 1000, which is above the OHIF menu layer. On a reduced volume
   the indicator can take a click on a menu item. The OHIF fidelity indicator,
   [OHIF/Viewers#6413](https://github.com/OHIF/Viewers/pull/6413), will address this.
-- **No automatic test covers the new viewports or the reduction.** See
+- **No automatic test covers the reduction.** The Playwright tests of 3.14 run on the new
+  viewports, as every viewport of 3.14 is one. See
   [OHIF/Viewers#6404](https://github.com/OHIF/Viewers/issues/6404).
 
 ## Where the design is written

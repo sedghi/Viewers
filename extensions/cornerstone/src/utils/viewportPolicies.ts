@@ -13,7 +13,7 @@
  * transparent), so the fusion starts with this single flat, more CT-weighted
  * blend.
  */
-export const NEXT_FUSION_PT_OPACITY = 0.4;
+export const FUSION_PT_OPACITY = 0.4;
 
 /**
  * Initial opacity for data overlays (e.g. colormapped foreground layers). A
@@ -21,7 +21,7 @@ export const NEXT_FUSION_PT_OPACITY = 0.4;
  * and no volume ray-cast opacity attenuation, so a nominal 0.9 would read
  * ~80-90%: an overlay starts at this value.
  */
-export const NEXT_OVERLAY_OPACITY = 0.4;
+export const OVERLAY_OPACITY = 0.4;
 
 /**
  * Viewport type to pin when hydrating a segmentation's referenced display set.

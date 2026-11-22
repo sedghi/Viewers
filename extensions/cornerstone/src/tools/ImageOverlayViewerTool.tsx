@@ -53,11 +53,10 @@ class ImageOverlayViewerTool extends AnnotationDisplayTool {
       return;
     }
 
-    // A direct Generic ("next") viewport returns a falsy view-reference id until
-    // it has data bound (e.g. while it is being enabled, before setDisplaySets).
-    // getTargetId() would throw in that case and break the whole render pass, so
-    // skip overlay rendering until a reference is resolvable. Legacy viewports
-    // always return a string here, so this leaves their behavior unchanged.
+    // A viewport returns a falsy view-reference id until it has data bound
+    // (e.g. while it is being enabled, before setDisplaySets). getTargetId()
+    // would throw in that case and break the whole render pass, so skip overlay
+    // rendering until a reference is resolvable.
     if (!viewport.getViewReferenceId?.()) {
       return;
     }
