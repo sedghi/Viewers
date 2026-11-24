@@ -1,4 +1,9 @@
 import { utilities as csUtils } from '@cornerstonejs/core';
+import {
+  getDataIdForShape,
+  getDisplaySetUIDForDataId,
+  type DataIdShape,
+} from '../../../utils/displaySetDataId';
 
 /**
  * Payload registered with cornerstone's global GenericViewport dataset metadata
@@ -15,6 +20,19 @@ export type DataIdPayload =
   | { kind: 'wsi'; imageIds: string[]; options: { webClient: unknown } };
 
 /**
+ * The shape of a payload: a planar payload that names a volume is a volume,
+ * any other planar payload a stack. Video, ECG and slide payloads have none:
+ * their display sets are shown one way only.
+ */
+function getPayloadShape(payload: DataIdPayload | undefined): DataIdShape | undefined {
+  if (payload?.kind !== 'planar') {
+    return undefined;
+  }
+
+  return payload.volumeId ? 'volume' : 'stack';
+}
+
+/**
  * Owns the lifecycle of OHIF's `dataId` registrations against cornerstone's
  * process-global `genericViewportDisplaySetMetadataProvider` (see migration plan §4.7).
  *
@@ -28,50 +46,49 @@ export type DataIdPayload =
  *   - unmounting one pane of a shared-volume triptych does not unregister data the
  *     other panes still need.
  *
+ * A display set shown as a stack in one viewport and as a volume in another
+ * needs two registrations: cornerstone draws a registration with a `volumeId`
+ * as a volume. The registry names the data id of each mount by its shape
+ * (`getDataIdForShape`): the display set UID, and `<uid>::stack` or
+ * `<uid>::volume` for the second shape while the UID is registered for the
+ * first. A payload never replaces the registration of another shape: a mounted
+ * viewport reads its registration again, so its stack would turn into a volume.
+ *
+ * Every annotation keeps the data id of the viewport it was drawn on, and
+ * cornerstone takes it on the other shape by the image ids of that
+ * registration. So the registry keeps the registrations that a reference can
+ * name: the UID while any data id of its display set is registered, and a
+ * data id of a second shape until the registry is destroyed.
+ *
  * Used by the viewport backend for all families.
  */
 export class DataIdRegistry {
   // Global ref-count keyed by dataId (the provider store is a single global namespace).
   private readonly refCounts = new Map<string, number>();
-  // Last payload registered per dataId, so a re-registration that promotes a
-  // stack-only dataId to volume-backed can be detected and forwarded to the provider.
+  /** The payload of every data id that the provider has from this registry. */
   private readonly payloads = new Map<string, DataIdPayload>();
   // Per-viewport ledger of the dataIds it registered, to drive release on unmount.
   private readonly byViewport = new Map<string, string[]>();
 
   /**
-   * Builds the registration dataId for a display set. PT/CT *fusion* overlays are
-   * distinct display sets with their own UIDs, so the bare displaySetInstanceUID is
-   * already collision-free and is used for both source and overlay bindings (the LUT
-   * presentation store keys by the same UID, giving a clean 1:1 dataId mapping). The
-   * `'overlay'` suffix is reserved for the case where a source and an overlay share the
-   * SAME displaySetInstanceUID but need distinct registrations — i.e. derived labelmap
-   * overlays (segmentation / M4), which are not yet on the native path.
+   * Registers (or ref-bumps) a display set for a viewport, and gives the data
+   * id to mount it by: the display set UID, or a data id of its own for a
+   * second shape (see the class). Adds to the cornerstone provider only on the
+   * first reference of that data id. Panes that share a data id give the same
+   * payload (same imageIds/volumeId), so the first writer wins.
    */
-  static dataIdFor(displaySetInstanceUID: string, role?: 'overlay'): string {
-    return role === 'overlay' ? `${displaySetInstanceUID}::overlay` : displaySetInstanceUID;
-  }
-
-  /**
-   * Registers (or ref-bumps) a dataId for a viewport. Adds to the cornerstone
-   * provider only on the first reference. Idempotent payloads across panes that
-   * share a dataId are expected (same imageIds/volumeId), so first-writer wins —
-   * EXCEPT when a later payload promotes a previously stack-only registration to
-   * a volume-backed one (gains a `volumeId`). That happens when a data overlay
-   * (fusion) is added to a viewport whose source was first mounted as a vtkImage
-   * stack: the source is re-registered with its volumeId so it can render as a
-   * volume slice alongside the overlay. Without updating the provider here, the
-   * source would keep its volumeId-less payload and stay vtkImage while the
-   * overlay is a vtkVolumeSlice (broken fusion).
-   */
-  register(viewportId: string, dataId: string, payload: DataIdPayload): void {
+  register(viewportId: string, displaySetInstanceUID: string, payload: DataIdPayload): string {
+    const shape = getPayloadShape(payload);
+    const dataId = shape
+      ? getDataIdForShape(
+          displaySetInstanceUID,
+          shape,
+          this.getRegisteredShape(displaySetInstanceUID)
+        )
+      : displaySetInstanceUID;
     const prev = this.refCounts.get(dataId) ?? 0;
-    const existing = this.payloads.get(dataId);
-    const promotesToVolume =
-      !!(payload as { volumeId?: string }).volumeId &&
-      !(existing as { volumeId?: string } | undefined)?.volumeId;
 
-    if (prev === 0 || promotesToVolume) {
+    if (prev === 0) {
       csUtils.genericViewportDisplaySetMetadataProvider.add(dataId, payload);
       this.payloads.set(dataId, payload);
     }
@@ -80,11 +97,14 @@ export class DataIdRegistry {
     const list = this.byViewport.get(viewportId) ?? [];
     list.push(dataId);
     this.byViewport.set(viewportId, list);
+
+    return dataId;
   }
 
   /**
    * Releases every dataId a viewport registered (called on element disable).
-   * Removes from the provider only when the last reference is gone.
+   * When no data id of a display set is registered any more, its UID leaves the
+   * provider; the data ids of a second shape stay (see the class).
    */
   releaseViewport(viewportId: string): void {
     const dataIds = this.byViewport.get(viewportId);
@@ -95,13 +115,21 @@ export class DataIdRegistry {
       const next = (this.refCounts.get(dataId) ?? 1) - 1;
       if (next <= 0) {
         this.refCounts.delete(dataId);
-        this.payloads.delete(dataId);
-        csUtils.genericViewportDisplaySetMetadataProvider.remove(dataId);
       } else {
         this.refCounts.set(dataId, next);
       }
     }
     this.byViewport.delete(viewportId);
+
+    for (const displaySetInstanceUID of new Set(dataIds.map(getDisplaySetUIDForDataId))) {
+      if (
+        this.payloads.has(displaySetInstanceUID) &&
+        !this.isDisplaySetRegistered(displaySetInstanceUID)
+      ) {
+        this.payloads.delete(displaySetInstanceUID);
+        csUtils.genericViewportDisplaySetMetadataProvider.remove(displaySetInstanceUID);
+      }
+    }
   }
 
   /**
@@ -110,11 +138,31 @@ export class DataIdRegistry {
    * registrations owned by other rendering contexts / service instances.
    */
   destroy(): void {
-    for (const dataId of this.refCounts.keys()) {
+    for (const dataId of this.payloads.keys()) {
       csUtils.genericViewportDisplaySetMetadataProvider.remove(dataId);
     }
     this.refCounts.clear();
     this.payloads.clear();
     this.byViewport.clear();
+  }
+
+  /** The shape that the UID of a display set is registered for, if it is registered. */
+  private getRegisteredShape(displaySetInstanceUID: string): DataIdShape | undefined {
+    if (!this.refCounts.has(displaySetInstanceUID)) {
+      return undefined;
+    }
+
+    return getPayloadShape(this.payloads.get(displaySetInstanceUID));
+  }
+
+  /** Whether any data id of a display set is registered. */
+  private isDisplaySetRegistered(displaySetInstanceUID: string): boolean {
+    for (const dataId of this.refCounts.keys()) {
+      if (getDisplaySetUIDForDataId(dataId) === displaySetInstanceUID) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

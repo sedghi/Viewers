@@ -157,16 +157,18 @@ export interface IViewportBackend {
   setLutPresentation(viewport: Types.IViewport, lutPresentation: LutPresentation): void;
 
   /**
-   * Registers a dataset id for a viewport against cornerstone's global display
-   * set metadata provider. Ref-counted and tracked per viewport, so that it can
-   * be released on unmount.
+   * Registers a display set for a viewport against cornerstone's global display
+   * set metadata provider, and gives the data id to mount it by: the display
+   * set UID, or a data id of its own while the UID is registered for the other
+   * shape (`<uid>::stack`, `<uid>::volume`; see `DataIdRegistry`). Ref-counted
+   * and tracked per viewport, so that it can be released on unmount.
    */
-  registerDataId(viewportId: string, dataId: string, payload: DataIdPayload): void;
+  registerDataId(viewportId: string, displaySetInstanceUID: string, payload: DataIdPayload): string;
 
   /**
-   * Releases the dataset registrations a viewport owns (and removes from the
-   * provider when the last reference is gone). Called from the service's
-   * disableElement BEFORE the viewport bookkeeping is deleted.
+   * Releases the dataset registrations a viewport owns (the UID of a display set
+   * leaves the provider when no data id of it is registered any more). Called
+   * from the service's disableElement BEFORE the viewport bookkeeping is deleted.
    */
   onViewportDisabled(viewportId: string): void;
 

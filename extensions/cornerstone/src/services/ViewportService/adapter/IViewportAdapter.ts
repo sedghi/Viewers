@@ -96,17 +96,22 @@ export interface IViewportAdapter {
   // ---- per-display-set appearance ----
 
   /**
-   * Read appearance (voiRange/colormap/invert/...) for a display set binding.
+   * Read appearance (voiRange/colormap/invert/...) for a display set binding,
+   * named by its dataId or by the UID of its display set (a display set can
+   * show under a data id of its own, see `getDataIdForDisplaySet`).
    * Defaults to the active source binding when no dataId is given. A VOI
    * matching the binding's computed default is stamped `isComputedVOI: true`
    * so LUT-presentation capture strips it.
    */
   getPresentation(dataId?: string): ViewportPresentation;
 
-  /** Write appearance for a display set binding (active source binding when no dataId). */
+  /**
+   * Write appearance for a display set binding, named as for getPresentation
+   * (active source binding when no dataId).
+   */
   setPresentation(props: ViewportPresentation, dataId?: string): void;
 
-  /** The binding's computed default VOI. */
+  /** The binding's computed default VOI, named as for getPresentation. */
   getDefaultVOIRange(dataId?: string): VOIRange | undefined;
 
   /**
@@ -116,8 +121,11 @@ export interface IViewportAdapter {
   getColormap(displaySetInstanceUID: string): ViewportColormap | undefined;
 
   /**
-   * Merge an opacity into the display set layer's colormap. Returns true when
-   * applied (caller renders); false when the viewport/layer does not support it.
+   * Merge an opacity into the display set layer's colormap (the layer named by
+   * the UID of its display set or by its dataId). When the layer has opacity
+   * points by value (a fusion ramp), the opacity scales each point. Returns
+   * true when applied (caller renders); false when the viewport/layer does
+   * not support it.
    */
   setLayerOpacity(displaySetInstanceUID: string, opacity: number): boolean;
 
@@ -144,8 +152,11 @@ export interface IViewportAdapter {
 
   /**
    * Resolve the dataId to address a display set's binding on this viewport:
-   * the bare display set UID. Undefined when the viewport shows other display
-   * sets and not this one, as an SR, SEG or RTSTRUCT viewport shows the images
+   * the display set UID, or the data id of its own that a display set gets
+   * while another viewport shows it in the other shape (`<uid>::stack`,
+   * `<uid>::volume`; see `getDataIdForShape`). The UID when the viewport
+   * shows nothing yet. Undefined when the viewport shows other display sets
+   * and not this one, as an SR, SEG or RTSTRUCT viewport shows the images
    * they reference: a call without a dataId then addresses the source.
    */
   getDataIdForDisplaySet(displaySetInstanceUID: string): string | undefined;

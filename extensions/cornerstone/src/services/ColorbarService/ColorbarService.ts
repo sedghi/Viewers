@@ -230,8 +230,8 @@ export default class ColorbarService extends PubSubService {
       return;
     }
 
-    // Address the display set's binding (volumeId on legacy multi-volume, bare
-    // UID on native, active binding otherwise)
+    // Address the display set's binding (its dataId, see getDataIdForDisplaySet;
+    // the active binding otherwise)
     const dataId = adapter.getDataIdForDisplaySet(displaySetInstanceUID);
     adapter.setPresentation({ colormap }, dataId);
 

@@ -1,5 +1,3 @@
-import { FUSION_PT_OPACITY } from '@ohif/extension-cornerstone';
-
 // Common sync group configurations
 const cameraPositionSync = (id: string) => ({
   type: 'cameraPosition',
@@ -288,7 +286,11 @@ const fusionAXIAL: AppTypes.HangingProtocol.Viewport = {
       options: {
         colormap: {
           name: 'hsv',
-          opacity: FUSION_PT_OPACITY,
+          opacity: [
+            { value: 0, opacity: 0 },
+            { value: 0.1, opacity: 0.8 },
+            { value: 1, opacity: 0.9 },
+          ],
         },
         voi: {
           custom: 'getPTVOIRange',
@@ -347,7 +349,11 @@ const fusionSAGITTAL = {
       options: {
         colormap: {
           name: 'hsv',
-          opacity: FUSION_PT_OPACITY,
+          opacity: [
+            { value: 0, opacity: 0 },
+            { value: 0.1, opacity: 0.8 },
+            { value: 1, opacity: 0.9 },
+          ],
         },
         voi: {
           custom: 'getPTVOIRange',
@@ -406,7 +412,11 @@ const fusionCORONAL = {
       options: {
         colormap: {
           name: 'hsv',
-          opacity: FUSION_PT_OPACITY,
+          opacity: [
+            { value: 0, opacity: 0 },
+            { value: 0.1, opacity: 0.8 },
+            { value: 1, opacity: 0.9 },
+          ],
         },
         voi: {
           custom: 'getPTVOIRange',

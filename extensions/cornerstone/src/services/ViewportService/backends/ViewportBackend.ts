@@ -190,12 +190,10 @@ export class ViewportBackend implements IViewportBackend {
       element: HTMLDivElement;
       id: string;
     };
-    const dataId = displaySetInstanceUIDs[0];
-
     // Register through the ref-counted registry (§4.7) instead of the raw
     // provider.add, so the registration is released on unmount and shared
     // (MPR) registrations are not double-added or prematurely removed.
-    this.registerDataId(vp.id, dataId, {
+    const dataId = this.registerDataId(vp.id, displaySetInstanceUIDs[0], {
       kind: 'planar',
       imageIds,
       initialImageIdIndex: initialImageIndex,
@@ -326,9 +324,11 @@ export class ViewportBackend implements IViewportBackend {
     displaySet: { displaySetInstanceUID: string; imageIds?: string[] },
     imageId: string
   ): Promise<void> {
-    const dataId = displaySet.displaySetInstanceUID;
-    this.registerDataId(viewport.id, dataId, { kind: 'ecg', sourceDataId: imageId });
-    this.service._trackViewportDisplaySets(viewport.id, [dataId]);
+    const dataId = this.registerDataId(viewport.id, displaySet.displaySetInstanceUID, {
+      kind: 'ecg',
+      sourceDataId: imageId,
+    });
+    this.service._trackViewportDisplaySets(viewport.id, [displaySet.displaySetInstanceUID]);
     await (
       viewport as unknown as {
         setDisplaySets: (args: { displaySetId: string }) => Promise<void>;
@@ -347,7 +347,6 @@ export class ViewportBackend implements IViewportBackend {
     viewport: Types.IViewport,
     displaySet: { displaySetInstanceUID: string; imageIds: string[] }
   ): Promise<void> {
-    const dataId = displaySet.displaySetInstanceUID;
     const imageId = displaySet.imageIds[0];
     const isWsi = (viewport as { type?: string }).type === csEnums.ViewportType.WHOLE_SLIDE;
     const payload = isWsi
@@ -359,8 +358,8 @@ export class ViewportBackend implements IViewportBackend {
           },
         }
       : { kind: 'video' as const, sourceDataId: imageId };
-    this.registerDataId(viewport.id, dataId, payload);
-    this.service._trackViewportDisplaySets(viewport.id, [dataId]);
+    const dataId = this.registerDataId(viewport.id, displaySet.displaySetInstanceUID, payload);
+    this.service._trackViewportDisplaySets(viewport.id, [displaySet.displaySetInstanceUID]);
     await (
       viewport as unknown as {
         setDisplaySets: (args: { displaySetId: string }) => Promise<void>;
@@ -421,6 +420,7 @@ export class ViewportBackend implements IViewportBackend {
       options: Record<string, unknown>;
     }> = [];
     const volumeRenderBackend = is3D ? undefined : getMountRenderBackend('orthographic');
+    const dataIds: string[] = [];
 
     // First pass: register each dataId and build the COMPLETE entry set. The native
     // PlanarViewport.setDisplaySets has replace semantics (removeReplaceableData), so
@@ -431,17 +431,17 @@ export class ViewportBackend implements IViewportBackend {
     // (= PT), and removeReplaceableData tears down CT - leaving only the PT colormap.
     for (const [index, { volumeInput }] of filteredVolumeInputArray.entries()) {
       const { imageIds, volumeId, displaySetInstanceUID } = volumeInput;
-      const dataId = displaySetInstanceUID;
 
       // Ref-counted registration (§4.7): the MPR triptych shares one dataId across
       // panes, so register() adds to the provider once and release() removes only
       // when the last pane unmounts. (kind is stored but ignored by the volume3d
       // data provider, which reads imageIds/volumeId.)
-      this.registerDataId(viewport.id, dataId, {
+      const dataId = this.registerDataId(viewport.id, displaySetInstanceUID, {
         kind: 'planar',
         imageIds,
         volumeId,
       });
+      dataIds.push(dataId);
 
       setDisplaySetsEntries.push({
         displaySetId: dataId,
@@ -463,7 +463,7 @@ export class ViewportBackend implements IViewportBackend {
 
     // Second pass: per-dataId presentations and the 3D preset.
     for (const [index, { volumeInput }] of filteredVolumeInputArray.entries()) {
-      const dataId = volumeInput.displaySetInstanceUID;
+      const dataId = dataIds[index];
       const props = volumesProperties[index]?.properties;
       if (props) {
         const presentationProps: Record<string, unknown> = {};
@@ -655,8 +655,12 @@ export class ViewportBackend implements IViewportBackend {
     }
   }
 
-  registerDataId(viewportId: string, dataId: string, payload: DataIdPayload): void {
-    this.registry.register(viewportId, dataId, payload);
+  registerDataId(
+    viewportId: string,
+    displaySetInstanceUID: string,
+    payload: DataIdPayload
+  ): string {
+    return this.registry.register(viewportId, displaySetInstanceUID, payload);
   }
 
   onViewportDisabled(viewportId: string): void {

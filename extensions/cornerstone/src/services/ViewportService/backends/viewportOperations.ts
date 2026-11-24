@@ -211,8 +211,8 @@ export const viewportOperations: IViewportOperations = {
   },
 
   setColormap(viewport: CoreTypes.IViewport, params: ColormapParams): void {
-    // Target the binding for params.displaySetInstanceUID. OHIF's dataId scheme maps a
-    // display set 1:1 onto its native dataId (bare UID), so a PT/CT *fusion* colormap lands
+    // Target the binding for params.displaySetInstanceUID. The adapter resolves the UID to
+    // the dataId of the display set's binding, so a PT/CT *fusion* colormap lands
     // on the overlay (PT) binding instead of defaulting to the source (CT). When no id is
     // given (single-volume / plain stack colormap) the adapter falls back to the source.
     getViewportAdapter(viewport).setPresentation(

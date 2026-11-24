@@ -8,14 +8,6 @@
  */
 
 /**
- * Initial PT opacity for TMTV fusion viewports. A per-value opacity ramp is
- * applied literally through the flat 2D blend (which would keep the background
- * transparent), so the fusion starts with this single flat, more CT-weighted
- * blend.
- */
-export const FUSION_PT_OPACITY = 0.4;
-
-/**
  * Initial opacity for data overlays (e.g. colormapped foreground layers). A
  * viewport composites an overlay as a 2D image slice with a flat alpha blend
  * and no volume ray-cast opacity attenuation, so a nominal 0.9 would read

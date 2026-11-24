@@ -1,7 +1,7 @@
 import { Enums, metaData, viewportProjection } from '@cornerstonejs/core';
 import type { PlanarViewport, Types } from '@cornerstonejs/core';
 import { ViewportBackend } from './ViewportBackend';
-import type { StackMountContext } from './IViewportBackend';
+import type { StackMountContext, VolumeMountContext } from './IViewportBackend';
 import type { IViewportServiceInternals } from './IViewportServiceInternals';
 import type ViewportInfo from '../Viewport';
 import type { PositionPresentation } from '../../../types/Presentation';
@@ -91,6 +91,95 @@ describe('the window of a stack mount', () => {
     const viewport = await mountStack({ voiRange });
 
     expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith({ voiRange });
+  });
+});
+
+describe('the data id of a mount', () => {
+  const voiRange = { lower: 0, upper: 100 };
+  let backend: ViewportBackend;
+
+  function makeVolumeViewport(id: string) {
+    return {
+      id,
+      setDisplaySets: jest.fn().mockResolvedValue(undefined),
+      setDisplaySetPresentation: jest.fn(),
+      render: jest.fn(),
+    };
+  }
+
+  function mountVolume(viewport: ReturnType<typeof makeVolumeViewport>) {
+    return backend.mountVolumes(
+      viewport as unknown as Types.IViewport,
+      {
+        filteredVolumeInputArray: [
+          {
+            volumeInput: {
+              imageIds,
+              volumeId: 'volumeLoader:display-set-1',
+              displaySetInstanceUID: 'display-set-1',
+            },
+          },
+        ],
+        volumesProperties: [{ properties: { voiRange } }],
+        viewportInfo: { getOrientation: () => Enums.OrientationAxis.AXIAL },
+        overlayProcessingResults: [],
+        presentations: {},
+      } as unknown as VolumeMountContext
+    );
+  }
+
+  function mountStackOf(viewport: ReturnType<typeof makeViewport>) {
+    return backend.mountStack(
+      viewport as unknown as PlanarViewport,
+      {
+        displaySetInstanceUIDs: ['display-set-1'],
+        imageIds,
+        initialImageIndex: 0,
+        properties: {},
+        presentations: {},
+      } as StackMountContext
+    );
+  }
+
+  beforeEach(() => {
+    backend = new ViewportBackend(makeService());
+  });
+
+  afterEach(() => {
+    backend.destroy();
+  });
+
+  it('mounts a stack of a display set that another viewport shows as a volume by a data id of its own', async () => {
+    const volumeViewport = makeVolumeViewport('mpr-axial');
+    const stackViewport = makeViewport();
+
+    await mountVolume(volumeViewport);
+    await mountStackOf(stackViewport);
+
+    expect(volumeViewport.setDisplaySets).toHaveBeenCalledWith(
+      expect.objectContaining({ displaySetId: 'display-set-1' })
+    );
+    expect(stackViewport.setDisplaySets).toHaveBeenCalledWith(
+      expect.objectContaining({ displaySetId: 'display-set-1::stack' })
+    );
+  });
+
+  it('mounts a volume of a display set that another viewport shows as a stack by a data id of its own', async () => {
+    const stackViewport = makeViewport();
+    const volumeViewport = makeVolumeViewport('mpr-axial');
+
+    await mountStackOf(stackViewport);
+    await mountVolume(volumeViewport);
+
+    expect(stackViewport.setDisplaySets).toHaveBeenCalledWith(
+      expect.objectContaining({ displaySetId: 'display-set-1' })
+    );
+    expect(volumeViewport.setDisplaySets).toHaveBeenCalledWith(
+      expect.objectContaining({ displaySetId: 'display-set-1::volume' })
+    );
+    expect(volumeViewport.setDisplaySetPresentation).toHaveBeenCalledWith('display-set-1::volume', {
+      voiRange,
+    });
   });
 });
 

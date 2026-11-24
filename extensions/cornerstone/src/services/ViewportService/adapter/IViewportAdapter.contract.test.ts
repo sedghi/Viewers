@@ -227,6 +227,41 @@ describe('per-display-set appearance', () => {
     });
   });
 
+  it('setLayerOpacity scales a ramp that a hanging protocol gives as a list in opacity', () => {
+    const ramp = [
+      { value: 0, opacity: 0 },
+      { value: 0.1, opacity: 0.8 },
+      { value: 1, opacity: 0.9 },
+    ];
+    const viewport = makeViewport({
+      getDisplaySetPresentation: jest
+        .fn()
+        .mockReturnValue({ colormap: { name: 'hsv', opacity: ramp } }),
+    });
+
+    expect(getViewportAdapter(viewport).setLayerOpacity('pt-1', 0.5)).toBe(true);
+    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1', {
+      colormap: { name: 'hsv', opacityMapping: ramp, opacity: 0.5 },
+    });
+  });
+
+  it('setLayerOpacity keeps the opacity mapping that it scaled before', () => {
+    const ramp = [
+      { value: 0, opacity: 0 },
+      { value: 1, opacity: 0.9 },
+    ];
+    const viewport = makeViewport({
+      getDisplaySetPresentation: jest.fn().mockReturnValue({
+        colormap: { name: 'hsv', opacity: 0.5, opacityMapping: ramp, threshold: 2 },
+      }),
+    });
+
+    getViewportAdapter(viewport).setLayerOpacity('pt-1', 0);
+    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1', {
+      colormap: { name: 'hsv', opacityMapping: ramp, threshold: 2, opacity: 0 },
+    });
+  });
+
   it('setLayerThreshold merges into the existing colormap', () => {
     const viewport = makeViewport({
       getDisplaySetPresentation: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
@@ -254,6 +289,39 @@ describe('per-display-set appearance', () => {
   it('getOpacityGamma is linear', () => {
     expect(getViewportAdapter(makeViewport()).getOpacityGamma()).toBe(1);
   });
+
+  it('addresses a display set that shows under a data id of its own by its UID', () => {
+    const viewport = makeViewport({
+      getDisplaySets: jest
+        .fn()
+        .mockReturnValue([{ displaySetId: 'ct-1' }, { displaySetId: 'pt-1::volume' }]),
+      getDisplaySetPresentation: jest.fn((dataId: string) =>
+        dataId === 'pt-1::volume' ? { colormap: { name: 'hsv' } } : {}
+      ),
+    });
+    const adapter = getViewportAdapter(viewport);
+
+    expect(adapter.getColormap('pt-1')).toEqual({ name: 'hsv' });
+    expect(adapter.setLayerOpacity('pt-1', 0.5)).toBe(true);
+    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1::volume', {
+      colormap: { name: 'hsv', opacity: 0.5 },
+    });
+    adapter.getDefaultVOIRange('pt-1');
+    expect(viewport.getDefaultVOIRange).toHaveBeenCalledWith('pt-1::volume');
+  });
+
+  it('addresses a display set that shows under a data id of its own by that data id', () => {
+    const viewport = makeViewport({
+      getDisplaySets: jest
+        .fn()
+        .mockReturnValue([{ displaySetId: 'ct-1' }, { displaySetId: 'pt-1::volume' }]),
+    });
+
+    getViewportAdapter(viewport).setPresentation({ invert: true }, 'pt-1::volume');
+    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1::volume', {
+      invert: true,
+    });
+  });
 });
 
 describe('data addressing', () => {
@@ -268,6 +336,13 @@ describe('data addressing', () => {
         .mockReturnValue([{ displaySetId: 'ct-1' }, { displaySetId: 'pt-1' }]),
     });
     expect(getViewportAdapter(viewport).getDataIdForDisplaySet('pt-1')).toBe('pt-1');
+  });
+
+  it('getDataIdForDisplaySet gives the data id of its own of a display set shown in a second shape', () => {
+    const viewport = makeViewport({
+      getDisplaySets: jest.fn().mockReturnValue([{ displaySetId: 'ct-1::stack' }]),
+    });
+    expect(getViewportAdapter(viewport).getDataIdForDisplaySet('ct-1')).toBe('ct-1::stack');
   });
 
   it('getDataIdForDisplaySet gives undefined for a display set that the viewport does not show', () => {

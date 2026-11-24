@@ -42,11 +42,7 @@ import {
   getViewportFocalPoint,
   isVolumeRenderingViewport,
 } from './services/ViewportService/adapter';
-import {
-  FUSION_PT_OPACITY,
-  OVERLAY_OPACITY,
-  getHydrationViewportTypeForModality,
-} from './utils/viewportPolicies';
+import { OVERLAY_OPACITY, getHydrationViewportTypeForModality } from './utils/viewportPolicies';
 import { findNearbyToolData } from './utils/findNearbyToolData';
 import { createFrameViewSynchronizer } from './synchronizers/frameViewSynchronizer';
 import { getSopClassHandlerModule } from './getSopClassHandlerModule';
@@ -318,7 +314,6 @@ export {
   getViewportAdapter,
   getViewportFocalPoint,
   isVolumeRenderingViewport,
-  FUSION_PT_OPACITY,
   OVERLAY_OPACITY,
   getHydrationViewportTypeForModality,
   dicomLoaderService,

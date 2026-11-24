@@ -50,8 +50,8 @@ Measured on this Mac. "Before" is `master` on 5.18.3; "after" is this branch.
 | 6. The review sites | done: 23 of 23 read | package U2 |
 | 7. The packages the codemod does not cover | done: no new type error is left | package U3 |
 | 8. jest | done: 158 suites, 1,907 tests pass | package U2 |
-| 9. Playwright on 6.0 | open: 242 pass, 1 fails, for M42 (OHIF, not small), on cornerstone `1b3b2247e` (4 after package U4, 15 after U3, 28 after step 8, 37 after step 4); four baselines are new (M36) | packages U3, U4 and U6 |
-| 10. By hand, on devices | the desktop part done (package U6): each of the seven modes once on the GPU and on the CPU against 5.18.3 (legacy path); M38 to M50 of the log; Safari on an iPhone open | package U6 |
+| 9. Playwright on 6.0 | on this Mac all pass: 243, 4 skipped, on cornerstone `1b3b2247e` (1 failed after package U6, 4 after U4, 15 after U3, 28 after step 8, 37 after step 4); four baselines are new (M36); the run in CI open | packages U3, U4, U6 and U7 |
+| 10. By hand, on devices | the desktop part done (package U6): each of the seven modes once on the GPU and on the CPU against 5.18.3 (legacy path); M38 to M50 of the log; M42 (a stack of a series shown as a volume elsewhere) and M45 (the PET ramp of the TMTV fusion) fixed in package U7, with M51 and M52 for cornerstone; Safari on an iPhone open | packages U6 and U7 |
 | 11. Clean names and docs | done: the four `Next*` classes and the two `next*` files have plain names, the two `NEXT_*` exports too; the interfaces stay (open point 1); the migration guide and the configuration docs name the gone settings; M18 closed | package U5 |
 | 12. Release | open | |
 
@@ -223,7 +223,8 @@ Done (21 November, package U5):
 - Public: the four classes were never exports of the extension. Its exports
   `NEXT_FUSION_PT_OPACITY` and `NEXT_OVERLAY_OPACITY` are `FUSION_PT_OPACITY` and
   `OVERLAY_OPACITY`. With `isNextViewportsEnabled` and `isNextViewport` (removed in step 2)
-  they are in the migration guide.
+  they are in the migration guide. Package U7 removed `FUSION_PT_OPACITY`: the TMTV fusion
+  has the PET ramp of `master` again (M45).
 - The interfaces stay (open point 1).
 - Docs: the migration guide page `migration-guide/3p13-to-3p14/cornerstone3d-6.md` (the
   settings that are gone, what an extension author does, the removed and renamed

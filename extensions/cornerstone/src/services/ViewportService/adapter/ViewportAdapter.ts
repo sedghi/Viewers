@@ -1,4 +1,5 @@
 import { Enums, cache, Types as CoreTypes, utilities as csUtils } from '@cornerstonejs/core';
+import { getDisplaySetUIDForDataId } from '../../../utils/displaySetDataId';
 import type {
   IViewportAdapter,
   ViewportColormap,
@@ -38,6 +39,12 @@ type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentatio
 
 const voiRangesClose = (a: VOIRange, b: VOIRange, eps = 0.001): boolean =>
   Math.abs(a.lower - b.lower) < eps && Math.abs(a.upper - b.upper) < eps;
+
+/** Whether a colormap opacity is a list of opacities by value (`{ value, opacity }`). */
+const isOpacityPoints = (opacity: unknown): opacity is Array<{ value: number; opacity: number }> =>
+  Array.isArray(opacity) &&
+  opacity.length > 0 &&
+  opacity.every(point => typeof point?.value === 'number' && typeof point?.opacity === 'number');
 
 /**
  * The implementation of IViewportAdapter: a thin pass-through to the semantic
@@ -118,7 +125,7 @@ export class ViewportAdapter implements IViewportAdapter {
   // ---- per-display-set appearance ----
 
   getPresentation(dataId?: string): ViewportPresentation {
-    const id = dataId ?? this.viewport.getSourceDataId?.();
+    const id = this.resolveDataId(dataId) ?? this.viewport.getSourceDataId?.();
     const presentation = (id ? this.viewport.getDisplaySetPresentation?.(id) : undefined) ?? {};
 
     // A native binding's presentation normally holds only EXPLICIT VOI overrides,
@@ -142,7 +149,7 @@ export class ViewportAdapter implements IViewportAdapter {
   }
 
   setPresentation(props: ViewportPresentation, dataId?: string): void {
-    const id = dataId ?? this.viewport.getSourceDataId?.();
+    const id = this.resolveDataId(dataId) ?? this.viewport.getSourceDataId?.();
     if (id) {
       this.viewport.setDisplaySetPresentation?.(id, props);
     } else {
@@ -151,20 +158,33 @@ export class ViewportAdapter implements IViewportAdapter {
   }
 
   getDefaultVOIRange(dataId?: string): VOIRange | undefined {
-    return this.viewport.getDefaultVOIRange?.(dataId);
+    return this.viewport.getDefaultVOIRange?.(this.resolveDataId(dataId));
   }
 
   getColormap(displaySetInstanceUID: string): ViewportColormap | undefined {
     return this.getPresentation(displaySetInstanceUID).colormap;
   }
 
+  /**
+   * Merges the opacity into the stored colormap, which keeps its name and
+   * threshold. When the layer has opacity points by value (the ramp of the
+   * PET of a fusion), the opacity scales them, as on the legacy volume
+   * viewport: each point is drawn at `opacity` times its own. Points stored
+   * as a list in `opacity`, as a hanging protocol gives them, become the
+   * `opacityMapping` of the colormap, so that the number does not replace
+   * them. A layer without points gets the opacity as it is.
+   */
   setLayerOpacity(displaySetInstanceUID: string, opacity: number): boolean {
-    // Merge the opacity into the existing colormap so its name/threshold persist,
-    // targeting the binding by its dataId (the bare display set UID). A uniform
-    // (flat) opacity makes the slider a linear background<->foreground blend,
-    // matching the flat default presentation set by the fusion hanging protocol.
-    const currentColormap = this.getPresentation(displaySetInstanceUID).colormap ?? {};
-    this.setPresentation({ colormap: { ...currentColormap, opacity } }, displaySetInstanceUID);
+    const { opacity: storedOpacity, ...currentColormap } =
+      this.getPresentation(displaySetInstanceUID).colormap ?? {};
+    const opacityMapping = isOpacityPoints(storedOpacity)
+      ? storedOpacity
+      : currentColormap.opacityMapping;
+    const colormap = opacityMapping
+      ? { ...currentColormap, opacityMapping, opacity }
+      : { ...currentColormap, opacity };
+
+    this.setPresentation({ colormap }, displaySetInstanceUID);
     return true;
   }
 
@@ -189,16 +209,41 @@ export class ViewportAdapter implements IViewportAdapter {
   // ---- data addressing ----
 
   getDataIdForDisplaySet(displaySetInstanceUID: string): string | undefined {
-    const shown = this.viewport.getDisplaySets?.();
-    if (shown?.length && !shown.some(entry => entry.displaySetId === displaySetInstanceUID)) {
-      return undefined;
+    const shown = this.getShownDataIds();
+    if (!shown.length) {
+      return displaySetInstanceUID;
     }
 
-    // Native viewports key their per-display-set presentation by the bare display
-    // set UID (the dataId used by get/setDisplaySetPresentation). Returning it
-    // directly keeps fusion layer reads on the intended binding instead of falling
-    // back to the active source layer.
-    return displaySetInstanceUID;
+    return this.findShownDataId(shown, displaySetInstanceUID);
+  }
+
+  /**
+   * The data id of the binding that an id names on this viewport: the id when
+   * a binding has it, else the binding of the display set whose UID it is (a
+   * display set shown under a data id of its own, `<uid>::stack`), else the id
+   * as it is. Callers address a binding by its data id or by the UID of its
+   * display set.
+   */
+  private resolveDataId(id?: string): string | undefined {
+    if (!id) {
+      return id;
+    }
+
+    return this.findShownDataId(this.getShownDataIds(), id) ?? id;
+  }
+
+  /** The data ids of the display sets that the viewport shows. */
+  private getShownDataIds(): string[] {
+    return this.viewport.getDisplaySets?.()?.map(entry => entry.displaySetId) ?? [];
+  }
+
+  /** Among shown data ids, the id itself, or else the one of the display set whose UID it is. */
+  private findShownDataId(shown: string[], id: string): string | undefined {
+    if (shown.includes(id)) {
+      return id;
+    }
+
+    return shown.find(dataId => getDisplaySetUIDForDataId(dataId) === id);
   }
 
   getVolumeIds(): string[] {

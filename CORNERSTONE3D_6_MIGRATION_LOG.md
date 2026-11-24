@@ -394,6 +394,18 @@ failed first, a build, or a run that is named).
     only in the target viewport and preserve other viewport orientations", has its 3D
     pane right now (M32) and fails for M42, an OHIF cause that is not small
     (`laneU6/pw/run-full.json`, `laneU6/pw/run-full.tsv`).
+  - This branch on 6.0 after package U7, on cornerstone `1b3b2247e`: 243 pass, 0 fail, 4
+    skipped (the four `test.skip` of TMTV), 6 workers. Against the run after package U6: 0
+    new, 1 no longer failing: `SEGHydrationFrom3DFourUp` "should hydrate SEG only in the
+    target viewport and preserve other viewport orientations" (M42), against its baselines.
+    No baseline picture was updated (`laneU7/pw/run-full-6.json`, `run-full-6.tsv`). A run
+    before it with Playwright's default of 12 workers on this Mac (24 cores) failed 4:
+    three clicks of the layout menu of 3D specs timed out (`3DOnly`,
+    `SEGHydrationFrom3DFourUp` "should properly hydrate", `SEGHydrationThen3DOnly`) and
+    `LivewireContourSegmentation` "should keep two disjoint Livewire contours separate"
+    saw 8 handles where it waits for 3. All four pass alone, twice each, and in the run
+    with 6 workers (`laneU7/pw/run-full.json`, `four-alone.json`): the load of 12 workers,
+    not the change. The runs of this log are with 6 workers.
 - **Why:** the next path was never the path of the test suite (M7). The 13 throws and
   some timeouts were OHIF's tests of the legacy viewport type (M8). The rest is not
   sorted yet. Three pictures read so far show three causes: a 3D volume is drawn about
@@ -407,8 +419,9 @@ failed first, a build, or a run that is named).
   test), then each group of step 9: a picture change that the cornerstone guide names
   gets a new baseline with the guide line; anything else is a defect, fixed in OHIF or
   in cornerstone with a test.
-- **State:** open: 1 test fails, for M42 (OHIF, not small). The 4 that waited for
-  cornerstone after package U4 are settled: 3 pass, and the fourth now fails for M42. The 15 of the run
+- **State:** open for CI (step 9): on this Mac every test passes after package U7 (243 pass,
+  4 skipped). The 4 that waited for cornerstone after package U4 are settled: 3 pass after
+  package U6, and the fourth after package U7 (M42). The 15 of the run
   after package U3, with the run after package U4:
 
 | Spec | Test | On 6.0 after U4 | On 6.0 after U3 |
@@ -707,7 +720,8 @@ failed first, a build, or a run that is named).
 - **Left as it is:** the registry still keeps a volume registration of a data id for a
   later stack mount of the same display set (a stack opened after its MPR, in another
   viewport, is drawn as a volume slice). Not seen in a failing test. Step 11. Seen in a
-  failing test in package U6, once M32 was fixed: M42.
+  failing test in package U6, once M32 was fixed: M42, fixed in package U7 (a data id for
+  each shape).
 - **Also explained by it:** `LabelMapSegmentationColorChange.spec.ts` ("does not
   change the labelmap segment color when the user cancels"),
   `SEGNoHydrationThenMPR.spec.ts` and `SegAcrossViewportTypes.spec.ts` ("keeps the
@@ -1297,17 +1311,68 @@ failed first, a build, or a run that is named).
   another pane (an MPR, a 3D layout) is drawn as a volume slice: the slice of an RTSTRUCT
   or a SEG, the window level drag (M38) and the texture of the volume (reduced with
   `lossyDownsampling`) follow the volume.
-- **Fix, in OHIF:** to do, not small. A stack mount needs a data id of its own when its
-  display set is registered as a volume (for example `${displaySetInstanceUID}::stack`,
-  as the overlays have `::overlay`). The adapter (`getDataIdForDisplaySet`,
-  `setLayerOpacity`, the presentation calls), `useViewportRendering`, the window level
-  panel and the view references of measurements read the data id as the display set UID,
-  so each of them changes with it. Replacing the registration at the stack mount is not
+- **Fix, in OHIF (package U7):** a mount gets a data id of its own while its display set
+  is registered for the other shape. Replacing the registration at the stack mount is not
   a fix: a mounted planar viewport reads its registration again after the mount
   (`PlanarViewport.getDataSet`, eight places, the render path decision among them), so
   the MPR panes would lose their volume.
-- **Fix, in cornerstone:** none needed; the guide's model has one id for each.
-- **State:** open, for the owner (not small). The test fails.
+  - **One home:** `utils/displaySetDataId.ts`. `getDataIdForShape(uid, shape, shapeOfUID)`
+    names the data id of a display set for a shape (`stack` or `volume`), and
+    `getDisplaySetUIDForDataId(dataId)` gives the display set UID back.
+  - **The scheme:** a display set keeps its UID as data id. Only while the UID is
+    registered for the other shape does a mount get `<uid>::stack` or `<uid>::volume`, as
+    `::overlay` was reserved for an overlay. Why: a series shown one way (every stack of
+    the basic viewer, every MPR, the TMTV panes, a 3D view) keeps its UID, its
+    registration, its removal at the last release and the data id in its annotations, as
+    before. Only a series shown both ways at once has a second data id. A fixed suffix per
+    shape would change the data id of every stack (or of every volume) for a case that
+    needs both at once. Measured: after a stack, an MPR of its series gets the UID (the
+    stack pane is released first), and so does the stack again after the MPR.
+  - **The registry:** `DataIdRegistry.register(viewportId, displaySetInstanceUID, payload)`
+    gives the data id to mount by. A payload never replaces a registration of another
+    shape: `promotesToVolume` is gone (a volume payload replaced a stack one under a data
+    id that a stack viewport was bound to: the cause of this entry and of the same effect
+    in one pane, a stack shown after its MPR in that pane). The unused
+    `DataIdRegistry.dataIdFor` (the `::overlay` scheme) is gone: the helper is the one
+    home. The registry keeps the registrations that a reference can name: M51.
+  - **The readers:** the backend mounts and addresses the presentations of a volume by the
+    data id that the registry gives; the ECG, video and slide mounts track the display set
+    UID in the service bookkeeping (they tracked the data id, the same value until now).
+    The adapter resolves the id given to `getPresentation`, `setPresentation` and
+    `getDefaultVOIRange`, a data id or the UID of a display set that shows under a data id
+    of its own, to that binding. So `getColormap`, `setLayerOpacity` (the fusion slider,
+    and the window level panel, which gives it a data id), `setLayerThreshold`,
+    `getBlendMode` and the viewport operations `setWindowLevel` and `setColormap` reach
+    the binding as they are. `getDataIdForDisplaySet` gives the data id under which the
+    viewport shows the display set (so `useViewportRendering` and the colour bar). The
+    window level panel reads its data ids from cornerstone (`findDataIdByVolumeId`). No
+    other reader: a search of `dataId`, `displaySetId`, `getSourceDataId` and
+    `getDisplaySets` over tracked and untracked files, and the type check (the signature of
+    `registerDataId` changed). The view references of measurements carry the data id
+    into cornerstone, which reads its registration (M51); OHIF reads no data id from them.
+  - **OHIF's migration page** (`cornerstone3d-6.md`), point 5 for extension authors: a
+    data id is the display set UID, or `<uid>::stack` / `<uid>::volume`; ask the adapter.
+- **Fix, in cornerstone:** none for the scheme; the guide's model has one id for each. The
+  references are M51.
+- **State:** fixed in package U7 (not committed yet). Checks:
+  - jest: `utils/displaySetDataId.test.ts` (5 tests), `backends/dataIdRegistry.test.ts` (10
+    tests: a stack mount after a volume one, a volume mount after a stack one, the same
+    display set in both at once, the remounts; 9 failed on the registry of `2f4718f986`,
+    `laneU7/jest-registry-before.log`), `ViewportBackend.test.ts` "the data id of a mount"
+    (2 tests, both failed first), `IViewportAdapter.contract.test.ts` (3 tests; 2 failed
+    first, the third guards a call by data id, `laneU7/jest-adapter-backend-before.log`).
+  - Playwright: `SEGHydrationFrom3DFourUp.spec.ts` passes, both tests, against their
+    baselines, no new picture; "preserve other viewport orientations" three times in a row
+    (`laneU7/pw/m42.json`, `m42-repeat.json`). The 38 specs that move a series between a
+    stack and a volume (data overlays, SEG and RTSTRUCT over MPR, M22, M29, M34, TMTV, 3D):
+    50 pass, 4 skipped (`laneU7/pw/item1-subset.json`).
+  - In the viewer, against 5.18.3, basic mode, the CT of the test study "PETCT"
+    (`laneU7/specs/refs.spec.ts`, `laneU7/probes/refs-*.json`): the CT shown as a stack
+    after its MPR in the same pane is a stack on image 87 of 174 (before: a volume slice);
+    a 1x2 grid with the CT as a stack and as an axial volume, the stack shown again after
+    the volume is a stack (before: a volume slice). A length drawn on the stack and one
+    drawn on the volume are drawn on both panes and each jump lands on its slice (30, 20,
+    71, 62 of 174, as on 5.18.3), also after the pane of the other shape is gone.
 
 ## M43. A jump to an empty segment put every pane on slice NaN
 
@@ -1388,11 +1453,60 @@ failed first, a build, or a run that is named).
   layer with a numeric opacity is drawn as given. It does not cover this: the number
   here is OHIF's choice in place of the ramp. The brighter CT in the same panes is
   named ("An opaque slice of a volume is drawn at its window").
-- **Fix, in OHIF:** the owner's call. The 5.x look needs the ramp back and an opacity
-  slider that scales the ramp (the slider of the fusion writes one number today,
-  `setLayerOpacity`). Not done here.
-- **Fix, in cornerstone:** none.
-- **State:** open, for the owner.
+- **What the slider did on 5.18.3 (read in `master`, measured):** the legacy
+  `setLayerOpacity` wrote a number into the colormap that `getProperties()` gave back as
+  `{ opacity: <overall>, opacityMapping: <ramp> }`, and the volume viewport drew each
+  point of the ramp at the number times its opacity (`updateOpacityMapping`). The slider
+  opens at 1 and shows the ramp as it is. Its position went through a gamma of 1/5 (the
+  legacy blend drew an opacity weaker): 50% wrote 0.87.
+- **Fix, in OHIF (package U7):**
+  - The TMTV hanging protocol gives the PET of the three fusion panes the ramp of
+    `master` again (`hsv`, `[{ value: 0, opacity: 0 }, { value: 0.1, opacity: 0.8 },
+    { value: 1, opacity: 0.9 }]`, `extensions/tmtv/src/utils/hpViewports.ts`; the comment
+    of `master` about the legacy and next paths is gone with them).
+  - The slider scales the ramp: `ViewportAdapter.setLayerOpacity` keeps the opacity points
+    of the layer as the `opacityMapping` of the colormap (a list stored in `opacity`, as
+    the hanging protocol gives it, moves there) and writes the number as `opacity`.
+    Cornerstone draws `opacity` times each point (`ColormapPublic` of 6.0). Without this a
+    number replaced the ramp (M52). The gamma of the slider stays 1 (a planar viewport
+    draws the opacity as given), so 100% gives the ramp as it is and 50% each point at
+    half.
+  - The slider reads a ramp drawn as given as 1 (`resolveOpacityScalar`; it read the
+    highest point, 0.9), as 5.18.3 read it back.
+  - `FUSION_PT_OPACITY` (an export of `@ohif/extension-cornerstone`, `NEXT_FUSION_PT_OPACITY`
+    in 3.13) has no user left and is removed; OHIF's migration page says so.
+- **Fix, in cornerstone:** none for this entry; the merge of a list in `opacity` is M52.
+- **What stays different from 5.18.3, named by the guide:** the ramp is drawn with its
+  opacities as given ("A labelmap fill is drawn with the configured alpha": "the same holds
+  for a colour layer with a numeric opacity, such as the PET layer of a fusion"; and the
+  table of presentations in `2-rendering-changes.md`: "the opacities between 0 and 1 show
+  as given. The legacy viewport drew them weaker"). So a hot spot is redder, and PET noise
+  in the air (0.02 SUV) shows a faint red. The guide's `petColorMapPresentation()` gives
+  weaker points for the legacy look; not used here, as the package asked for the ramp of
+  `master`. The owner can choose them.
+- **State:** fixed in package U7 (not committed yet). Checks:
+  - jest: `IViewportAdapter.contract.test.ts` "setLayerOpacity scales a ramp that a hanging
+    protocol gives as a list in opacity" (failed first) and "keeps the opacity mapping that
+    it scaled before"; `utils/resolveOpacityScalar.test.ts` (3 tests, 2 failed first;
+    `laneU7/jest-item2-before.log`).
+  - In the viewer, TMTV mode, the test study "LUNG DELAYS", the axial fusion pane on the
+    same slice on both (`laneU7/specs/fusion.spec.ts`, `laneU7/probes/fusion-*.json`; the
+    slider driven through its menu, 100%, 50%, 0%):
+
+    | | 5.18.3 | 6.0 before | 6.0 now |
+    |---|---|---|---|
+    | colormap of the PET at the start | the ramp, overall 1 | flat 0.4 | the ramp |
+    | the slider when it opens | 1 | 0.4 | 1 |
+    | most common colour of the pane | black, 67% | (96, 0, 0), 71% | black, 60% |
+    | a pixel of air with PET 0.024 SUV | (7, 0, 0) | (102, 0, 3) | (49, 0, 1) |
+    | the hottest PET voxel of the slice (9.7 SUV), 100% | (166, 102, 102) | (184, 82, 82) at 0.4; (255, 0, 0) at 1 | (243, 14, 14) |
+    | the same, slider at 50% | (157, 112, 112) (0.87 × ramp) | (196, 68, 68) (flat 0.5) | (190, 75, 75) (0.5 × ramp) |
+    | slider at 0% | the CT alone, (136, 136, 136) | the same | the same |
+
+    The sagittal and coronal fusion panes start with the ramp too.
+  - Playwright: the TMTV specs that run pass (`TMTVCSVReport`, `TMTVSUV`); the other four
+    are `test.skip` in their sources, as on `master`, and the suite has no TMTV picture, so
+    no baseline changes (`laneU7/pw/tmtv.json`).
 
 ## M46. The ultrasound pleura and B-line tool throws before the first image is drawn
 
@@ -1505,3 +1619,87 @@ failed first, a build, or a run that is named).
   that gives nothing with the CPU backend; then decide where it belongs. The export could
   also say so when a segment has no statistics (the same code on `master`).
 - **State:** open, cause not found.
+
+## M51. A planar viewport takes a reference of other data only while that data is registered
+
+- **Seen (package U7, with M42):** a 1x2 grid with the CT of the test study "PETCT" as a
+  stack and as an axial volume (data ids `<uid>` and `<uid>::volume`), a length drawn on
+  the volume, then the volume pane removed (layout 1x1). A jump to the length from the
+  measurement panel: with the registration of `<uid>::volume` taken out in the page, the
+  stack pane is made a volume to show it; 5.18.3 goes to the image in the stack. The other
+  way (a length drawn on the stack `<uid>::stack` beside an MPR, then only the axial
+  volume left): with `<uid>::stack` taken out, the volume does not move; 5.18.3 goes to
+  the slice (`laneU7/probes/refs-gone-v6-whatif-nokeep.json`, `refs-gone-base.json`).
+- **Why:** the metadata of an annotation is the view reference of its pane, with its data
+  id (and its volume id when drawn on a volume). A planar viewport whose bindings have
+  neither takes the reference only through `isOtherDataReferenceViewable`
+  (`genericViewportReferenceCompatibility.ts`), which needs the image ids of the data of
+  the reference: its registration, or its volume in the cache. The legacy viewports had
+  no data ids: a stack took a reference by its image, a volume by its frame of reference,
+  plane and image.
+- **Smallest case**, cornerstone calls only (`laneU7/specs/unregistered.spec.ts`,
+  `laneU7/probes/unregistered-*.json`): the CT stack on image 40 of 174, `ref` the view
+  reference of the same stack taken on image 10, asked with `{ withNavigation: true }`:
+
+  | The reference | 5.18.3 (legacy stack) | 6.0 |
+  |---|---|---|
+  | `ref` as it is (the data id of the stack on 6.0) | true | true |
+  | `ref` without a data id | true | true |
+  | `ref` with a data id that is not registered | true | **false** |
+  | the same data id, registered with the image ids of the stack | | true |
+  | `ref` without a data id, with the volume id of the CT (not in the cache) | true | **false** |
+
+- **The guide:** the rows of `setStack()` and `setVolumes()` in `3-api-map.md` register a
+  stack and a volume under a display set id each, so a series shown both ways at once has
+  two. It does not say that a reference of one is taken on the other only while the first
+  is registered, or that the application keeps that registration.
+- **Fix, in OHIF:** the registry keeps the registrations that a reference can name (M42):
+  the UID of a display set while any data id of it is registered, and the data id of a
+  second shape until the service is destroyed (one payload of image ids each). The
+  checks of M42 in the viewer pass with it.
+- **Fix, in cornerstone:** to do: a reference of data that is not registered (or not in
+  the cache) is decided by its image, as on the legacy viewports; or the guide says that
+  an application keeps the registration of a data id while references to it can be shown.
+  With the first, OHIF's registry could release the data id of a second shape at its last
+  viewport again.
+- **State:** the OHIF part is fixed in package U7 (not committed yet); the cornerstone part
+  is open.
+
+## M52. A list of opacities in `colormap.opacity` takes the place of the overall opacity
+
+- **Seen (package U7, with M45):** TMTV mode, the opacity slider of a fusion pane at 50%,
+  then the colour map of the PET set again (`setViewportColormap`, which gives the ramp of
+  the hanging protocol again as a list in `opacity`): on 5.18.3 the ramp stays at 0.87 and
+  the slider at 50%; on 6.0 the ramp is drawn at 1 and the slider shows 100%
+  (`laneU7/probes/fusion-v6-colormap.json`, `fusion-base-colormap.json`).
+- **Why:** on 5.18.3 a list in `colormap.opacity` set the opacity mapping of the volume and
+  kept its overall opacity, and a number set the overall and kept the mapping
+  (`_applyColormapOpacity`, `updateOpacityMapping`, `updateOpacity` of 5.x);
+  `getProperties()` gave `{ opacity: <overall>, opacityMapping }` back. A planar viewport of
+  6.0 stores the presentation as it is set and merges a colormap one level deep, so the
+  list and the number share the key `opacity`: each replaces the other.
+- **Smallest case**, cornerstone calls only, the PET of the axial fusion pane of that
+  study (`laneU7/specs/ramp2.spec.ts`, `laneU7/probes/ramp2-*.json`;
+  `setDisplaySetPresentation(id, { colormap })` on 6.0, `setProperties({ colormap }, id)`
+  on 5.18.3; `ramp` the list of M45):
+
+  | Step | 5.18.3: the colormap read back, a cold pixel (PET 0.024) | 6.0 |
+  |---|---|---|
+  | `{ name: 'hsv', opacity: ramp }` | `{ opacity: 1, opacityMapping: ramp }`, (7, 0, 0) | `{ opacity: ramp }`, (49, 0, 1) |
+  | then `{ opacity: 0.5 }` | `{ opacity: 0.5, opacityMapping: ramp }`, (3, 0, 0) | `{ opacity: 0.5 }`: **the ramp is gone**, (128, 0, 3) |
+  | then `{ name: 'hsv', opacity: ramp }` | `{ opacity: 0.5, opacityMapping: ramp }` | `{ opacity: ramp }`: **the scale is 1 again** |
+
+- **The guide:** `2-rendering-changes.md` says "A list in `colormap.opacity` is read as
+  `colormap.opacityMapping`, as on the legacy volume viewport" and "A number in `opacity`
+  after opacity points multiplies the points". With the points given as a list in
+  `opacity` a number replaces them.
+- **Fix, in cornerstone:** to do: a list in `colormap.opacity` is stored as
+  `opacityMapping` and keeps the stored number in `opacity`, as on 5.x; or the guide says
+  that the points go in `opacityMapping` and a list in `opacity` replaces the number.
+- **Fix, in OHIF:** none (rule 3). The opacity slider does not depend on it: since M45
+  `setLayerOpacity` writes the points as `opacityMapping` and the scale as `opacity`. If
+  cornerstone stores a list as `opacityMapping`, a colormap without a number in `opacity`
+  reaches the slider, which reads it as unset (`resolveOpacityScalar` takes the value of
+  `opacity`): it should then read an `opacityMapping` without `opacity` as 1.
+- **State:** open, waits for cornerstone. What a user sees: after a change of the colour
+  map of the PET of a fusion, the opacity slider is back at 100%.

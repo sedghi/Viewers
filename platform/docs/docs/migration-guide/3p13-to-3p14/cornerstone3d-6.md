@@ -61,6 +61,14 @@ of the data (a stack or a volume) itself.
    viewport with its class (`PlanarViewport`, `VolumeViewport3D`,
    `VideoViewport`, `WSIViewport`, `ECGViewport`) where you call a member of that
    class, for example `renderingEngine.getViewport<PlanarViewport>(viewportId)`.
+5. A viewport names each display set that it shows by a data id
+   (`viewport.getDisplaySets()`, `getSourceDataId()`, the `dataId` of a view
+   reference and of the metadata of an annotation). The viewer uses the display
+   set UID, except while a series shows as a stack in one viewport and as a
+   volume in another: the second of the two then has `<uid>::stack` or
+   `<uid>::volume`. Do not take a data id for a display set UID. Give the
+   adapter the display set UID (its presentation calls find the display set's
+   data id), or ask it with `getDataIdForDisplaySet(displaySetInstanceUID)`.
 
 ## Removed and renamed exports of `@ohif/extension-cornerstone`
 
@@ -68,7 +76,7 @@ of the data (a stack or a volume) itself.
 |---|---|
 | `isNextViewportsEnabled()` | Removed. There is one path: keep the code of its `true` branch. |
 | `isNextViewport(viewport)` | Removed. Every viewport is a Cornerstone3D 6 viewport. |
-| `NEXT_FUSION_PT_OPACITY` | `FUSION_PT_OPACITY` |
+| `NEXT_FUSION_PT_OPACITY` | Removed. The PET of the TMTV fusion has its opacity ramp by SUV again, as in 3.13 without `?useNextViewports`, and the opacity slider scales the ramp. |
 | `NEXT_OVERLAY_OPACITY` | `OVERLAY_OPACITY` |
 
 The classes behind the adapter and the services have plain names now. The
