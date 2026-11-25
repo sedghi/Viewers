@@ -1,6 +1,6 @@
 import { eventTarget, EVENTS } from '@cornerstonejs/core';
 import { Enums } from '@cornerstonejs/tools';
-import { setEnabledElement } from './state';
+import { removeEnabledElement, setEnabledElement } from './state';
 import { findNearbyToolData } from './utils/findNearbyToolData';
 
 const cs3DToolsEvents = Enums.Events;
@@ -81,8 +81,9 @@ function initContextMenu({
   }
 
   function elementDisabledHandler(evt) {
-    const { element } = evt.detail;
+    const { viewportId, element } = evt.detail;
 
+    removeEnabledElement(viewportId, element);
     element.removeEventListener(cs3DToolsEvents.MOUSE_CLICK, cornerstoneViewportHandleClick);
   }
 

@@ -10,7 +10,6 @@ import {
   metaData,
   volumeLoader,
   imageLoadPoolManager,
-  getEnabledElement,
   Settings,
   utilities as csUtilities,
 } from '@cornerstonejs/core';
@@ -33,6 +32,7 @@ import nthLoader from './utils/nthLoader';
 import interleaveTopToBottom from './utils/interleaveTopToBottom';
 import initContextMenu from './initContextMenu';
 import initDoubleClick from './initDoubleClick';
+import initCameraReset from './initCameraReset';
 import initViewTiming from './utils/initViewTiming';
 import initGpuSettingsPreset from './utils/initGpuSettingsPreset';
 import { colormaps } from './utils/colormaps';
@@ -307,19 +307,11 @@ export default async function init({
     return allDisplaySets.find(ds => ds.imageIds?.some(id => imageIds.includes(id)));
   };
 
+  initCameraReset({ commandsManager });
+
   function elementEnabledHandler(evt) {
     const { element } = evt.detail;
     initViewTiming({ element });
-
-    element.addEventListener(EVENTS.CAMERA_RESET, evt => {
-      const { element } = evt.detail;
-      const enabledElement = getEnabledElement(element);
-      if (!enabledElement) {
-        return;
-      }
-      const { viewportId } = enabledElement;
-      commandsManager.runCommand('resetCrosshairs', { viewportId });
-    });
   }
 
   eventTarget.addEventListener(EVENTS.ELEMENT_ENABLED, elementEnabledHandler.bind(null));

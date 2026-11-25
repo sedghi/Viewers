@@ -14,12 +14,13 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (25 November, tasks O9 and O9b)
+## Summary (25 November, tasks O9, O9b and O10)
 
-The state of every entry today, on the branch at `ca046b21d2` (task O9) plus the log
-entries of task O9b (not committed yet). Task O9 checked the entries on the Cornerstone3D
-link at `735fc811e`; task O9b moved the link to `28dd3ab33`, the final head of the
-unified API plan, checked M71 there and ran jest and the Playwright suite again on it.
+The state of every entry today, on the branch at `b7e4ae19a2` (task O9b) plus the work
+of task O10 (not committed yet). Task O9 checked the entries on the Cornerstone3D link at
+`735fc811e`; task O9b moved the link to `28dd3ab33`, the final head of the unified API
+plan, checked M71 there and ran jest and the Playwright suite again on it; task O10 fixed
+OHIF's two open entries (M74, M75) on that link and found M76.
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -39,7 +40,7 @@ not a defect.
 | M11 | A labelmap asked for on a 3D viewport was not made a surface | OHIF + Cornerstone | fixed `e5881fc1a7` and in cornerstone (C5, its row 127) |
 | M12 | The initial image of a protocol was not applied to a volume | OHIF | fixed `8f7232418c` |
 | M13 | The type comparison counted paths of the linked checkout as errors | OHIF method + Cornerstone | fixed: the comparison; the declaration paths in cornerstone (C2, row 114); O9: no such error on the link |
-| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`); the run in CI open, waits for the owner (open point 2 of the plan) |
+| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link); the run in CI open, waits for the owner (open point 2 of the plan) |
 | M15 | An optional call of a legacy member failed without a sign | OHIF | fixed `8f7232418c`; the Cornerstone guide names it (step by step) |
 | M16 | Three places did the same thing twice after the codemod | OHIF + Cornerstone codemod | OHIF fixed `8f7232418c`; open for cornerstone: a report of a rewrite that duplicates a line (small) |
 | M17 | The window level panel had no rows | OHIF | fixed `67ab3444fd` (M61) |
@@ -99,21 +100,22 @@ not a defect.
 | M71 | A destroyed stack viewport keeps its prefetch listener | Cornerstone | fixed in cornerstone `28dd3ab33` (FX6), checked in O9b |
 | M72 | On the CPU a jump to a measurement pushed the image out of the pane | OHIF | fixed `ca046b21d2` (O9) |
 | M73 | The PET axial pane of TMTV showed its slice without the instance number | OHIF | fixed `ca046b21d2` (O9) |
-| M74 | A volume of a display set that grew while no viewport showed it keeps its first images | OHIF | open, OHIF; the same on `master` |
-| M75 | OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it | OHIF | open, OHIF (small: holds nothing); the same on `master` |
+| M74 | A volume of a display set that grew while no viewport showed it keeps its first images | OHIF | fixed in task O10 (not committed yet); `master` has it too |
+| M75 | OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it | OHIF | fixed in task O10 (not committed yet), with the element state that held destroyed elements; `master` has it too |
+| M76 | Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed | OHIF | open, OHIF (small: one listener per mode entry, holds no element); the same on `master` |
 
-**The count.** 75 entries; 8 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69), so the upgrade met **67 problems**:
+**The count.** 76 entries; 8 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69), so the upgrade met **68 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
 | Cornerstone3D (the library, its codemod or its guide) | 29 | 26, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b) | 3: M41, M46, M48, each waits for cornerstone | |
-| OHIF (23 in its code, 6 in its tests) | 29 | 26 in OHIF (M70, M72 and M73 in `ca046b21d2`, task O9) | 2: M74 and M75, OHIF's, both the same on `master` | 1: M19 |
+| OHIF (24 in its code, 6 in its tests) | 30 | 28 in OHIF (M74 and M75 in task O10, not committed yet) | 1: M76, the same on `master` | 1: M19 |
 | Both | 8 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
 | Cause not found | 1 (M50) | closed by measurement in task O9 | | |
 
 Open today: **M14** (waits for the owner: the Playwright run in CI), **M41, M46, M48**
-(wait for cornerstone), **M74, M75** (OHIF), and three small asks of Cornerstone3D in
+(wait for cornerstone), **M76** (OHIF, small), and three small asks of Cornerstone3D in
 M10, M16 and M27 whose OHIF part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
@@ -2946,14 +2948,80 @@ M10, M16 and M27 whose OHIF part is done.
   The invalidation of a display set's metadata makes the volume again only for a viewport
   that shows it then; a stack mount reads the image ids of the data source again (task O2)
   and does not forget the kept volume.
-- **Fix, in OHIF:** to do: at a volume mount, make the volume again when the image ids of
-  the data source differ from the kept ones. Not done in task O9: the rule touches the
-  volumes of a dynamic display set, a computed display set made in the client and a volume
-  that another viewport still shows, and the case is on `master` too. OHIF's page of the
-  display set store said that a grown display set shows its new images at its next mount;
-  it now says so of a stack mount only.
+- **Why, more (task O10):** two more paths kept the old volume. The image ids of a volume
+  mount came from `displaySet.imageIds` first, which a display set keeps from its last
+  mount, so a display set that grew read its old image ids. And a stack invalidation
+  forgot the kept image ids (`_refreshImageIds`) while the volume stayed in the cache, so
+  the next volume mount found a volume and nothing to compare it with. The invalidation of
+  a volume that a viewport shows took the id `cornerstoneStreamingImageVolume:<uid>` for
+  every display set, so a dynamic volume (`cornerstoneStreamingDynamicImageVolume:<uid>`)
+  was not made again; and when two viewports showed the volume, each one took the volume
+  out of the cache, the second one the volume that the first had just made.
+- **The rule (task O10):** the volume of a display set is valid for the image ids it was
+  made from. At each volume mount the cache service reads the image ids of the display
+  set (from the data source for a display set of instances; the display set's own
+  `imageIds` for one made in the client with no instances, which does not grow) and
+  compares them, as a set, with those its volume was made from. When they differ, or the
+  volume id differs (the display set moved to the dynamic volume loader when its second
+  time point arrived), the old volume goes and the new one is made under the id. A volume
+  that no viewport shows is removed from the cache (`removeVolumeLoadObject`: its loads
+  stop, its data is freed); one that a viewport still shows only leaves the index of the
+  cache, as the invalidation did before, and that viewport mounts the display set again on
+  the change (`DISPLAY_SET_SERIES_METADATA_INVALIDATED`). The kinds the rule touches:
+  - a 4D dynamic volume: its image ids are all the time points; a time point that arrives
+    makes the volume again, and the static volume made before the second time point
+    leaves the cache with it (the commands that look a dynamic volume up by a part of its
+    id found the first key that held the display set's UID);
+  - a volume made in the client: the parametric map keeps the volume its load makes (it is
+    outside the rule, as before), and the computed display set of the dynamic volume panel
+    keeps its own `imageIds`, so its volume is taken as it is and never replaced;
+  - a volume that two viewports show: each viewport's invalidation takes the volume out
+    only while the cache still holds the volume that this viewport shows, so the second
+    viewport takes the volume the first one made; in a fusion only the display set that
+    grew gets a new volume. Two display sets never share one volume id in OHIF (the id
+    holds the display set's UID).
+  What hangs on the volume follows by itself: OHIF's labelmaps are made from the image ids
+  of the display set and reference images, not the volume; the LUT presentation is keyed
+  by the display set's UID and the position presentation is a view reference and a
+  framing, which stay valid with the new volume under the same id.
+- **Fix, in OHIF (task O10):** `CornerstoneCacheService.ts`. What replaced what:
+  `volumeImageIds` (display set to the image ids of its volume, forgotten at every
+  invalidation) is `madeVolumes` (display set to the volume id and the image ids it was
+  made from, kept as long as that volume); the mount through `createAndCacheVolume` only
+  while the kept ids existed is `_getVolume` (drops the made volume when its id or image
+  ids differ, notes the new one before it loads, then `createAndCacheVolume`);
+  `_getCornerstoneVolumeImageIds` reads the data source first (it read
+  `displaySet.imageIds` first); the `cs3DCache._volumeCache.delete` of the invalidation is
+  `_dropVolume` (`removeVolumeLoadObject` when no viewport shows the volume,
+  `utilities.getViewportsWithVolumeId`; out of the index only when one does); the
+  invalidation takes the volume that the viewport shows, with its own id, and only while
+  the cache still holds it; `_refreshImageIds` no longer forgets the made volume. OHIF's
+  page of the display set store (`display-set-store.md`) says the rule.
 - **Fix, in cornerstone:** none.
-- **State:** open, OHIF, the same on `master`.
+- **Checks (task O10):**
+  - `CornerstoneCacheService.test.ts`, 13 new tests; 10 failed first (lane O10
+    `jest-m74-failfirst.log`): a volume and a 3D mount of a display set that grew while no
+    viewport showed it; one that grew while shown as a stack elsewhere; a fusion with one
+    grown display set; a dynamic volume whose time point arrived; a display set that moved
+    from the static to the dynamic loader (one volume of it left); the invalidation of a
+    dynamic volume on display; two viewports that show a volume, one new volume for both;
+    a volume still shown is not destroyed; and a display set grown by the real
+    `DisplaySetService` (split rules, `extendInstances`, one invalidation event). Three
+    guards pass before and after: the same image ids in another order keep the volume, and
+    the computed volume of the dynamic panel and the volume of a parametric map are never
+    replaced. 32 of 32 pass.
+  - In the viewer (lane O10 `specs/m74Growth.spec.ts`, `cases/m74-growth/`): the `LIVER 3
+    PHASE` study with `?customization=split/enableNewSplit` (without the split rules a
+    series that arrives in two parts makes a second display set: the stack SOP class
+    handler has no `addInstances`). The first metadata response of "Recon 3" (79 images)
+    is cut to its first 55 by a route of the test; the display set is shown as an MPR
+    (55 slices), the pane gets another series, then the rest of the series arrives through
+    the data source (`deleteStudyMetadataPromise` and `retrieve.series.metadata` again: the
+    store adds the instances, `INSTANCES_ADDED`, `makeDisplaySets`, the display set grows by
+    `extendInstances`, one invalidation, still one display set) while no viewport shows it.
+    The next MPR: 79 slices in the three panes on this branch, one volume of the display
+    set in the cache; 55 slices on this branch without the fix and on `master`.
+- **State:** fixed in task O10 (not committed yet).
 
 ## M75. OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it
 
@@ -2965,11 +3033,84 @@ M10, M16 and M27 whose OHIF part is done.
   `elementEnabledHandler` in `extensions/cornerstone/src/init.tsx` runs at each
   `ELEMENT_ENABLED` and adds a `CAMERA_RESET` listener to the element (it runs
   `resetCrosshairs`); nothing removes it. `master` has the same code.
-- **What it costs:** little. The listener is on the element, not on `eventTarget`, and it
-  holds only `commandsManager`, not the element or the viewport; a destroyed element that
-  nothing else holds is collected with it (19 of the 24 of M71's rounds were).
-- **Fix, in OHIF:** to do: remove the listener at `ELEMENT_DISABLED` (or add it with the
-  viewport's mount and remove it with its unmount). Not done in task O9b, which only checks
-  M71.
+- **What it costs:** more than O9b thought. The listener holds only `commandsManager`, but
+  it grows on a live element too (task O10, lane O10 `specs/listeners.spec.ts`,
+  `cases/listeners/`, the five layout rounds of M71): Cornerstone3D disables and enables
+  one element again when a pane changes between a stack and a volume (the 1x1 pane of the
+  rounds, 8 times in five rounds), and each enable added one more anonymous listener. The
+  pane had 2, 3, 5, 7, 9, 11 `CAMERA_RESET` listeners after the first load and each round
+  (one of the 2 of the first load is not OHIF's), so a reset of its camera ran
+  `resetCrosshairs` 10 times after the fifth round. `master` the same: 2, 3, 5, 7, 9, 11.
+- **What held the destroyed elements (task O10):** the 5 elements of M71's rounds still
+  alive after a forced garbage collection (2 of round 1, the 3 panes of the last round;
+  25 distinct elements disabled) were each held by OHIF's own element state:
+  `state.enabledElements[viewportId].element` (`extensions/cornerstone/src/state.ts`, read
+  by the TMTV commands and the download form for the active viewport). It is set at each
+  `ELEMENT_ENABLED` (by `initContextMenu` and by `OHIFCornerstoneViewport`) and was never
+  cleared: an entry was replaced only when a viewport of the same id was enabled again, so
+  `default` and the extra pane of the first 2x2 layout, ids that never come back after
+  round 1, kept their elements, and the 3 panes of the last round kept theirs until their
+  ids come back. Found by a heap snapshot after the forced collection: each element was
+  tagged with a marker object and its shortest strong retainer path read (lane O10
+  `markers.js`, `cases/listeners/before-m75/retainers.txt`).
+- **Fix, in OHIF (task O10):** the `CAMERA_RESET` listener moved from the
+  `ELEMENT_ENABLED` handler of `init.tsx` (an anonymous function made at each enable,
+  never removed) to `initCameraReset.ts`, which works as `initContextMenu` and
+  `initDoubleClick` do: one handler for every element, added at `ELEMENT_ENABLED` and
+  removed at `ELEMENT_DISABLED`. `initContextMenu`'s `ELEMENT_DISABLED` handler, where OHIF
+  already removes its click listener from a disabled element, now also forgets the element
+  of the viewport (`removeEnabledElement` in `state.ts`, only while the entry holds that
+  element, so a viewport id that moved to a new element keeps the new one).
+- **The rest of the pattern, looked at (task O10):** in `init.tsx`, `IMAGE_LOAD_FAILED`
+  and `ERROR` are added to `eventTarget` once at init; `initViewTiming` adds
+  `IMAGE_RENDERED` to an element only while the timing of the first images runs and
+  removes it at its first render, one module function, so an element enabled again does
+  not get it twice; an element disabled before its first render keeps it, holding nothing
+  (not changed). Over the five rounds no OHIF listener of `eventTarget` grows (63 from
+  round 1 on), the elements of the panes keep 55 listeners each round, `document` has
+  none of Cornerstone's types. One more growing listener was found by leaving the viewer
+  for the study list and opening it again: M76.
+- **Fix, in cornerstone:** none.
+- **Checks (task O10):**
+  - `initCameraReset.test.ts` (new): one reset per camera reset, also on an element
+    disabled and enabled again four times, none after the disable. Run on the code of
+    `init.tsx` moved as it was, it failed first (5 calls for 1, 1 call for 0; lane O10
+    `jest-m75-failfirst.log`).
+  - `initContextMenu.test.ts` (new): the element of a disabled viewport is forgotten, the
+    new element of a moved id is kept. The forget test failed first on the unchanged
+    `initContextMenu.ts`.
+  - In the viewer, the five rounds again: `CAMERA_RESET` on the pane 2 in every round, one
+    of them OHIF's (was 2, 3, 5, 7, 9, 11; the other one is there from the first load and
+    does not grow), the pane's 55 listeners flat, `eventTarget` flat at 63 from round 1;
+    of the 25 destroyed elements none is alive after the forced collection (was 5), and
+    no destroyed element has a listener left (the only alive element is the one the pane
+    still uses).
+- **State:** fixed in task O10 (not committed yet).
+
+## M76. Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed
+
+- **Seen (task O10, lane O10 `specs/modeRoundTrip.spec.ts`, `cases/mode-round-trip/`):**
+  the viewer left for the study list and opened again in the same page, three times:
+  `eventTarget` has 65, 66, 67, 68 listeners after each opening; the one type that grows is
+  `CORNERSTONE_TOOLS_TOOL_ACTIVATED` (2, 3, 4, 5), each new one the callback of the toolbar
+  service (`refreshToolbarState` of the active viewport).
+- **Why (read in the code):** the cornerstone extension's `onModeEnter` calls
+  `toolbarService.registerEventForToolbarUpdate(cornerstone.eventTarget,
+  [TOOL_ACTIVATED])`. For a target with `addEventListener`, `registerEventForToolbarUpdate`
+  keeps the return value of `addEventListener` (nothing) as the unsubscription, and the
+  service never releases its `_serviceSubscriptions` (the line in `reset()` is commented
+  out). The same holds for the pub-sub registrations of that `onModeEnter`
+  (`VIEWPORT_DATA_CHANGED`, three segmentation events) and of the measurement tracking
+  extension: each mode entry adds one more callback to each. `master` has the same code.
+- **What it costs:** little: one more toolbar refresh per event per mode entry, no element
+  held.
+- **Fix, in OHIF:** to do. Releasing every subscription at the mode exit is not enough as
+  it is: `registerEventForToolbarUpdate` is also called once at the init of the default
+  and cornerstone extensions (cine, hotkeys, colorbar, segmentation), and those
+  registrations must outlive a mode. The fix is that `registerEventForToolbarUpdate` gives
+  back an unsubscription that works for both kinds of target and the extensions that call
+  it in `onModeEnter` release it in their `onModeExit`. Not done in task O10: it changes
+  the API of a service of `@ohif/core` and every caller, and the entry is not one of the
+  two of the task.
 - **Fix, in cornerstone:** none.
 - **State:** open, OHIF (small), the same on `master`.

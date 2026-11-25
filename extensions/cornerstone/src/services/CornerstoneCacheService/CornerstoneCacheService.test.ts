@@ -1,8 +1,17 @@
-import { cache, Enums, volumeLoader } from '@cornerstonejs/core';
+import { cache, Enums, utilities, volumeLoader } from '@cornerstonejs/core';
 import type { Types } from '@cornerstonejs/core';
+import { DisplaySetService } from '@ohif/core';
 import CornerstoneCacheService from './CornerstoneCacheService';
 import ViewportInfo from '../ViewportService/Viewport';
 import CornerstoneViewportService from '../ViewportService/CornerstoneViewportService';
+
+jest.mock('@cornerstonejs/core', () => {
+  const actual = jest.requireActual('@cornerstonejs/core');
+  return {
+    ...actual,
+    utilities: { ...actual.utilities, getViewportsWithVolumeId: jest.fn(() => []) },
+  };
+});
 
 const { ViewportType } = Enums;
 
@@ -336,5 +345,435 @@ describe('a display set that grows after its first mount', () => {
       'cornerstoneStreamingImageVolume:display-set-1',
       { imageIds: grownImageIds }
     );
+  });
+});
+
+describe('the volume of a display set is valid for the image ids it was made from', () => {
+  const STATIC_SCHEME = 'cornerstoneStreamingImageVolume';
+  const DYNAMIC_SCHEME = 'cornerstoneStreamingDynamicImageVolume';
+
+  type FakeVolume = { volumeId: string; imageIds?: string[] };
+  type TestDisplaySet = Record<string, unknown> & {
+    displaySetInstanceUID: string;
+    images?: Array<{ imageId: string }>;
+  };
+
+  /**
+   * The volume cache of Cornerstone3D, as far as the cache service uses it:
+   * `createAndCacheVolume` gives the volume cached under the id, or makes one
+   * of the image ids it is given. A volume whose id is in `shown` is one that a
+   * viewport shows.
+   */
+  function useVolumeCache() {
+    const volumes = new Map<string, FakeVolume>();
+    const shown = new Set<string>();
+    const volumeIndex = (cache as unknown as { _volumeCache: Map<string, unknown> })._volumeCache;
+
+    jest.spyOn(cache, 'getVolume').mockImplementation(volumeId => volumes.get(volumeId) as never);
+    jest
+      .spyOn(cache, 'getVolumeLoadObject')
+      .mockImplementation(volumeId =>
+        volumes.has(volumeId)
+          ? ({ promise: Promise.resolve(volumes.get(volumeId)) } as never)
+          : undefined
+      );
+    jest.spyOn(cache, 'removeVolumeLoadObject').mockImplementation(volumeId => {
+      volumes.delete(volumeId);
+    });
+    jest.spyOn(volumeIndex, 'delete').mockImplementation(volumeId => volumes.delete(volumeId));
+    jest.spyOn(cache, 'getImageLoadObject').mockReturnValue(undefined);
+    jest
+      .spyOn(volumeLoader, 'createAndCacheVolume')
+      .mockImplementation(async (volumeId: string, options) => {
+        if (!volumes.has(volumeId)) {
+          volumes.set(volumeId, { volumeId, imageIds: options?.imageIds });
+        }
+        return volumes.get(volumeId) as unknown as Types.IImageVolume;
+      });
+    jest
+      .mocked(utilities.getViewportsWithVolumeId)
+      .mockImplementation(volumeId => (shown.has(volumeId) ? [{}] : []) as never);
+
+    return { volumes, shown, volumeIndex };
+  }
+
+  /** The data source of the viewer: the image ids of the instances of a display set. */
+  const instanceDataSource = {
+    getImageIdsForDisplaySet: (displaySet: TestDisplaySet) =>
+      (displaySet.images ?? []).map(image => image.imageId),
+  };
+
+  /** The images of `count` instances of a display set, from the instance `first` on. */
+  function makeImages(displaySetInstanceUID: string, count: number, first = 1) {
+    return Array.from({ length: count }, (_, index) => ({
+      imageId: `${displaySetInstanceUID}:${first + index}`,
+    }));
+  }
+
+  /** An image display set of `count` instances that can be shown as a volume. */
+  function makeSeriesDisplaySet(
+    displaySetInstanceUID: string,
+    count: number,
+    attributes: Record<string, unknown> = {}
+  ): TestDisplaySet {
+    return {
+      displaySetInstanceUID,
+      StudyInstanceUID: 'study-1',
+      Modality: 'CT',
+      isReconstructable: true,
+      images: makeImages(displaySetInstanceUID, count),
+      ...attributes,
+    };
+  }
+
+  /** Adds instances to a display set, as `extendInstances` does while a series arrives. */
+  function growDisplaySet(displaySet: TestDisplaySet, count: number) {
+    displaySet.images.push(
+      ...makeImages(displaySet.displaySetInstanceUID, count, displaySet.images.length + 1)
+    );
+  }
+
+  function makeCacheService() {
+    return new CornerstoneCacheService({
+      services: {
+        userAuthenticationService: { getAuthorizationHeader: () => ({}) },
+        uiNotificationService: { show: jest.fn() },
+      },
+    } as unknown as AppTypes.ServicesManager);
+  }
+
+  function mount(
+    cacheService: CornerstoneCacheService,
+    displaySets: TestDisplaySet[],
+    viewportType = 'volume'
+  ) {
+    return cacheService.createViewportData(
+      displaySets as never,
+      { viewportType } as AppTypes.ViewportGrid.GridViewportOptions,
+      instanceDataSource
+    );
+  }
+
+  function volumeOf(viewportData, displaySetInstanceUID: string): FakeVolume {
+    return viewportData.data.find(data => data.displaySetInstanceUID === displaySetInstanceUID)
+      ?.volume;
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each(['volume', 'volume3d'])(
+    'a %s mount makes the volume of a display set that grew while no viewport showed it again, from its new images',
+    async viewportType => {
+      const { volumes } = useVolumeCache();
+      const cacheService = makeCacheService();
+      const ct = makeSeriesDisplaySet('ct', 3);
+      const volumeId = `${STATIC_SCHEME}:ct`;
+      const first = volumeOf(await mount(cacheService, [ct], viewportType), 'ct');
+
+      growDisplaySet(ct, 2);
+      const second = volumeOf(await mount(cacheService, [ct], viewportType), 'ct');
+
+      expect(second).not.toBe(first);
+      expect(second.imageIds).toEqual(instanceDataSource.getImageIdsForDisplaySet(ct));
+      expect(ct.imageIds).toEqual(second.imageIds);
+      expect(cache.removeVolumeLoadObject).toHaveBeenCalledWith(volumeId);
+      expect(volumes.get(volumeId)).toBe(second);
+    }
+  );
+
+  it('keeps the volume while the display set has the images it was made from, in any order', async () => {
+    useVolumeCache();
+    const cacheService = makeCacheService();
+    const ct = makeSeriesDisplaySet('ct', 3);
+    const first = volumeOf(await mount(cacheService, [ct]), 'ct');
+
+    ct.images.reverse();
+    const second = volumeOf(await mount(cacheService, [ct], 'volume3d'), 'ct');
+
+    expect(second).toBe(first);
+    expect(cache.removeVolumeLoadObject).not.toHaveBeenCalled();
+  });
+
+  it('makes the volume again when the display set grew while it was shown as a stack elsewhere', async () => {
+    const { volumes } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const ct = makeSeriesDisplaySet('ct', 3);
+    const first = volumeOf(await mount(cacheService, [ct]), 'ct');
+    const stack = await mount(cacheService, [ct], 'stack');
+
+    growDisplaySet(ct, 1);
+    await cacheService.invalidateViewportData(stack, 'ct', instanceDataSource, {
+      getDisplaySetByUID: () => ct,
+    });
+    const second = volumeOf(await mount(cacheService, [ct]), 'ct');
+
+    expect(second).not.toBe(first);
+    expect(second.imageIds).toHaveLength(4);
+    expect(volumes.get(`${STATIC_SCHEME}:ct`)).toBe(second);
+  });
+
+  it('replaces only the volume of the display set that grew in a fusion', async () => {
+    useVolumeCache();
+    const cacheService = makeCacheService();
+    const ct = makeSeriesDisplaySet('ct', 3);
+    const pt = makeSeriesDisplaySet('pt', 3, { Modality: 'PT' });
+    const first = await mount(cacheService, [ct, pt]);
+
+    growDisplaySet(pt, 2);
+    const second = await mount(cacheService, [ct, pt]);
+
+    expect(volumeOf(second, 'ct')).toBe(volumeOf(first, 'ct'));
+    expect(volumeOf(second, 'pt')).not.toBe(volumeOf(first, 'pt'));
+    expect(volumeOf(second, 'pt').imageIds).toHaveLength(5);
+    expect(cache.removeVolumeLoadObject).toHaveBeenCalledTimes(1);
+    expect(cache.removeVolumeLoadObject).toHaveBeenCalledWith(`${STATIC_SCHEME}:pt`);
+  });
+
+  it('makes a dynamic volume again from all its time points when a time point arrived', async () => {
+    const { volumes } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const pet = makeSeriesDisplaySet('pet4d', 6, {
+      Modality: 'PT',
+      isDynamicVolume: true,
+      volumeLoaderSchema: DYNAMIC_SCHEME,
+    });
+    const volumeId = `${DYNAMIC_SCHEME}:pet4d`;
+    const first = volumeOf(await mount(cacheService, [pet]), 'pet4d');
+
+    growDisplaySet(pet, 3);
+    const second = volumeOf(await mount(cacheService, [pet]), 'pet4d');
+
+    expect(second).not.toBe(first);
+    expect(second.volumeId).toBe(volumeId);
+    expect(second.imageIds).toHaveLength(9);
+    expect(volumes.get(volumeId)).toBe(second);
+  });
+
+  it('removes the static volume of a display set that became dynamic when its second time point arrived', async () => {
+    const { volumes } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const pet = makeSeriesDisplaySet('pet4d', 3, {
+      Modality: 'PT',
+      volumeLoaderSchema: STATIC_SCHEME,
+    });
+    await mount(cacheService, [pet]);
+
+    growDisplaySet(pet, 3);
+    pet.isDynamicVolume = true;
+    pet.volumeLoaderSchema = DYNAMIC_SCHEME;
+    const dynamic = volumeOf(await mount(cacheService, [pet]), 'pet4d');
+
+    expect(dynamic.volumeId).toBe(`${DYNAMIC_SCHEME}:pet4d`);
+    expect(dynamic.imageIds).toHaveLength(6);
+    expect([...volumes.keys()].filter(volumeId => volumeId.includes('pet4d'))).toEqual([
+      `${DYNAMIC_SCHEME}:pet4d`,
+    ]);
+  });
+
+  it('makes the dynamic volume that a viewport shows again when its display set is invalidated', async () => {
+    const { volumes, shown } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const pet = makeSeriesDisplaySet('pet4d', 6, {
+      Modality: 'PT',
+      isDynamicVolume: true,
+      volumeLoaderSchema: DYNAMIC_SCHEME,
+    });
+    const volumeId = `${DYNAMIC_SCHEME}:pet4d`;
+    const viewportData = await mount(cacheService, [pet]);
+    const first = volumeOf(viewportData, 'pet4d');
+    shown.add(volumeId);
+
+    const invalidated = await cacheService.invalidateViewportData(
+      viewportData,
+      'pet4d',
+      instanceDataSource,
+      { getDisplaySetByUID: () => pet }
+    );
+
+    expect(volumeOf(invalidated, 'pet4d')).not.toBe(first);
+    expect(volumes.get(volumeId)).toBe(volumeOf(invalidated, 'pet4d'));
+  });
+
+  it('keeps the computed volume of a dynamic display set, made in the client, when the dynamic one grows', async () => {
+    const { volumes } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const pet = makeSeriesDisplaySet('pet4d', 6, {
+      Modality: 'PT',
+      isDynamicVolume: true,
+      volumeLoaderSchema: DYNAMIC_SCHEME,
+    });
+    const computedVolumeId = `${STATIC_SCHEME}:computed`;
+    const computedVolume = { volumeId: computedVolumeId, imageIds: ['derived:1', 'derived:2'] };
+    volumes.set(computedVolumeId, computedVolume);
+    const computed: TestDisplaySet = {
+      displaySetInstanceUID: 'computed',
+      volumeLoaderSchema: STATIC_SCHEME,
+      Modality: 'PT',
+      madeInClient: true,
+      isDerived: true,
+      referenceDisplaySetUID: 'pet4d',
+      imageIds: computedVolume.imageIds,
+    };
+    await mount(cacheService, [pet]);
+    const first = volumeOf(await mount(cacheService, [computed]), 'computed');
+
+    growDisplaySet(pet, 3);
+    await mount(cacheService, [pet]);
+    const second = volumeOf(await mount(cacheService, [computed]), 'computed');
+
+    expect(first).toBe(computedVolume);
+    expect(second).toBe(computedVolume);
+    expect(volumes.get(computedVolumeId)).toBe(computedVolume);
+    expect(cache.removeVolumeLoadObject).not.toHaveBeenCalledWith(computedVolumeId);
+  });
+
+  it('keeps the volume of a parametric map, which its load makes, when the series it maps grows', async () => {
+    const { volumes } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const ct = makeSeriesDisplaySet('ct', 3);
+    const pmapVolumeId = `${STATIC_SCHEME}:pmap`;
+    const pmapVolume = { volumeId: pmapVolumeId, imageIds: ['derived:pmap'] };
+    const pmap: TestDisplaySet = {
+      displaySetInstanceUID: 'pmap',
+      StudyInstanceUID: 'study-1',
+      Modality: 'PMAP',
+      isReconstructable: true,
+      images: makeImages('pmap', 1),
+      load: async () => {
+        volumes.set(pmapVolumeId, pmapVolume);
+      },
+    };
+    await mount(cacheService, [ct]);
+    const first = volumeOf(await mount(cacheService, [pmap]), 'pmap');
+
+    growDisplaySet(ct, 1);
+    await mount(cacheService, [ct]);
+    const second = volumeOf(await mount(cacheService, [ct, pmap]), 'pmap');
+
+    expect(first).toBe(pmapVolume);
+    expect(second).toBe(pmapVolume);
+    expect(volumeLoader.createAndCacheVolume).not.toHaveBeenCalledWith(
+      pmapVolumeId,
+      expect.anything()
+    );
+    expect(cache.removeVolumeLoadObject).not.toHaveBeenCalledWith(pmapVolumeId);
+  });
+
+  it('gives the two viewports that show a volume one new volume when its display set grows', async () => {
+    const { volumes, shown } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const ct = makeSeriesDisplaySet('ct', 3);
+    const volumeId = `${STATIC_SCHEME}:ct`;
+    const paneA = await mount(cacheService, [ct]);
+    const paneB = await mount(cacheService, [ct], 'volume3d');
+    expect(volumeOf(paneB, 'ct')).toBe(volumeOf(paneA, 'ct'));
+    shown.add(volumeId);
+
+    growDisplaySet(ct, 1);
+    const displaySetService = { getDisplaySetByUID: () => ct };
+    const [newA, newB] = await Promise.all([
+      cacheService.invalidateViewportData(paneA, 'ct', instanceDataSource, displaySetService),
+      cacheService.invalidateViewportData(paneB, 'ct', instanceDataSource, displaySetService),
+    ]);
+
+    expect(volumeOf(newB, 'ct')).toBe(volumeOf(newA, 'ct'));
+    expect(volumeOf(newA, 'ct').imageIds).toHaveLength(4);
+    expect(volumes.get(volumeId)).toBe(volumeOf(newA, 'ct'));
+  });
+
+  it('does not destroy the old volume while a viewport shows it: it leaves the cache, and that viewport takes the new one at its remount', async () => {
+    const { volumes, shown, volumeIndex } = useVolumeCache();
+    const cacheService = makeCacheService();
+    const ct = makeSeriesDisplaySet('ct', 3);
+    const volumeId = `${STATIC_SCHEME}:ct`;
+    const paneA = await mount(cacheService, [ct]);
+    shown.add(volumeId);
+
+    growDisplaySet(ct, 1);
+    const paneB = await mount(cacheService, [ct]);
+    const invalidatedA = await cacheService.invalidateViewportData(
+      paneA,
+      'ct',
+      instanceDataSource,
+      { getDisplaySetByUID: () => ct }
+    );
+
+    expect(cache.removeVolumeLoadObject).not.toHaveBeenCalled();
+    expect(volumeIndex.delete).toHaveBeenCalledWith(volumeId);
+    expect(volumeOf(paneB, 'ct')).not.toBe(volumeOf(paneA, 'ct'));
+    expect(volumeOf(invalidatedA, 'ct')).toBe(volumeOf(paneB, 'ct'));
+    expect(volumes.get(volumeId)).toBe(volumeOf(paneB, 'ct'));
+  });
+
+  it('makes the volume again from the images that the display set service added to a display set that no viewport showed', async () => {
+    useVolumeCache();
+    const MR_IMAGE_STORAGE = '1.2.840.10008.5.1.4.1.1.4';
+    const instance = (index: number) => ({
+      SOPInstanceUID: `sop-${index}`,
+      SOPClassUID: MR_IMAGE_STORAGE,
+      SeriesInstanceUID: 'series-1',
+      StudyInstanceUID: 'study-1',
+      Modality: 'MR',
+      Rows: 128,
+      Columns: 128,
+      InstanceNumber: index,
+      imageId: `mr:${index}`,
+    });
+    const createDisplaySetFromGroup = jest.fn(group => {
+      const displaySet = {
+        displaySetInstanceUID: 'mr',
+        SeriesInstanceUID: 'series-1',
+        StudyInstanceUID: 'study-1',
+        Modality: 'MR',
+        isReconstructable: true,
+        images: [...group.instances],
+        instances: [] as unknown[],
+        splitKey: group.splitKey,
+        extendInstances: newInstances => {
+          displaySet.images.push(...newInstances);
+          return displaySet;
+        },
+      };
+      displaySet.instances = displaySet.images;
+      return displaySet;
+    });
+    const { displaySetRules } = jest.requireActual('@cornerstonejs/metadata');
+    const servicesManager = {
+      services: {
+        uiNotificationService: { show: jest.fn() },
+        customizationService: {
+          getCustomization: id =>
+            id === 'useMetadataDisplaySet'
+              ? {
+                  enabled: true,
+                  displaySetRules: { defaultImageRule: displaySetRules.defaultImageRule },
+                  displaySetRuleOrder: ['defaultImageRule'],
+                  createDisplaySetFromGroup,
+                }
+              : undefined,
+        },
+      },
+    };
+    const displaySetService = new DisplaySetService({ servicesManager } as never);
+    displaySetService.init({ getModuleEntry: () => undefined } as never, []);
+    const invalidated = [];
+    displaySetService.subscribe(
+      displaySetService.EVENTS.DISPLAY_SET_SERIES_METADATA_INVALIDATED,
+      event => invalidated.push(event)
+    );
+    const cacheService = makeCacheService();
+    const firstPart = [1, 2, 3].map(instance);
+
+    const [mr] = displaySetService.makeDisplaySets(firstPart) as unknown as TestDisplaySet[];
+    const first = volumeOf(await mount(cacheService, [mr]), 'mr');
+    displaySetService.makeDisplaySets([...firstPart, instance(4), instance(5)]);
+    const second = volumeOf(await mount(cacheService, [mr]), 'mr');
+
+    expect(invalidated).toEqual([{ displaySetInstanceUID: 'mr', invalidateData: true }]);
+    expect(first.imageIds).toEqual(['mr:1', 'mr:2', 'mr:3']);
+    expect(second.imageIds).toEqual(['mr:1', 'mr:2', 'mr:3', 'mr:4', 'mr:5']);
+    displaySetService.onModeExit();
   });
 });

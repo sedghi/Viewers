@@ -77,12 +77,19 @@ it is deleted. A Cornerstone3D viewport mounts a display set by its
 | Video and ECG | the `imageId` of its `instance` |
 | Whole slide | `imageIds`, and the DICOMweb client registered as the `WADO_WEB_CLIENT` metadata of its first image |
 
-A stack mount reads the image ids of the display set again, so a display set
-that grows (`addInstances`, `extendInstances`) shows its new images at its next
-stack mount. A volume is made once for a display set and kept in the cache: a
-volume viewport that shows the display set when its metadata is invalidated
-makes the volume again, but a volume viewport that mounts it later shows the
-volume as it was first made.
+Each mount reads the image ids of the display set again (from the data source,
+for a display set of instances), so a display set that grows (`addInstances`,
+`extendInstances`) shows its new images at its next mount. A volume of a display
+set is valid for the image ids it was made from: the cornerstone cache service
+keeps it in the cache under `${volumeLoaderSchema}:${displaySetInstanceUID}`, and
+a volume mount at which the display set has other image ids (it grew while no
+viewport showed it, or the time points of a dynamic volume arrived) removes the
+old volume and makes it again. A volume that a viewport still shows only leaves
+the index of the cache: that viewport mounts the display set again when the
+display set changes (`DISPLAY_SET_SERIES_METADATA_INVALIDATED`). The volume of a
+parametric map, which its load makes, is never replaced, and a display set made
+in the client with no instances behind it (the computed volume of the dynamic
+volume panel) keeps its own `imageIds`, so its volume stays as it was made.
 
 **Before (the next viewports of 3.13)**, an extension registered a display set
 for a viewport, under its UID or an id of its own:

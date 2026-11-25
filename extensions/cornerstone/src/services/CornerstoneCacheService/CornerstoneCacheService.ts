@@ -1,5 +1,5 @@
 import { Types } from '@ohif/core';
-import { cache as cs3DCache, Enums, volumeLoader } from '@cornerstonejs/core';
+import { cache as cs3DCache, Enums, utilities, volumeLoader } from '@cornerstonejs/core';
 
 import getCornerstoneViewportType, {
   getDataShapeForViewportType,
@@ -8,6 +8,18 @@ import { getViewportDataShape } from '../../utils/viewportDataShape';
 import { loadDisplaySetData } from '../../utils/loadDisplaySetData';
 import { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
 import { VOLUME_LOADER_SCHEME } from '../../constants';
+
+/** A volume that the cache service made for a display set, and the image ids it made it from. */
+type MadeVolume = { volumeId: string; imageIds?: string[] };
+
+/** Whether two lists hold the same image ids, in any order. */
+function isSameImageIds(imageIds: string[] = [], otherImageIds: string[] = []): boolean {
+  if (imageIds.length !== otherImageIds.length) {
+    return false;
+  }
+  const ids = new Set(imageIds);
+  return otherImageIds.every(imageId => ids.has(imageId));
+}
 
 class CornerstoneCacheService {
   static REGISTRATION = {
@@ -18,7 +30,8 @@ class CornerstoneCacheService {
     },
   };
 
-  volumeImageIds: Map<string, string[]> = new Map();
+  /** The volume made for each display set, by display set instance UID. */
+  madeVolumes: Map<string, MadeVolume> = new Map();
   readonly servicesManager: AppTypes.ServicesManager;
 
   constructor(servicesManager: AppTypes.ServicesManager) {
@@ -90,6 +103,22 @@ class CornerstoneCacheService {
     return viewportData;
   }
 
+  /**
+   * Builds the viewport data of a viewport again after the data of one of its
+   * display sets changed (`DISPLAY_SET_SERIES_METADATA_INVALIDATED`: the display
+   * set grew, or its metadata changed, as the SUV values of a PET).
+   *
+   * A stack reads the image ids of the data source again, and its images leave
+   * the cache so that they load again with the new metadata.
+   *
+   * A volume is made again: the volume that this viewport shows, its images
+   * (which hold the old metadata too) and the image ids it was made from leave
+   * the cache, and the next volume mount makes it from the image ids that the
+   * display set has now. When two viewports show the volume, each one runs this
+   * for the same change; the volume goes only while the cache still holds the
+   * volume that this viewport shows, so the second viewport takes the volume
+   * that the first one made, not a third.
+   */
   public async invalidateViewportData(
     viewportData: VolumeViewportData | StackViewportData,
     invalidatedDisplaySetInstanceUID: string,
@@ -125,34 +154,18 @@ class CornerstoneCacheService {
       };
     }
 
-    // Todo: grab the volume and get the id from the viewport itself
-    const volumeId = `${VOLUME_LOADER_SCHEME}:${invalidatedDisplaySetInstanceUID}`;
+    const shownVolume = (viewportData as VolumeViewportData).data.find(
+      data => data.displaySetInstanceUID === invalidatedDisplaySetInstanceUID
+    )?.volume;
 
-    const volume = cs3DCache.getVolume(volumeId);
-
-    if (volume) {
-      if (volume.imageIds) {
-        // also for each imageId in the volume, remove the imageId from the cache
-        // since that will hold the old metadata as well
-
-        volume.imageIds.forEach(imageId => {
-          if (cs3DCache.getImageLoadObject(imageId)) {
-            cs3DCache.removeImageLoadObject(imageId, { force: true });
-          }
-        });
-      }
-
-      // this shouldn't be via removeVolumeLoadObject, since that will
-      // remove the texture as well, but here we really just need a remove
-      // from registry so that we load it again
-      cs3DCache._volumeCache.delete(volumeId);
-    }
-
-    const invalidatedDisplaySet = displaySetService.getDisplaySetByUID(
-      invalidatedDisplaySetInstanceUID
-    );
-    if (invalidatedDisplaySet && !(invalidatedDisplaySet.load instanceof Function)) {
-      this._refreshImageIds(invalidatedDisplaySet, dataSource);
+    if (shownVolume && cs3DCache.getVolume(shownVolume.volumeId) === shownVolume) {
+      shownVolume.imageIds?.forEach(imageId => {
+        if (cs3DCache.getImageLoadObject(imageId)) {
+          cs3DCache.removeImageLoadObject(imageId, { force: true });
+        }
+      });
+      this._dropVolume(shownVolume.volumeId);
+      this.madeVolumes.delete(invalidatedDisplaySetInstanceUID);
     }
 
     const displaySets = viewportData.data.map(({ displaySetInstanceUID }) =>
@@ -264,22 +277,16 @@ class CornerstoneCacheService {
 
       const volumeLoaderSchema = displaySet.volumeLoaderSchema ?? VOLUME_LOADER_SCHEME;
       const volumeId = `${volumeLoaderSchema}:${displaySet.displaySetInstanceUID}`;
-      let volumeImageIds = this.volumeImageIds.get(displaySet.displaySetInstanceUID);
-      let volume = cs3DCache.getVolume(volumeId);
+      let volumeImageIds: string[] | undefined;
+      let volume;
 
       // Parametric maps do not have image ids but they already have volume data
       // therefore a new volume should not be created.
-      if (!isParametricMap && !isSegOrRtstruct && (!volumeImageIds || !volume)) {
+      if (isParametricMap || isSegOrRtstruct) {
+        volume = cs3DCache.getVolume(volumeId);
+      } else {
         volumeImageIds = this._getCornerstoneVolumeImageIds(displaySet, dataSource);
-
-        volume = await volumeLoader.createAndCacheVolume(volumeId, {
-          imageIds: volumeImageIds,
-        });
-
-        this.volumeImageIds.set(displaySet.displaySetInstanceUID, volumeImageIds);
-      }
-
-      if (volumeImageIds) {
+        volume = await this._getVolume(displaySet.displaySetInstanceUID, volumeId, volumeImageIds);
         displaySet.imageIds = volumeImageIds;
       }
 
@@ -305,25 +312,79 @@ class CornerstoneCacheService {
 
   /**
    * Gives a display set that changed (it grew, or its metadata changed) the image
-   * ids of the data source again, and forgets the image ids kept for its volume.
-   * A mount reads the image ids of the registered display set and keeps a copy, so
-   * the next mount shows the images that the display set has now.
+   * ids of the data source again. A mount reads the image ids of the registered
+   * display set and keeps a copy, so the next mount shows the images that the
+   * display set has now. The image ids that its volume was made from stay: the
+   * next volume mount compares them with the new ones.
    */
   private _refreshImageIds(displaySet, dataSource): string[] {
     const imageIds = this._getCornerstoneStackImageIds(displaySet, dataSource);
     displaySet.imageIds = imageIds;
-    this.volumeImageIds.delete(displaySet.displaySetInstanceUID);
     return imageIds;
   }
 
-  private _getCornerstoneVolumeImageIds(displaySet, dataSource): string[] {
-    if (displaySet.imageIds) {
-      return displaySet.imageIds;
+  /**
+   * The image ids of a display set at a volume mount: those of the data source for
+   * a display set of instances, which grows when more of its instances arrive, and
+   * the display set's own for one made in the client with no instances behind it
+   * (the computed volume of a dynamic volume), which does not grow.
+   */
+  private _getCornerstoneVolumeImageIds(displaySet, dataSource): string[] | undefined {
+    const imageIds = this._getCornerstoneStackImageIds(displaySet, dataSource);
+
+    return imageIds?.length ? imageIds : displaySet.imageIds;
+  }
+
+  /**
+   * The volume of a display set, for the image ids that it has now.
+   *
+   * A volume is valid for the image ids it was made from. When the display set
+   * has other image ids now (it grew while no viewport showed it, or a time point
+   * of a dynamic volume arrived and the display set moved to the dynamic volume
+   * loader), the volume made before goes (see `_dropVolume`) and a new one is
+   * made. A volume of the cache that this service did not make, as the computed
+   * volume of the dynamic volume panel, is taken as it is: nothing behind it can
+   * grow.
+   *
+   * The made volume is noted before the volume loads, so that a second mount of
+   * the same change finds it and takes the same volume.
+   */
+  private _getVolume(
+    displaySetInstanceUID: string,
+    volumeId: string,
+    imageIds: string[] | undefined
+  ) {
+    const made = this.madeVolumes.get(displaySetInstanceUID);
+
+    if (made && (made.volumeId !== volumeId || !isSameImageIds(made.imageIds, imageIds))) {
+      this._dropVolume(made.volumeId);
     }
 
-    const stackImageIds = this._getCornerstoneStackImageIds(displaySet, dataSource);
+    this.madeVolumes.set(displaySetInstanceUID, { volumeId, imageIds });
 
-    return stackImageIds;
+    return volumeLoader.createAndCacheVolume(volumeId, { imageIds });
+  }
+
+  /**
+   * Takes a volume out of the cache, so that the next mount makes it again.
+   *
+   * A volume that no viewport shows is removed: its loads stop and its data is
+   * freed. A volume that a viewport still shows only leaves the index of the
+   * cache, so that a new volume can take its id, and stays with that viewport:
+   * removing it would delete the image data under the viewport's actor. Such a
+   * viewport mounts its display set again on the change of the display set
+   * (`DISPLAY_SET_SERIES_METADATA_INVALIDATED`), and takes the new volume then.
+   */
+  private _dropVolume(volumeId: string): void {
+    if (!cs3DCache.getVolumeLoadObject(volumeId)) {
+      return;
+    }
+
+    if (utilities.getViewportsWithVolumeId(volumeId).length) {
+      cs3DCache._volumeCache.delete(volumeId);
+    } else {
+      cs3DCache.removeVolumeLoadObject(volumeId);
+    }
   }
 }
 
