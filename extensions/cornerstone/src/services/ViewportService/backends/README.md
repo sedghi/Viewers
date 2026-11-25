@@ -9,8 +9,8 @@ says where each concern of that path lives.
 
 | Home | What belongs there |
 |---|---|
-| `../adapter/` (`IViewportAdapter`, `ViewportAdapter`) | Reads and writes on a live viewport: view state, per-display-set presentation keyed by dataId, view reference, the shape of what the viewport shows. Code outside the viewport service asks the adapter (`getViewportAdapter(viewport)`) instead of the raw viewport. |
-| `./` (`IViewportBackend` and `ViewportBackend`, `IViewportOperations` and `viewportOperations`, and the segmentation counterpart `ISegmentationBackend` and `SegmentationBackend` in `../../SegmentationService/backends/`) | Lifecycle and interaction bodies: mount and re-mount, presentation capture and restore, dataId registration, the operations of the commands (flip, rotate, window level and so on), labelmap add and assembly. |
+| `../adapter/` (`IViewportAdapter`, `ViewportAdapter`) | Reads and writes on a live viewport: view state, per-display-set appearance keyed by display set UID, view reference, the shape of what the viewport shows. Code outside the viewport service asks the adapter (`getViewportAdapter(viewport)`) instead of the raw viewport. |
+| `./` (`IViewportBackend` and `ViewportBackend`, `IViewportOperations` and `viewportOperations`, and the segmentation counterpart `ISegmentationBackend` and `SegmentationBackend` in `../../SegmentationService/backends/`) | Lifecycle and interaction bodies: mount and re-mount, presentation capture and restore, the operations of the commands (flip, rotate, window level and so on), labelmap add and assembly. |
 | `../../../utils/viewportPolicies.ts` | Behavioral policy: appearance defaults and workflow rules (overlay opacity, the stack pin when an RTSTRUCT is hydrated). |
 
 ## One implementation behind each interface
@@ -41,15 +41,16 @@ The words of a hanging protocol, a mode and `viewportOptions` (`stack`,
 `volume`, `orthographic`, `volume3d`, `video`, `wholeslide`, `ecg`) are OHIF's
 own and stay as they are.
 
-## The data id of a display set
+## The id of a display set
 
-A viewport names each display set that it shows by a data id, under which the
-display set is registered with Cornerstone3D. It is the display set UID, or
-`<uid>::stack` / `<uid>::volume` while the series shows in the other shape in
-another viewport: Cornerstone3D draws a registration with a `volumeId` as a
-volume, so each shape needs its own. `../../../utils/displaySetDataId.ts` names
-a data id and gives the UID back; `DataIdRegistry` (`./dataIdRegistry.ts`)
-names the data id of each mount and keeps the registrations that the view
-references of annotations can name. Code outside the backend asks the adapter:
-it takes a display set UID where it takes a data id, and
-`getDataIdForDisplaySet(displaySetInstanceUID)` gives the data id.
+A viewport names each display set that it shows by its `displaySetInstanceUID`.
+`DisplaySetService` registers each display set once, when it is made, with
+`displaySetRegistry.add` of `@cornerstonejs/metadata`
+(`platform/core/src/services/DisplaySetService/displaySetStore.ts`), and a
+viewport reads that object when it mounts the display set. The backend
+registers nothing: each mount says what its viewport wants of the display set
+on its options (`mode: 'stack'` or `'volume'`, `orientation`, `volumeId`,
+`initialImageIdIndex`, `appearance`), so one display set shows as a stack in
+one viewport and as a volume in another under one id.
+`getViewportAdapter(viewport).getShownDisplaySetId(displaySetInstanceUID)`
+says whether the viewport shows a display set.

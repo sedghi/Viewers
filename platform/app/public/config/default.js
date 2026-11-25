@@ -39,15 +39,13 @@ window.config = {
   // ----------------------------------------------------------------------------
 
   // --- Viewport rendering -----------------------------------------------------
-  genericViewports: {
-    // Render backend selection: 'cpu' | 'webgl' | 'auto' | a backend id
-    // registered via cornerstone's registerRenderBackend (e.g. a webgpu
-    // backend), or a map with per-viewport-type overrides, e.g.
-    // { default: 'webgl', orthographic: 'cpu' }. The matching URL params take
-    // precedence per-session: ?viewportRendering=cpu and
-    // ?orthographic.viewportRendering=cpu.
-    // viewportRendering: 'auto',
-  },
+  // Render backend selection: 'cpu' | 'webgl' | 'auto' | a backend id
+  // registered via cornerstone's registerRenderBackend (e.g. a webgpu
+  // backend), or a map with per-viewport-type overrides, e.g.
+  // { default: 'webgl', orthographic: 'cpu' }. The matching URL params take
+  // precedence per-session: ?viewportRendering=cpu and
+  // ?orthographic.viewportRendering=cpu.
+  // viewportRendering: 'auto',
   // ----------------------------------------------------------------------------
   showStudyList: true,
   // some windows systems have issues with more than 3 web workers

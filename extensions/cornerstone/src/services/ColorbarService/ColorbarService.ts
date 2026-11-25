@@ -74,8 +74,8 @@ export default class ColorbarService extends PubSubService {
         return;
       }
 
-      const dataId = adapter.getDataIdForDisplaySet(displaySetInstanceUID);
-      const properties = adapter.getPresentation(dataId);
+      const displaySetId = adapter.getShownDisplaySetId(displaySetInstanceUID);
+      const properties = adapter.getPresentation(displaySetId);
       const colormap = properties?.colormap;
 
       if (activeColormapName && !colormap) {
@@ -91,8 +91,8 @@ export default class ColorbarService extends PubSubService {
       const colorbarData = {
         activeColormapName: colormap?.name || options?.activeColormapName || 'Grayscale',
         colormaps: options.colormaps ? Object.values(options.colormaps) : [],
-        volumeId: dataId,
-        dataId,
+        volumeId: displaySetId,
+        displaySetId,
       };
 
       // Store the colorbar data in the service state
@@ -230,10 +230,10 @@ export default class ColorbarService extends PubSubService {
       return;
     }
 
-    // Address the display set's binding (its dataId, see getDataIdForDisplaySet;
-    // the active binding otherwise)
-    const dataId = adapter.getDataIdForDisplaySet(displaySetInstanceUID);
-    adapter.setPresentation({ colormap }, dataId);
+    // Address the display set's binding when the viewport shows it, the active
+    // binding otherwise
+    const displaySetId = adapter.getShownDisplaySetId(displaySetInstanceUID);
+    adapter.setPresentation({ colormap }, displaySetId);
 
     if (immediate) {
       viewport.render();

@@ -100,24 +100,15 @@ function WrappedCinePlayer({
       return;
     }
 
-    enabledVPElement.addEventListener(Enums.Events.VIEWPORT_NEW_IMAGE_SET, newDisplaySetHandler);
+    enabledVPElement.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
     // this doesn't makes sense that we are listening to this event on viewport element
-    enabledVPElement.addEventListener(
-      Enums.Events.VOLUME_VIEWPORT_NEW_VOLUME,
-      newDisplaySetHandler
-    );
+    enabledVPElement.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
 
     return () => {
       cineService.setCine({ id: viewportId, isPlaying: false });
 
-      enabledVPElement.removeEventListener(
-        Enums.Events.VIEWPORT_NEW_IMAGE_SET,
-        newDisplaySetHandler
-      );
-      enabledVPElement.removeEventListener(
-        Enums.Events.VOLUME_VIEWPORT_NEW_VOLUME,
-        newDisplaySetHandler
-      );
+      enabledVPElement.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
+      enabledVPElement.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
     };
   }, [enabledVPElement, newDisplaySetHandler, viewportId]);
 

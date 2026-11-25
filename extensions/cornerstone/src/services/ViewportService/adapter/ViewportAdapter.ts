@@ -1,5 +1,4 @@
 import { Enums, cache, Types as CoreTypes, utilities as csUtils } from '@cornerstonejs/core';
-import { getDisplaySetUIDForDataId } from '../../../utils/displaySetDataId';
 import type {
   IViewportAdapter,
   ViewportColormap,
@@ -15,13 +14,13 @@ import type {
  * rather than import core-internal PlanarViewport types.
  */
 type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentation> & {
-  getSourceDataId?: () => string | undefined;
-  getDisplaySets?: () => Array<{ displaySetId: string }>;
-  getDisplaySetPresentation?: (dataId: string) => ViewportPresentation | undefined;
-  getDefaultVOIRange?: (dataId?: string) => VOIRange | undefined;
-  setDisplaySetPresentation?: {
+  getSourceDisplaySetId?: () => string | undefined;
+  getDisplaySets?: () => Array<{ displaySetId: string; options?: { mode?: string } }>;
+  getDisplaySetAppearance?: (displaySetId: string) => ViewportPresentation | undefined;
+  getDefaultVOIRange?: (displaySetId?: string) => VOIRange | undefined;
+  setDisplaySetAppearance?: {
     (props: ViewportPresentation): void;
-    (dataId: string, props: ViewportPresentation): void;
+    (displaySetId: string, props: ViewportPresentation): void;
   };
   getViewState?: () => ViewportViewState | undefined;
   setViewState?: (patch: ViewportViewState) => void;
@@ -30,7 +29,7 @@ type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentatio
   getCurrentMode?: () => string;
   getActors?: () => Array<{ referencedId?: string }>;
   hasVolumeId?: (volumeId: string) => boolean;
-  findDataIdByVolumeId?: (volumeId: string) => string | undefined;
+  getDisplaySetIdForVolumeId?: (volumeId: string) => string | undefined;
   setDisplaySets?: (args: {
     displaySetId: string;
     options?: Record<string, unknown>;
@@ -124,9 +123,9 @@ export class ViewportAdapter implements IViewportAdapter {
 
   // ---- per-display-set appearance ----
 
-  getPresentation(dataId?: string): ViewportPresentation {
-    const id = this.resolveDataId(dataId) ?? this.viewport.getSourceDataId?.();
-    const presentation = (id ? this.viewport.getDisplaySetPresentation?.(id) : undefined) ?? {};
+  getPresentation(displaySetId?: string): ViewportPresentation {
+    const id = displaySetId ?? this.viewport.getSourceDisplaySetId?.();
+    const presentation = (id ? this.viewport.getDisplaySetAppearance?.(id) : undefined) ?? {};
 
     // A native binding's presentation normally holds only EXPLICIT VOI overrides,
     // but a computed default VOI can transiently land here during intermediate
@@ -148,17 +147,17 @@ export class ViewportAdapter implements IViewportAdapter {
     return presentation;
   }
 
-  setPresentation(props: ViewportPresentation, dataId?: string): void {
-    const id = this.resolveDataId(dataId) ?? this.viewport.getSourceDataId?.();
+  setPresentation(props: ViewportPresentation, displaySetId?: string): void {
+    const id = displaySetId ?? this.viewport.getSourceDisplaySetId?.();
     if (id) {
-      this.viewport.setDisplaySetPresentation?.(id, props);
+      this.viewport.setDisplaySetAppearance?.(id, props);
     } else {
-      this.viewport.setDisplaySetPresentation?.(props);
+      this.viewport.setDisplaySetAppearance?.(props);
     }
   }
 
-  getDefaultVOIRange(dataId?: string): VOIRange | undefined {
-    return this.viewport.getDefaultVOIRange?.(this.resolveDataId(dataId));
+  getDefaultVOIRange(displaySetId?: string): VOIRange | undefined {
+    return this.viewport.getDefaultVOIRange?.(displaySetId);
   }
 
   getColormap(displaySetInstanceUID: string): ViewportColormap | undefined {
@@ -196,8 +195,8 @@ export class ViewportAdapter implements IViewportAdapter {
     return true;
   }
 
-  getBlendMode(dataId?: string): Enums.BlendModes | undefined {
-    return this.getPresentation(dataId).blendMode;
+  getBlendMode(displaySetId?: string): Enums.BlendModes | undefined {
+    return this.getPresentation(displaySetId).blendMode;
   }
 
   getOpacityGamma(): number {
@@ -208,42 +207,12 @@ export class ViewportAdapter implements IViewportAdapter {
 
   // ---- data addressing ----
 
-  getDataIdForDisplaySet(displaySetInstanceUID: string): string | undefined {
-    const shown = this.getShownDataIds();
-    if (!shown.length) {
+  getShownDisplaySetId(displaySetInstanceUID: string): string | undefined {
+    const shown = this.viewport.getDisplaySets?.()?.map(entry => entry.displaySetId) ?? [];
+    if (!shown.length || shown.includes(displaySetInstanceUID)) {
       return displaySetInstanceUID;
     }
-
-    return this.findShownDataId(shown, displaySetInstanceUID);
-  }
-
-  /**
-   * The data id of the binding that an id names on this viewport: the id when
-   * a binding has it, else the binding of the display set whose UID it is (a
-   * display set shown under a data id of its own, `<uid>::stack`), else the id
-   * as it is. Callers address a binding by its data id or by the UID of its
-   * display set.
-   */
-  private resolveDataId(id?: string): string | undefined {
-    if (!id) {
-      return id;
-    }
-
-    return this.findShownDataId(this.getShownDataIds(), id) ?? id;
-  }
-
-  /** The data ids of the display sets that the viewport shows. */
-  private getShownDataIds(): string[] {
-    return this.viewport.getDisplaySets?.()?.map(entry => entry.displaySetId) ?? [];
-  }
-
-  /** Among shown data ids, the id itself, or else the one of the display set whose UID it is. */
-  private findShownDataId(shown: string[], id: string): string | undefined {
-    if (shown.includes(id)) {
-      return id;
-    }
-
-    return shown.find(dataId => getDisplaySetUIDForDataId(dataId) === id);
+    return undefined;
   }
 
   getVolumeIds(): string[] {
@@ -261,7 +230,7 @@ export class ViewportAdapter implements IViewportAdapter {
   }
 
   getDataIdForVolumeId(volumeId: string): string | undefined {
-    return this.viewport.findDataIdByVolumeId?.(volumeId);
+    return this.viewport.getDisplaySetIdForVolumeId?.(volumeId);
   }
 
   getVoxelManagerForDisplaySet(
@@ -289,20 +258,28 @@ export class ViewportAdapter implements IViewportAdapter {
     const targetViewport = target as NativeViewport;
     const viewRef = this.viewport.getViewReference?.();
 
-    // The source's dataId is already registered in the global GenericViewport
-    // metadata provider, so re-mount it on the capture viewport by id, then copy
-    // per-binding presentation + view state. The native classes have no
+    // The source's display set is registered by the display set service under its
+    // UID, so re-mount it on the capture viewport by id in the mode it has here, then
+    // copy per-binding presentation + view state. The native classes have no
     // setStack/setVolumes/setProperties/setViewPresentation.
-    const sourceDataId = this.viewport.getSourceDataId?.();
-    if (sourceDataId) {
+    const sourceDisplaySetId = this.viewport.getSourceDisplaySetId?.();
+    if (sourceDisplaySetId) {
       const { orientation } = this.getViewState();
+      const sourceOptions = this.viewport
+        .getDisplaySets?.()
+        ?.find(entry => entry.displaySetId === sourceDisplaySetId)?.options as
+        | { mode?: string }
+        | undefined;
+      const mode = sourceOptions?.mode;
       await targetViewport.setDisplaySets?.({
-        displaySetId: sourceDataId,
-        options: { orientation, role: 'source' },
+        displaySetId: sourceDisplaySetId,
+        options: { orientation, role: 'source', ...(mode ? { mode } : {}) },
       });
 
-      const captureDataId = targetViewport.getSourceDataId?.() ?? sourceDataId;
-      targetViewport.setDisplaySetPresentation?.(captureDataId, this.getPresentation(sourceDataId));
+      targetViewport.setDisplaySetAppearance?.(
+        sourceDisplaySetId,
+        this.getPresentation(sourceDisplaySetId)
+      );
     }
 
     // Slice/orientation via the view reference, then pan/zoom/rotate/flip via view state.

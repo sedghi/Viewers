@@ -37,6 +37,11 @@ export type DisplaySet = {
    * id is this scheme and the display set instance UID. The default loader when not set.
    */
   volumeLoaderSchema?: string;
+  /**
+   * The id of the volume in the cache of a display set that has no image ids, such as
+   * a parametric map whose load makes its volume. A viewport mounts that volume.
+   */
+  volumeId?: string;
 
   // Details about how to display:
   /**

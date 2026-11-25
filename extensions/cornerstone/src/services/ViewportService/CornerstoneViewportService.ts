@@ -89,8 +89,8 @@ class CornerstoneViewportService
   gridResizeDelay = 50;
   gridResizeTimeOut = null;
 
-  // The mount bodies, the presentation capture and restore, and the dataId
-  // lifecycle live in the backend.
+  // The mount bodies and the presentation capture and restore live in the
+  // backend.
   private readonly backend: IViewportBackend;
 
   constructor(servicesManager: AppTypes.ServicesManager) {
@@ -197,8 +197,6 @@ class CornerstoneViewportService
   public destroy() {
     this._removeResizeObserver();
     this.viewportGridResizeObserver = null;
-    // Flush the dataId registrations the backend owns.
-    this.backend.destroy();
     try {
       this.renderingEngine?.destroy?.();
     } catch (e) {
@@ -220,10 +218,6 @@ class CornerstoneViewportService
    * @param viewportId - The viewportId to disable
    */
   public disableElement(viewportId: string): void {
-    // Release the dataId registrations BEFORE the viewport bookkeeping is
-    // deleted (ref-counted).
-    this.backend.onViewportDisabled(viewportId);
-
     this.renderingEngine?.disableElement(viewportId);
 
     // clean up
@@ -825,7 +819,7 @@ class CornerstoneViewportService
     }
 
     try {
-      await this.backend.mountEcg(viewport, displaySet, imageId);
+      await this.backend.mountEcg(viewport, displaySet);
     } catch (error) {
       // Tell the user, then reject so that setViewportData does not report a successful mount.
       this.servicesManager.services.uiNotificationService?.show({
@@ -895,15 +889,18 @@ class CornerstoneViewportService
       properties.colormap = colormap ?? properties.colormap;
     }
 
-    viewport.element.addEventListener(csEnums.Events.VIEWPORT_NEW_IMAGE_SET, evt => {
-      const { element } = evt.detail;
+    viewport.element.addEventListener(
+      csEnums.Events.DISPLAY_SETS_CHANGED,
+      (evt: Types.EventTypes.DisplaySetsChangedEvent) => {
+        const { element } = evt.detail;
 
-      if (element !== viewport.element) {
-        return;
+        if (element !== viewport.element) {
+          return;
+        }
+
+        csToolsUtils.stackContextPrefetch.enable(element);
       }
-
-      csToolsUtils.stackContextPrefetch.enable(element);
-    });
+    );
 
     const overlayProcessingResults = this._processExtraDisplaySetsForViewport(viewport);
 
@@ -920,7 +917,7 @@ class CornerstoneViewportService
       initialImageIndexToUse = this._getInitialImageIndexForViewport(viewportInfo, imageIds) || 0;
     }
 
-    // The mount itself (setDisplaySets, setDisplaySetPresentation, setViewState)
+    // The mount itself (setDisplaySets with its appearance, setViewState)
     // lives in the backend.
     return this.backend.mountStack(viewport, {
       displaySetInstanceUIDs,
@@ -1132,8 +1129,8 @@ class CornerstoneViewportService
     // For SEG and RT viewports
     const overlayProcessingResults = this._processExtraDisplaySetsForViewport(viewport) || [];
 
-    // The backend mounts the registered dataIds via setDisplaySets with the
-    // per-binding presentations and reports the mount handled. An overlay-only
+    // The backend mounts the display sets by their UIDs via setDisplaySets with
+    // the per-binding appearances and reports the mount handled. An overlay-only
     // mount (no base volume) is not handled there: the rest of this method adds
     // its overlays.
     const handledByBackend = await this.backend.mountVolumes(viewport, {

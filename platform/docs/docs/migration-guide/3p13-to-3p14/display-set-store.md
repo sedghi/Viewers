@@ -28,6 +28,7 @@ const displaySet = metaData.getTyped(
 | Writes to the map from `getDisplaySetCache()` are lost | **Breaking** |
 | `getDisplaySetCache()` is deprecated | Deprecation, still works for reads |
 | `onModeExit()` clears only OHIF's own entries | Information |
+| Viewports read the stored display set | **Breaking** for code that registered display sets for a viewport |
 | Display sets last for one mode | Information, unchanged behaviour |
 | Display sets become immutable | Planned, not in 3.14 |
 
@@ -61,6 +62,46 @@ displaySetService.onModeExit(); // removes all of this service's display sets
 
 To make display sets from instances, use
 `displaySetService.makeDisplaySets(instances)`.
+
+## Viewports read the stored display set
+
+The store is `displaySetRegistry` of `@cornerstonejs/metadata`. The service
+registers each display set once, when it is made or replaced, with
+`displaySetRegistry.add(displaySetInstanceUID, displaySet)`, and removes it when
+it is deleted. A Cornerstone3D viewport mounts a display set by its
+`displaySetInstanceUID` and reads the registered object, the display set itself:
+
+| Viewport | What it reads from the display set |
+| --- | --- |
+| Planar (stack, MPR) and 3D | `imageIds`; a `volumeId` of a cached volume when it has no image ids |
+| Video and ECG | the `imageId` of its `instance` |
+| Whole slide | `imageIds`, and the DICOMweb client registered as the `WADO_WEB_CLIENT` metadata of its first image |
+
+A mount copies what it reads, so a display set that grows (`addInstances`,
+`extendInstances`) shows its new images at its next mount.
+
+**Before (the next viewports of 3.13)**, an extension registered a display set
+for a viewport, under its UID or an id of its own:
+
+```js
+utilities.genericViewportDisplaySetMetadataProvider.add(displaySet.displaySetInstanceUID, {
+  kind: 'planar',
+  imageIds: displaySet.imageIds,
+});
+await viewport.setDisplaySets({ displaySetId: displaySet.displaySetInstanceUID });
+```
+
+**After (3.14)**, the display set is registered by the service: add it with
+`displaySetService.addDisplaySets(displaySet)` and say on the mount what the
+viewport wants. A second `add` under the UID would replace the display set
+itself with the descriptor, for the viewer and for the viewports.
+
+```js
+await viewport.setDisplaySets({
+  displaySetId: displaySet.displaySetInstanceUID,
+  options: { mode: 'volume', orientation: Enums.OrientationAxis.AXIAL },
+});
+```
 
 ## Deprecated: `getDisplaySetCache()`
 

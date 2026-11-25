@@ -1,6 +1,8 @@
-import { Enums, utilities } from '@cornerstonejs/core';
+import { Enums, displaySetRegistry, utilities } from '@cornerstonejs/core';
 import type { PlanarViewport } from '@cornerstonejs/core';
+import { utilities as csToolsUtils } from '@cornerstonejs/tools';
 import CornerstoneViewportService from './CornerstoneViewportService';
+import type { IViewportBackend, StackMountContext } from './backends/IViewportBackend';
 import type ViewportInfo from './Viewport';
 import type { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
 import type { ViewportShape } from '../../utils/viewportDataShape';
@@ -358,6 +360,38 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       });
 
       expect(reference.volumeId).toBe('cornerstoneStreamingDynamicImageVolume:display-set');
+    });
+  });
+
+  describe('a layout change', () => {
+    it('keeps a display set in the store when the viewports that showed it are released', async () => {
+      jest.spyOn(csToolsUtils.stackContextPrefetch, 'enable').mockImplementation(() => undefined);
+      const displaySet = { displaySetInstanceUID: 'display-set', imageIds, Modality: 'CT' };
+      displaySetRegistry.add('display-set', displaySet);
+      const { service, viewportInfo } = makeServiceWithViewport('stack');
+      const backend = (service as unknown as { backend: IViewportBackend }).backend;
+      const viewport = {
+        id: 'viewport-1',
+        element: {},
+        setDisplaySets: jest.fn().mockResolvedValue(undefined),
+        setViewState: jest.fn(),
+      };
+
+      await backend.mountStack(
+        viewport as unknown as PlanarViewport,
+        {
+          displaySetInstanceUIDs: ['display-set'],
+          imageIds,
+          initialImageIndex: 0,
+          properties: {},
+          presentations: {},
+          viewportInfo,
+        } as StackMountContext
+      );
+      service.disableElement('viewport-1');
+
+      expect(displaySetRegistry.get('display-set')).toBe(displaySet);
+      displaySetRegistry.remove('display-set');
     });
   });
 });

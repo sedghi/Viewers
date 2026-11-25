@@ -238,7 +238,7 @@ const toolbarButtons: Button[] = [
         },
       },
       listeners: {
-        [EVENTS.VIEWPORT_NEW_IMAGE_SET]: {
+        [EVENTS.DISPLAY_SETS_CHANGED]: {
           commandName: 'toggleImageSliceSync',
           commandOptions: { toggledState: true },
         },

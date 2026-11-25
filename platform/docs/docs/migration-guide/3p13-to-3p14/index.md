@@ -18,7 +18,7 @@ This guide covers changes when upgrading from OHIF version 3.13 to version 3.14.
 - **[Cornerstone3D 6](./cornerstone3d-6.md)** — the viewer moves to
   `@cornerstonejs` 6 and has one viewport path. The settings
   `useGenericViewport`, `genericViewports.enabled` and `?useNextViewports` are
-  gone, `isNextViewportsEnabled`, `isNextViewport` and `NEXT_FUSION_PT_OPACITY`
+  gone, `genericViewports.viewportRendering` is `viewportRendering`, `isNextViewportsEnabled`, `isNextViewport` and `NEXT_FUSION_PT_OPACITY`
   are removed, and `NEXT_OVERLAY_OPACITY` is `OVERLAY_OPACITY`. A runtime plugin
   that imports `@cornerstonejs/core` or
   `@cornerstonejs/tools` must be rebuilt against Cornerstone3D 6.

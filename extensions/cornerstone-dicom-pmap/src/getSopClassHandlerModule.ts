@@ -246,6 +246,7 @@ async function _loadParametricMap({ displaySet, headers }: withAppTypes) {
 
   derivedVolume.metadata.voiLut = [windowLevel];
   derivedVolume.loadStatus = { loaded: true };
+  (displaySet as AppTypes.DisplaySet).volumeId = derivedVolume.volumeId;
 
   return derivedVolume;
 }

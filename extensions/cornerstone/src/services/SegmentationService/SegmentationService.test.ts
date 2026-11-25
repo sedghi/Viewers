@@ -635,7 +635,7 @@ describe('SegmentationService', () => {
     });
 
     describe('planar viewport', () => {
-      // A PlanarViewport exposes setDisplaySets / setDisplaySetPresentation /
+      // A PlanarViewport exposes setDisplaySets / setDisplaySetAppearance /
       // setViewState. It has NO getViewPresentation: the viewport must never be
       // recreated as a volume viewport.
       const makeViewport = () => ({
@@ -643,7 +643,7 @@ describe('SegmentationService', () => {
         id: viewportId,
         type: ViewportType.PLANAR,
         setDisplaySets: jest.fn(),
-        setDisplaySetPresentation: jest.fn(),
+        setDisplaySetAppearance: jest.fn(),
         setViewState: jest.fn(),
       });
 
@@ -2856,7 +2856,7 @@ describe('SegmentationService', () => {
       const viewportId = 'viewportId';
       const viewport = {
         setDisplaySets: jest.fn(),
-        setDisplaySetPresentation: jest.fn(),
+        setDisplaySetAppearance: jest.fn(),
         setViewState: jest.fn(),
         setViewReference: jest.fn(),
         render: jest.fn(),

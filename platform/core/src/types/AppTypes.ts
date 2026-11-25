@@ -171,19 +171,16 @@ declare global {
         interactive?: boolean;
         interleavedLoading?: boolean;
       };
-      /** The settings of the viewports. */
-      genericViewports?: {
-        /**
-         * Render backend selection for viewports. Either a backend for all
-         * viewports ('cpu' | 'webgl' | 'auto' | a wire id registered via
-         * cornerstone's `registerRenderBackend`, e.g. a webgpu backend) or a map
-         * of per-viewport-type overrides plus an optional 'default', e.g.
-         * `{ default: 'webgl', orthographic: 'cpu' }`. The matching URL params
-         * (`?viewportRendering=cpu`, `?orthographic.viewportRendering=cpu`) take
-         * precedence per-session. 'webgl' aliases cornerstone's 'gpu' backend.
-         */
-        viewportRendering?: string | Record<string, string>;
-      };
+      /**
+       * Render backend selection for viewports. Either a backend for all
+       * viewports ('cpu' | 'webgl' | 'auto' | a wire id registered via
+       * cornerstone's `registerRenderBackend`, e.g. a webgpu backend) or a map
+       * of per-viewport-type overrides plus an optional 'default', e.g.
+       * `{ default: 'webgl', orthographic: 'cpu' }`. The matching URL params
+       * (`?viewportRendering=cpu`, `?orthographic.viewportRendering=cpu`) take
+       * precedence per-session. 'webgl' aliases cornerstone's 'gpu' backend.
+       */
+      viewportRendering?: string | Record<string, string>;
       useCursors?: boolean;
       maxCacheSize?: number;
       max3DTextureSize?: number;

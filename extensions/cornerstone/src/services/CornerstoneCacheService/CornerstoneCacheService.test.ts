@@ -237,3 +237,111 @@ describe('the viewport type words of a hanging protocol', () => {
     expect(viewportData.dataShapeType).toBe('volume');
   });
 });
+
+describe('a display set that grows after its first mount', () => {
+  const grownImageIds = [...imageIds, 'imageId-4'];
+
+  /** A data source whose display set has the image ids of `current` when asked. */
+  function makeGrowingDataSource() {
+    let current = imageIds;
+    return {
+      getImageIdsForDisplaySet: jest.fn(() => current),
+      grow: () => {
+        current = grownImageIds;
+      },
+    };
+  }
+
+  beforeEach(() => {
+    jest.spyOn(cache, 'getVolume').mockReturnValue(undefined);
+    jest.spyOn(cache, 'getImageLoadObject').mockReturnValue(undefined);
+    jest
+      .spyOn(volumeLoader, 'createAndCacheVolume')
+      .mockImplementation(
+        async (volumeId: string, options) =>
+          ({ volumeId, imageIds: options.imageIds }) as unknown as Types.IImageVolume
+      );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('gives the registered display set its new images when the stack that shows it is invalidated', async () => {
+    const cacheService = new CornerstoneCacheService({} as AppTypes.ServicesManager);
+    const growingDataSource = makeGrowingDataSource();
+    const [displaySet] = makeDisplaySets() as Array<Record<string, unknown>>;
+    const viewportData = await cacheService.createViewportData(
+      [displaySet] as never,
+      { viewportType: 'stack' } as AppTypes.ViewportGrid.GridViewportOptions,
+      growingDataSource
+    );
+    expect(displaySet.imageIds).toEqual(imageIds);
+
+    growingDataSource.grow();
+    const invalidated = await cacheService.invalidateViewportData(
+      viewportData,
+      'display-set-1',
+      growingDataSource,
+      { getDisplaySetByUID: () => displaySet }
+    );
+
+    expect(displaySet.imageIds).toEqual(grownImageIds);
+    expect((invalidated.data as unknown as { imageIds: string[] }).imageIds).toEqual(grownImageIds);
+  });
+
+  it('gives a display set that grew while no viewport showed it its new images at its next mount', async () => {
+    const cacheService = new CornerstoneCacheService({} as AppTypes.ServicesManager);
+    const growingDataSource = makeGrowingDataSource();
+    const [displaySet] = makeDisplaySets() as Array<Record<string, unknown>>;
+    const viewportOptions = { viewportType: 'stack' } as AppTypes.ViewportGrid.GridViewportOptions;
+    await cacheService.createViewportData(
+      [displaySet] as never,
+      viewportOptions,
+      growingDataSource
+    );
+
+    growingDataSource.grow();
+    const viewportData = await cacheService.createViewportData(
+      [displaySet] as never,
+      viewportOptions,
+      growingDataSource
+    );
+
+    expect(displaySet.imageIds).toEqual(grownImageIds);
+    expect(viewportData.data[0].imageIds).toEqual(grownImageIds);
+  });
+
+  it('gives a display set that was replaced by a new object its images at its next mount', async () => {
+    const cacheService = new CornerstoneCacheService({} as AppTypes.ServicesManager);
+    const viewportOptions = { viewportType: 'stack' } as AppTypes.ViewportGrid.GridViewportOptions;
+    await cacheService.createViewportData(makeDisplaySets() as never, viewportOptions, dataSource);
+
+    const [replaced] = makeDisplaySets() as Array<Record<string, unknown>>;
+    await cacheService.createViewportData([replaced] as never, viewportOptions, dataSource);
+
+    expect(replaced.imageIds).toEqual(imageIds);
+  });
+
+  it('makes the volume of a display set that grew from its new images when the volume viewport that shows it is invalidated', async () => {
+    const cacheService = new CornerstoneCacheService({} as AppTypes.ServicesManager);
+    const growingDataSource = makeGrowingDataSource();
+    const displaySet = makeImageDisplaySet('display-set-1', 'CT') as Record<string, unknown>;
+    const viewportData = await cacheService.createViewportData(
+      [displaySet] as never,
+      { viewportType: 'volume' } as AppTypes.ViewportGrid.GridViewportOptions,
+      growingDataSource
+    );
+
+    growingDataSource.grow();
+    await cacheService.invalidateViewportData(viewportData, 'display-set-1', growingDataSource, {
+      getDisplaySetByUID: () => displaySet,
+    });
+
+    expect(displaySet.imageIds).toEqual(grownImageIds);
+    expect(volumeLoader.createAndCacheVolume).toHaveBeenLastCalledWith(
+      'cornerstoneStreamingImageVolume:display-set-1',
+      { imageIds: grownImageIds }
+    );
+  });
+});

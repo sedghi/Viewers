@@ -6,12 +6,12 @@ jest.mock('@cornerstonejs/core', () => {
 
   return {
     ...actual,
-    viewportProjection: { getPresentation: jest.fn(), withPresentation: jest.fn() },
+    viewportProjection: { getFraming: jest.fn(), withFraming: jest.fn() },
   };
 });
 
-const getPresentation = viewportProjection.getPresentation as jest.Mock;
-const withPresentation = viewportProjection.withPresentation as jest.Mock;
+const getPresentation = viewportProjection.getFraming as jest.Mock;
+const withPresentation = viewportProjection.withFraming as jest.Mock;
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;

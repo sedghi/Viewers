@@ -11,7 +11,7 @@ export type PositionPresentation = {
   // The view reference has the basic information as to what image orientation/slice is shown
   viewReference: Types.ViewReference;
   // The position information has the zoom/pan and possibly other related information, but not LUT
-  viewPresentation: Types.ViewPresentation;
+  viewPresentation: Types.ViewFraming;
   /**
    * Optionals
    */

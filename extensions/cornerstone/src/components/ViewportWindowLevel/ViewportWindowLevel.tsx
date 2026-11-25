@@ -157,7 +157,11 @@ const ViewportWindowLevel = ({
 
   // Listen to cornerstone events and set up interval for histogram updates
   useEffect(() => {
-    document.addEventListener(Events.VOI_MODIFIED, debouncedHandleCornerstoneVOIModified, true);
+    document.addEventListener(
+      Events.DISPLAY_SET_APPEARANCE_CHANGED,
+      debouncedHandleCornerstoneVOIModified,
+      true
+    );
     eventTarget.addEventListener(
       Events.IMAGE_VOLUME_LOADING_COMPLETED,
       handleImageVolumeLoadingCompleted
@@ -167,7 +171,7 @@ const ViewportWindowLevel = ({
 
     return () => {
       document.removeEventListener(
-        Events.VOI_MODIFIED,
+        Events.DISPLAY_SET_APPEARANCE_CHANGED,
         debouncedHandleCornerstoneVOIModified,
         true
       );

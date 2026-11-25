@@ -43,10 +43,7 @@ function TrackedCornerstoneViewport(
     evt => {
       if (evt.detail.element !== viewportElem) {
         // The VOLUME_VIEWPORT_NEW_VOLUME event allows updateIsTracked to reliably fetch the image id for a volume viewport.
-        evt.detail.element?.addEventListener(
-          Enums.Events.VOLUME_VIEWPORT_NEW_VOLUME,
-          updateIsTracked
-        );
+        evt.detail.element?.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, updateIsTracked);
         setViewportElem(evt.detail.element);
       }
     },
@@ -54,7 +51,7 @@ function TrackedCornerstoneViewport(
   );
 
   const onElementDisabled = useCallback(() => {
-    viewportElem?.removeEventListener(Enums.Events.VOLUME_VIEWPORT_NEW_VOLUME, updateIsTracked);
+    viewportElem?.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, updateIsTracked);
   }, [updateIsTracked, viewportElem]);
 
   useEffect(updateIsTracked, [updateIsTracked]);

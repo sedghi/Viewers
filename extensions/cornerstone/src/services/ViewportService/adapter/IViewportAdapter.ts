@@ -14,7 +14,7 @@ export interface ViewportColormap {
 
 /**
  * Per-display-set appearance (VOI/colormap/invert/blend mode): the per-binding
- * display-set presentation keyed by dataId.
+ * display-set appearance keyed by the display set UID.
  */
 export interface ViewportPresentation {
   voiRange?: VOIRange;
@@ -33,7 +33,7 @@ export type ViewportViewState = Record<string, unknown>;
 
 /**
  * The single OHIF-facing per-viewport contract over the cornerstone viewport
- * API (view state, per-display-set presentation keyed by dataId, view
+ * API (view state, per-display-set appearance keyed by display set UID, view
  * reference). `ViewportAdapter` is the one implementation, a thin
  * pass-through.
  *
@@ -97,22 +97,20 @@ export interface IViewportAdapter {
 
   /**
    * Read appearance (voiRange/colormap/invert/...) for a display set binding,
-   * named by its dataId or by the UID of its display set (a display set can
-   * show under a data id of its own, see `getDataIdForDisplaySet`).
-   * Defaults to the active source binding when no dataId is given. A VOI
-   * matching the binding's computed default is stamped `isComputedVOI: true`
-   * so LUT-presentation capture strips it.
+   * named by the UID of its display set. Defaults to the active source binding
+   * when no UID is given. A VOI matching the binding's computed default is
+   * stamped `isComputedVOI: true` so LUT-presentation capture strips it.
    */
-  getPresentation(dataId?: string): ViewportPresentation;
+  getPresentation(displaySetId?: string): ViewportPresentation;
 
   /**
    * Write appearance for a display set binding, named as for getPresentation
-   * (active source binding when no dataId).
+   * (active source binding when no UID).
    */
-  setPresentation(props: ViewportPresentation, dataId?: string): void;
+  setPresentation(props: ViewportPresentation, displaySetId?: string): void;
 
   /** The binding's computed default VOI, named as for getPresentation. */
-  getDefaultVOIRange(dataId?: string): VOIRange | undefined;
+  getDefaultVOIRange(displaySetId?: string): VOIRange | undefined;
 
   /**
    * The colormap currently applied to a display set's layer, or undefined when
@@ -122,7 +120,7 @@ export interface IViewportAdapter {
 
   /**
    * Merge an opacity into the display set layer's colormap (the layer named by
-   * the UID of its display set or by its dataId). When the layer has opacity
+   * the UID of its display set). When the layer has opacity
    * points by value (a fusion ramp), the opacity scales each point. Returns
    * true when applied (caller renders); false when the viewport/layer does
    * not support it.
@@ -137,10 +135,10 @@ export interface IViewportAdapter {
 
   /**
    * The blend mode of the slab of a display set binding (the active source
-   * binding when no dataId): MAXIMUM_INTENSITY_BLEND for a MIP. Undefined when
+   * binding when no UID): MAXIMUM_INTENSITY_BLEND for a MIP. Undefined when
    * none was set, and for a 3D viewport.
    */
-  getBlendMode(dataId?: string): CoreEnums.BlendModes | undefined;
+  getBlendMode(displaySetId?: string): CoreEnums.BlendModes | undefined;
 
   /**
    * Gamma applied between the fusion opacity slider position and the rendered
@@ -151,15 +149,13 @@ export interface IViewportAdapter {
   // ---- data addressing ----
 
   /**
-   * Resolve the dataId to address a display set's binding on this viewport:
-   * the display set UID, or the data id of its own that a display set gets
-   * while another viewport shows it in the other shape (`<uid>::stack`,
-   * `<uid>::volume`; see `getDataIdForShape`). The UID when the viewport
-   * shows nothing yet. Undefined when the viewport shows other display sets
-   * and not this one, as an SR, SEG or RTSTRUCT viewport shows the images
-   * they reference: a call without a dataId then addresses the source.
+   * The UID of a display set when this viewport shows it, to address its
+   * binding; also when the viewport shows nothing yet. Undefined when the
+   * viewport shows other display sets and not this one, as an SR, SEG or
+   * RTSTRUCT viewport shows the images they reference: a call without a UID
+   * then addresses the source.
    */
-  getDataIdForDisplaySet(displaySetInstanceUID: string): string | undefined;
+  getShownDisplaySetId(displaySetInstanceUID: string): string | undefined;
 
   /**
    * The ids of the volumes that the viewport shows, the source first. The
@@ -170,8 +166,8 @@ export interface IViewportAdapter {
   getVolumeIds(): string[];
 
   /**
-   * The dataId of the binding that shows a volume, to address its presentation.
-   * Undefined when the viewport does not show the volume.
+   * The display set id of the binding that shows a volume, to address its
+   * presentation. Undefined when the viewport does not show the volume.
    */
   getDataIdForVolumeId(volumeId: string): string | undefined;
 

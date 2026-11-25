@@ -1,9 +1,6 @@
 import {
   Enums as csEnums,
   Types,
-  metaData,
-  utilities as csUtils,
-  CONSTANTS as csConstants,
   isRegisteredRenderBackend,
   viewportProjection,
 } from '@cornerstonejs/core';
@@ -11,6 +8,8 @@ import type {
   RenderBackendValue,
   ECGViewport,
   PlanarViewport,
+  PlanarMountOptions,
+  Volume3DMountOptions,
   VolumeViewport3D,
 } from '@cornerstonejs/core';
 import { utilities as csToolsUtils } from '@cornerstonejs/tools';
@@ -25,7 +24,6 @@ import type {
 import type { StackViewportData, VolumeViewportData } from '../../../types/CornerstoneCacheService';
 import type { IViewportBackend, StackMountContext, VolumeMountContext } from './IViewportBackend';
 import type { IViewportServiceInternals } from './IViewportServiceInternals';
-import { DataIdRegistry, type DataIdPayload } from './dataIdRegistry';
 
 // Mirrors WITH_ORIENTATION in CornerstoneViewportService (inlined to avoid a
 // value import that would create a backend -> service circular dependency).
@@ -69,7 +67,7 @@ const NATIVE_VIEW_PRESENTATION_KEYS = [
 ] as const;
 
 // Minimal structural view of a native PlanarViewport's semantic accessors. These
-// live on IGenericViewport (not IStackViewport/IViewport), so we cast at the boundary
+// live on the planar viewport (not IViewport), so we cast at the boundary
 // rather than import core-internal PlanarViewport/PlanarViewState types.
 type NativePlanarViewport = Types.IViewport<Record<string, unknown>> & {
   getViewState: () => Record<string, unknown>;
@@ -81,6 +79,29 @@ type NativePlanarViewport = Types.IViewport<Record<string, unknown>> & {
 
 /** The zoom and the pan of a 3D viewport, measured against the fit of its content. */
 type View3DPresentation = { zoom?: number; pan?: [number, number] };
+
+/**
+ * The keys of a stored LUT presentation that a mount applies as the initial
+ * appearance of its source.
+ */
+const LUT_APPEARANCE_KEYS = ['voiRange', 'invert', 'colormap'] as const;
+
+/**
+ * Copies the keys that are set in `properties` out of it: the appearance that
+ * a mount gives its display set from its first draw.
+ */
+function pickAppearance(
+  properties: Record<string, unknown> | undefined,
+  keys: readonly string[]
+): Record<string, unknown> {
+  const appearance: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (properties?.[key] !== undefined) {
+      appearance[key] = properties[key];
+    }
+  }
+  return appearance;
+}
 
 /** Picks the pan/zoom/rotation/flip subset out of a (deep-cloned) getViewState() result. */
 function pickNativeViewPresentation(viewState: Record<string, unknown>): Record<string, unknown> {
@@ -96,13 +117,14 @@ function pickNativeViewPresentation(viewState: Record<string, unknown>): Record<
 /**
  * The viewport backend. Routes the mount by the bound data shape (a planar
  * viewport shows a stack and a volume, so the viewport type cannot tell them
- * apart), owns the per-family MOUNT BODIES
- * (mountStack/mountVolumes/mountEcg/mountOther/remount), and owns the ref-counted
- * dataId lifecycle over cornerstone's global display set metadata provider.
+ * apart) and owns the per-family MOUNT BODIES
+ * (mountStack/mountVolumes/mountEcg/mountOther/remount). A display set is
+ * registered once, by the display set service, under its
+ * `displaySetInstanceUID`: every mount names it by that UID and says on its
+ * options what the viewport wants of it (the mode, the volume, the first image,
+ * the appearance).
  */
 export class ViewportBackend implements IViewportBackend {
-  private readonly registry = new DataIdRegistry();
-
   constructor(private readonly service: IViewportServiceInternals) {}
 
   dispatchMount(
@@ -112,8 +134,7 @@ export class ViewportBackend implements IViewportBackend {
     presentations: Presentations = {}
   ): Promise<void> {
     // Non-planar families (video / WSI / ECG) route by viewport TYPE to their
-    // dedicated mounts: the bound data shape cannot distinguish them, and each needs
-    // family-specific dataId registration.
+    // dedicated mounts: the bound data shape cannot distinguish them.
     const type = (viewport as { type?: string }).type;
 
     if (type === csEnums.ViewportType.ECG) {
@@ -156,11 +177,10 @@ export class ViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Stack mount: register the display set and mount it with
-   * setDisplaySets (render path inferred from the data), then apply
-   * VOI/colormap via setDisplaySetPresentation and pan/zoom/rotate/flip/
-   * displayArea via setViewState — a planar viewport has no setStack,
-   * setProperties or setCamera.
+   * Stack mount: mounts the display set by its UID as a stack, on its first
+   * image and with its VOI/invert/colormap as the appearance of the first draw,
+   * then applies pan/zoom/rotate/flip/displayArea via setViewState — a planar
+   * viewport has no setStack, setProperties or setCamera.
    */
   async mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void> {
     const {
@@ -175,53 +195,25 @@ export class ViewportBackend implements IViewportBackend {
       overlayProcessingResults,
     } = context;
 
-    // Guard empty/malformed stack data before registering and indexing imageIds
-    // below.
     if (!imageIds?.length) {
       return;
     }
 
     const vp = viewport as unknown as NativePlanarViewport & {
-      setDisplaySets: (args: {
-        displaySetId: string;
-        options: Record<string, unknown>;
-      }) => Promise<void>;
-      setDisplaySetPresentation: (props: Record<string, unknown>) => void;
       element: HTMLDivElement;
       id: string;
     };
-    // Register through the ref-counted registry (§4.7) instead of the raw
-    // provider.add, so the registration is released on unmount and shared
-    // (MPR) registrations are not double-added or prematurely removed.
-    const dataId = this.registerDataId(vp.id, displaySetInstanceUIDs[0], {
-      kind: 'planar',
-      imageIds,
-      initialImageIdIndex: initialImageIndex,
-    });
 
     const stackRenderBackend = getMountRenderBackend('stack');
-    await vp.setDisplaySets({
-      displaySetId: dataId,
-      options: {
-        orientation: csEnums.OrientationAxis.ACQUISITION,
-        role: 'source',
-        ...(stackRenderBackend ? { renderBackend: stackRenderBackend } : {}),
-      },
-    });
-
-    const presentationProps: Record<string, unknown> = {};
-    if (properties.voiRange) {
-      presentationProps.voiRange = properties.voiRange;
-    }
-    if (properties.invert !== undefined) {
-      presentationProps.invert = properties.invert;
-    }
-    if (properties.colormap) {
-      presentationProps.colormap = properties.colormap;
-    }
-    if (Object.keys(presentationProps).length > 0) {
-      vp.setDisplaySetPresentation(presentationProps);
-    }
+    const options: PlanarMountOptions = {
+      mode: 'stack',
+      orientation: csEnums.OrientationAxis.ACQUISITION,
+      role: 'source',
+      initialImageIdIndex: initialImageIndex,
+      appearance: pickAppearance(properties, LUT_APPEARANCE_KEYS),
+      ...(stackRenderBackend ? { renderBackend: stackRenderBackend } : {}),
+    };
+    await viewport.setDisplaySets({ displaySetId: displaySetInstanceUIDs[0], options });
 
     const viewStatePatch: Record<string, unknown> = {};
     if (displayArea) {
@@ -238,9 +230,9 @@ export class ViewportBackend implements IViewportBackend {
     }
 
     // Enable stack-context prefetch for the native path. setDisplaySets above has
-    // already populated imageIds via genericViewportDisplaySetMetadataProvider, so
-    // getStackData returns a valid stack at enable() time. Scroll re-prefetch is
-    // driven by the NEW_IMAGE event.
+    // already read the imageIds of the registered display set, so getStackData
+    // returns a valid stack at enable() time. Scroll re-prefetch is driven by the
+    // NEW_IMAGE event.
     csToolsUtils.stackContextPrefetch.enable(vp.element);
 
     // Restore persisted pan/zoom/rotation/flip (+ view reference) on top of the
@@ -264,12 +256,12 @@ export class ViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Volume/MPR mount: a planar viewport renders a volume by
-   * registering the dataset (with the already-cached volumeId) and calling
-   * setDisplaySets with the requested orientation; cornerstone selects the image
-   * vs reformatted-volume render path from that orientation. Returns true when it
-   * mounted; an overlay-only mount (no base volumes) returns false, and the service
-   * adds its overlays.
+   * Volume/MPR mount: a planar viewport renders a volume by mounting each
+   * display set by its UID with mode 'volume', the requested orientation and
+   * the id of its already-cached volume; a 3D viewport by mounting it with that
+   * volume id. The stored LUT presentation is the appearance of the source from
+   * its first draw. Returns true when it mounted; an overlay-only mount (no base
+   * volumes) returns false, and the service adds its overlays.
    */
   async mountVolumes(viewport: Types.IViewport, context: VolumeMountContext): Promise<boolean> {
     const {
@@ -289,25 +281,17 @@ export class ViewportBackend implements IViewportBackend {
       filteredVolumeInputArray,
       volumesProperties,
       viewportInfo,
-      overlayProcessingResults
+      overlayProcessingResults,
+      presentations?.lutPresentation
     );
 
     // Restore persisted pan/zoom/rotation/flip (+ view reference) so a returning
-    // MPR/volume pane recovers its camera. Also replay the stored lutPresentation so
-    // user window/level, colormap, invert, opacity or threshold edits survive the
-    // re-mount instead of resetting to the hanging-protocol defaults applied
-    // per-binding above (applied via setDisplaySetPresentation). And replay
-    // segmentationPresentation so hydrated overlays (SEG labelmap / RTSS contour)
-    // reappear on this native re-mount instead of vanishing. Native-safe: position
-    // via setViewReference/setViewState, segmentation via the native backend.
-    if (
-      presentations?.positionPresentation ||
-      presentations?.lutPresentation ||
-      presentations?.segmentationPresentation
-    ) {
+    // MPR/volume pane recovers its camera, and replay segmentationPresentation so
+    // hydrated overlays (SEG labelmap / RTSS contour) reappear on this native
+    // re-mount instead of vanishing.
+    if (presentations?.positionPresentation || presentations?.segmentationPresentation) {
       this.service.setPresentations(viewport.id, {
         positionPresentation: presentations.positionPresentation,
-        lutPresentation: presentations.lutPresentation,
         segmentationPresentation: presentations.segmentationPresentation,
       });
     }
@@ -315,56 +299,35 @@ export class ViewportBackend implements IViewportBackend {
   }
 
   /**
-   * An ECG viewport has no setEcg; register the waveform under the display set's
-   * dataId and mount it through the generic setDisplaySets API (the ECG data
-   * provider reads sourceDataId). Ref-counted via the registry (§4.7).
+   * An ECG viewport has no setEcg: mount the display set by its UID through the
+   * setDisplaySets API. The ECG viewport reads the image id of the waveform from
+   * the registered display set (the image id of its `instance`).
    */
   async mountEcg(
     viewport: ECGViewport,
-    displaySet: { displaySetInstanceUID: string; imageIds?: string[] },
-    imageId: string
+    displaySet: { displaySetInstanceUID: string }
   ): Promise<void> {
-    const dataId = this.registerDataId(viewport.id, displaySet.displaySetInstanceUID, {
-      kind: 'ecg',
-      sourceDataId: imageId,
-    });
     this.service._trackViewportDisplaySets(viewport.id, [displaySet.displaySetInstanceUID]);
-    await (
-      viewport as unknown as {
-        setDisplaySets: (args: { displaySetId: string }) => Promise<void>;
-      }
-    ).setDisplaySets({ displaySetId: dataId });
+    await viewport.setDisplaySets({ displaySetId: displaySet.displaySetInstanceUID });
   }
 
   /**
-   * Video and whole slide viewports: register the family-specific dataId, then
-   * mount through the generic setDisplaySets API. The video data provider
-   * reads sourceDataId; the WSI provider reads imageIds + a DICOMweb client, which
-   * we resolve from the WADO_WEB_CLIENT metadata exactly as the legacy WSI adapter
-   * did. Ref-counted via the registry (§4.7).
+   * Video and whole slide viewports: mount the display set by its UID through the
+   * setDisplaySets API. The video viewport reads the image id of the registered
+   * display set (the image id of its `instance`); the whole slide viewport reads
+   * its imageIds and the DICOMweb client that the SOP class handler registered as
+   * the WADO_WEB_CLIENT metadata of its first image.
    */
   async mountOther(
     viewport: Types.IViewport,
-    displaySet: { displaySetInstanceUID: string; imageIds: string[] }
+    displaySet: { displaySetInstanceUID: string }
   ): Promise<void> {
-    const imageId = displaySet.imageIds[0];
-    const isWsi = (viewport as { type?: string }).type === csEnums.ViewportType.WHOLE_SLIDE;
-    const payload = isWsi
-      ? {
-          kind: 'wsi' as const,
-          imageIds: displaySet.imageIds,
-          options: {
-            webClient: metaData.get(csEnums.MetadataModules.WADO_WEB_CLIENT, imageId),
-          },
-        }
-      : { kind: 'video' as const, sourceDataId: imageId };
-    const dataId = this.registerDataId(viewport.id, displaySet.displaySetInstanceUID, payload);
     this.service._trackViewportDisplaySets(viewport.id, [displaySet.displaySetInstanceUID]);
     await (
       viewport as unknown as {
         setDisplaySets: (args: { displaySetId: string }) => Promise<void>;
       }
-    ).setDisplaySets({ displaySetId: dataId });
+    ).setDisplaySets({ displaySetId: displaySet.displaySetInstanceUID });
   }
 
   /**
@@ -389,125 +352,69 @@ export class ViewportBackend implements IViewportBackend {
   }
 
   /**
-   * Mounts one or more volumes on a native viewport for volume/MPR rendering.
-   * Each base volume is registered with its already-cached volumeId and bound via
-   * setDisplaySets at the viewport's requested orientation; the first base volume
-   * is the source binding, any others are overlays (fusion). VOI/colormap/invert
-   * are applied per-binding via setDisplaySetPresentation.
+   * Mounts one or more volumes on a native viewport for volume/MPR rendering, in
+   * one setDisplaySets call: a planar viewport replaces its display sets
+   * (removeReplaceableData), so the first entry is the source (the CT of a
+   * fusion) and the others are overlays, and a call per volume would drop the
+   * source. Each display set is mounted by its UID with the id of its cached
+   * volume, a planar one with mode 'volume' and the orientation of the viewport.
+   * The appearance of each entry is the VOI/invert/colormap of its display set
+   * options, with the blend mode and the slab of a projection (the TMTV MIP)
+   * for a planar viewport and the preset for a 3D one; the stored LUT
+   * presentation goes over the appearance of the source.
    */
   private async _setNativeVolumeDisplaySets(
     viewport: Types.IViewport,
     filteredVolumeInputArray: VolumeMountContext['filteredVolumeInputArray'],
     volumesProperties: VolumeMountContext['volumesProperties'],
     viewportInfo: ViewportInfo,
-    overlayProcessingResults: VolumeMountContext['overlayProcessingResults']
+    overlayProcessingResults: VolumeMountContext['overlayProcessingResults'],
+    lutPresentation?: LutPresentation
   ): Promise<void> {
     const orientation = viewportInfo.getOrientation();
-    // A 3D viewport renders the volume as a 3D VTK volume
-    // (renderMode 'vtkVolume3d'), not a reformatted planar slice; its appearance is
-    // driven by a volume-rendering preset, not orientation/role.
     const is3D = (viewport as { type?: string }).type === csEnums.ViewportType.VOLUME_3D;
     const nativeViewport = viewport as unknown as {
       setDisplaySets: (
-        ...entries: Array<{ displaySetId: string; options: Record<string, unknown> }>
+        ...entries: Array<{
+          displaySetId: string;
+          options: PlanarMountOptions | Volume3DMountOptions;
+        }>
       ) => Promise<void>;
-      setDisplaySetPresentation: (dataId: string, props: Record<string, unknown>) => void;
-      getDefaultActor?: () => { actor?: unknown } | undefined;
       render: () => void;
     };
-    const setDisplaySetsEntries: Array<{
-      displaySetId: string;
-      options: Record<string, unknown>;
-    }> = [];
     const volumeRenderBackend = is3D ? undefined : getMountRenderBackend('orthographic');
-    const dataIds: string[] = [];
+    const storedProperties =
+      lutPresentation?.properties instanceof Map ? undefined : lutPresentation?.properties;
 
-    // First pass: register each dataId and build the COMPLETE entry set. The native
-    // PlanarViewport.setDisplaySets has replace semantics (removeReplaceableData), so
-    // it must receive ALL entries in ONE call - the first entry (role 'source')
-    // resolves the source binding and the rest are overlays. Calling it once per
-    // volume instead drops the previously-set source (e.g. the fusion CT): the next
-    // single-entry overlay call (PT) finds no source entry, falls back to entries[0]
-    // (= PT), and removeReplaceableData tears down CT - leaving only the PT colormap.
-    for (const [index, { volumeInput }] of filteredVolumeInputArray.entries()) {
-      const { imageIds, volumeId, displaySetInstanceUID } = volumeInput;
+    const entries = filteredVolumeInputArray.map(({ volumeInput }, index) => {
+      const { volumeId, displaySetInstanceUID, blendMode, slabThickness } = volumeInput;
+      const properties = volumesProperties[index]?.properties;
+      const role = index === 0 ? 'source' : 'overlay';
+      const appearance = {
+        ...pickAppearance(
+          properties,
+          is3D ? ['voiRange', 'invert', 'preset'] : LUT_APPEARANCE_KEYS
+        ),
+        ...(!is3D && properties
+          ? pickAppearance({ blendMode, slabThickness }, ['blendMode', 'slabThickness'])
+          : {}),
+        ...(index === 0 ? pickAppearance(storedProperties, LUT_APPEARANCE_KEYS) : {}),
+      };
+      const options: PlanarMountOptions | Volume3DMountOptions = is3D
+        ? { role, volumeId, appearance: appearance as Volume3DMountOptions['appearance'] }
+        : {
+            mode: 'volume',
+            orientation,
+            role,
+            volumeId,
+            appearance: appearance as PlanarMountOptions['appearance'],
+            ...(volumeRenderBackend ? { renderBackend: volumeRenderBackend } : {}),
+          };
 
-      // Ref-counted registration (§4.7): the MPR triptych shares one dataId across
-      // panes, so register() adds to the provider once and release() removes only
-      // when the last pane unmounts. (kind is stored but ignored by the volume3d
-      // data provider, which reads imageIds/volumeId.)
-      const dataId = this.registerDataId(viewport.id, displaySetInstanceUID, {
-        kind: 'planar',
-        imageIds,
-        volumeId,
-      });
-      dataIds.push(dataId);
+      return { displaySetId: displaySetInstanceUID, options };
+    });
 
-      setDisplaySetsEntries.push({
-        displaySetId: dataId,
-        options: is3D
-          ? { renderMode: 'vtkVolume3d' }
-          : {
-              orientation,
-              role: index === 0 ? 'source' : 'overlay',
-              // Volume/MPR panes are 'orthographic' viewports at the OHIF level;
-              // renderBackend is a planar mount option, so the 3D branch is exempt.
-              ...(volumeRenderBackend ? { renderBackend: volumeRenderBackend } : {}),
-            },
-      });
-    }
-
-    // Single replace call with the full entry set so the source (CT) is resolved
-    // and preserved instead of being torn down by per-volume calls.
-    await nativeViewport.setDisplaySets(...setDisplaySetsEntries);
-
-    // Second pass: per-dataId presentations and the 3D preset.
-    for (const [index, { volumeInput }] of filteredVolumeInputArray.entries()) {
-      const dataId = dataIds[index];
-      const props = volumesProperties[index]?.properties;
-      if (props) {
-        const presentationProps: Record<string, unknown> = {};
-        if (props.voiRange) {
-          presentationProps.voiRange = props.voiRange;
-        }
-        if (props.invert !== undefined) {
-          presentationProps.invert = props.invert;
-        }
-        // colormap is a planar (LUT) concept; 3D appearance comes from the preset.
-        if (props.colormap && !is3D) {
-          presentationProps.colormap = props.colormap;
-        }
-        // Slab/blend for projection viewports (e.g. the TMTV MIP pane: blendMode
-        // 'MIP' + slabThickness 'fullVolume'). The native volume-slice render path
-        // maps blendMode -> reslice SlabType (MAX/MIN/MEAN) and applies the slab
-        // thickness on the reslice mapper; without them the mapper renders a single
-        // slice instead of a projection. 3D volume rendering derives its look from
-        // the preset, not a slab, so this is planar-only. blendMode was already
-        // normalized from the HP string ('MIP') to a BlendModes enum by
-        // ViewportInfo.mapDisplaySetOptions, and slabThickness was resolved to a
-        // number by _getSlabThickness ('fullVolume' -> volume diagonal).
-        if (!is3D && volumeInput.blendMode !== undefined) {
-          presentationProps.blendMode = volumeInput.blendMode;
-        }
-        if (!is3D && volumeInput.slabThickness !== undefined) {
-          presentationProps.slabThickness = volumeInput.slabThickness;
-        }
-        if (Object.keys(presentationProps).length > 0) {
-          nativeViewport.setDisplaySetPresentation(dataId, presentationProps);
-        }
-      }
-
-      // 3D volume rendering needs an RGBA transfer function (preset) to be visible;
-      // the bare native VolumeViewport3D has no setProperties, so apply the preset to
-      // the volume actor directly (mirrors the legacy adapter's applyPresetToBinding).
-      if (is3D && index === 0 && props?.preset) {
-        const preset = csConstants.VIEWPORT_PRESETS?.find(p => p.name === props.preset);
-        const actor = nativeViewport.getDefaultActor?.()?.actor;
-        if (preset && actor) {
-          csUtils.applyPreset(actor as Parameters<typeof csUtils.applyPreset>[0], preset);
-        }
-      }
-    }
+    await nativeViewport.setDisplaySets(...entries);
 
     // Do NOT overwrite the service's viewport display-set bookkeeping here. The
     // caller (_setVolumeViewport) already populated it with the COMPLETE set (base
@@ -528,7 +435,7 @@ export class ViewportBackend implements IViewportBackend {
       // The view state of a 3D viewport is its camera, in world units. Its zoom
       // and its pan against the fit are what holds through a resize: the same
       // zoom shows the content at the same share of a canvas of another size.
-      const presentation = viewportProjection.getPresentation<View3DPresentation>(csViewport, {
+      const presentation = viewportProjection.getFraming<View3DPresentation>(csViewport, {
         selector: { zoom: true, pan: true },
       });
 
@@ -537,7 +444,7 @@ export class ViewportBackend implements IViewportBackend {
         viewReference: null,
         viewPresentation: (presentation
           ? { zoom: presentation.zoom, pan: presentation.pan }
-          : undefined) as unknown as Types.ViewPresentation,
+          : undefined) as unknown as Types.ViewFraming,
         viewportId,
       };
     }
@@ -556,7 +463,7 @@ export class ViewportBackend implements IViewportBackend {
       // Opaque native pan/zoom blob; cast at the boundary (legacy stores a Types.ViewPresentation).
       viewPresentation: (viewState
         ? pickNativeViewPresentation(viewState)
-        : undefined) as unknown as Types.ViewPresentation,
+        : undefined) as unknown as Types.ViewFraming,
       viewportId,
     };
   }
@@ -619,7 +526,7 @@ export class ViewportBackend implements IViewportBackend {
     }
 
     const { zoom, pan } = viewPresentation;
-    const viewState = viewportProjection.withPresentation(viewport, { zoom, pan });
+    const viewState = viewportProjection.withFraming(viewport, { zoom, pan });
 
     if (viewState) {
       viewport.setViewState(viewState);
@@ -631,14 +538,14 @@ export class ViewportBackend implements IViewportBackend {
       return;
     }
     const { properties } = lutPresentation;
-    // The LUT presentation is the getDisplaySetPresentation shape (voiRange/
+    // The LUT presentation is the getDisplaySetAppearance shape (voiRange/
     // colormap/invert), not a per-volumeId Map; a planar viewport applies it via
-    // setDisplaySetPresentation (it has no setProperties).
+    // setDisplaySetAppearance (it has no setProperties).
     if (!properties || properties instanceof Map) {
       return;
     }
     const nativeViewport = viewport as unknown as {
-      setDisplaySetPresentation: (props: Record<string, unknown>) => void;
+      setDisplaySetAppearance: (props: Record<string, unknown>) => void;
     };
     const presentationProps: Record<string, unknown> = {};
     if (properties.voiRange) {
@@ -651,23 +558,7 @@ export class ViewportBackend implements IViewportBackend {
       presentationProps.colormap = properties.colormap;
     }
     if (Object.keys(presentationProps).length > 0) {
-      nativeViewport.setDisplaySetPresentation(presentationProps);
+      nativeViewport.setDisplaySetAppearance(presentationProps);
     }
-  }
-
-  registerDataId(
-    viewportId: string,
-    displaySetInstanceUID: string,
-    payload: DataIdPayload
-  ): string {
-    return this.registry.register(viewportId, displaySetInstanceUID, payload);
-  }
-
-  onViewportDisabled(viewportId: string): void {
-    this.registry.releaseViewport(viewportId);
-  }
-
-  destroy(): void {
-    this.registry.destroy();
   }
 }

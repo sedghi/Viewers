@@ -15,12 +15,12 @@ function makeViewport(overrides: Record<string, unknown> = {}): any {
   return {
     id: 'viewport-1',
     setDisplaySets: jest.fn().mockResolvedValue(undefined),
-    setDisplaySetPresentation: jest.fn(),
+    setDisplaySetAppearance: jest.fn(),
     setViewState: jest.fn(),
     getViewState: jest.fn().mockReturnValue({ rotation: 90, flipHorizontal: true }),
     getCurrentMode: jest.fn().mockReturnValue('stack'),
-    getSourceDataId: jest.fn().mockReturnValue('source-uid'),
-    getDisplaySetPresentation: jest.fn().mockReturnValue({}),
+    getSourceDisplaySetId: jest.fn().mockReturnValue('source-uid'),
+    getDisplaySetAppearance: jest.fn().mockReturnValue({}),
     getDefaultVOIRange: jest.fn().mockReturnValue(undefined),
     getViewReference: jest.fn().mockReturnValue({
       viewPlaneNormal: [0, 0, 1],
@@ -160,22 +160,22 @@ describe('view geometry', () => {
 });
 
 describe('per-display-set appearance', () => {
-  it('getPresentation: per-binding read, defaulting to the source dataId', () => {
+  it('getPresentation: per-binding read, defaulting to the source display set', () => {
     const viewport = makeViewport({
-      getDisplaySetPresentation: jest.fn().mockReturnValue({ invert: true }),
+      getDisplaySetAppearance: jest.fn().mockReturnValue({ invert: true }),
     });
     const adapter = getViewportAdapter(viewport);
     expect(adapter.getPresentation()).toEqual({ invert: true });
-    expect(viewport.getDisplaySetPresentation).toHaveBeenCalledWith('source-uid');
+    expect(viewport.getDisplaySetAppearance).toHaveBeenCalledWith('source-uid');
     adapter.getPresentation('ds-2');
-    expect(viewport.getDisplaySetPresentation).toHaveBeenCalledWith('ds-2');
+    expect(viewport.getDisplaySetAppearance).toHaveBeenCalledWith('ds-2');
   });
 
   it('getPresentation stamps isComputedVOI when the VOI matches the binding default', () => {
     const voiRange = { lower: 0, upper: 80 };
     const stamped = getViewportAdapter(
       makeViewport({
-        getDisplaySetPresentation: jest.fn().mockReturnValue({ voiRange }),
+        getDisplaySetAppearance: jest.fn().mockReturnValue({ voiRange }),
         getDefaultVOIRange: jest.fn().mockReturnValue({ lower: 0, upper: 80 }),
       })
     ).getPresentation();
@@ -183,21 +183,20 @@ describe('per-display-set appearance', () => {
 
     const notStamped = getViewportAdapter(
       makeViewport({
-        getDisplaySetPresentation: jest.fn().mockReturnValue({ voiRange }),
+        getDisplaySetAppearance: jest.fn().mockReturnValue({ voiRange }),
         getDefaultVOIRange: jest.fn().mockReturnValue({ lower: 10, upper: 90 }),
       })
     ).getPresentation();
     expect(notStamped.isComputedVOI).toBeUndefined();
   });
 
-  it('setPresentation targets setDisplaySetPresentation', () => {
+  it('setPresentation targets setDisplaySetAppearance', () => {
     const viewport = makeViewport();
     getViewportAdapter(viewport).setPresentation({ invert: true }, 'ds-1');
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('ds-1', { invert: true });
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('ds-1', { invert: true });
 
-    // No dataId: falls back to the source binding.
     getViewportAdapter(viewport).setPresentation({ invert: false });
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('source-uid', {
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('source-uid', {
       invert: false,
     });
   });
@@ -212,17 +211,17 @@ describe('per-display-set appearance', () => {
 
   it('getColormap reads the presentation of the binding', () => {
     const viewport = makeViewport({
-      getDisplaySetPresentation: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
+      getDisplaySetAppearance: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
     });
     expect(getViewportAdapter(viewport).getColormap('ds-1')).toEqual({ name: 'jet' });
   });
 
   it('setLayerOpacity merges into the existing colormap', () => {
     const viewport = makeViewport({
-      getDisplaySetPresentation: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
+      getDisplaySetAppearance: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
     });
     expect(getViewportAdapter(viewport).setLayerOpacity('ds-1', 0.5)).toBe(true);
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('ds-1', {
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('ds-1', {
       colormap: { name: 'jet', opacity: 0.5 },
     });
   });
@@ -234,13 +233,13 @@ describe('per-display-set appearance', () => {
       { value: 1, opacity: 0.9 },
     ];
     const viewport = makeViewport({
-      getDisplaySetPresentation: jest
+      getDisplaySetAppearance: jest
         .fn()
         .mockReturnValue({ colormap: { name: 'hsv', opacity: ramp } }),
     });
 
     expect(getViewportAdapter(viewport).setLayerOpacity('pt-1', 0.5)).toBe(true);
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1', {
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('pt-1', {
       colormap: { name: 'hsv', opacityMapping: ramp, opacity: 0.5 },
     });
   });
@@ -251,34 +250,34 @@ describe('per-display-set appearance', () => {
       { value: 1, opacity: 0.9 },
     ];
     const viewport = makeViewport({
-      getDisplaySetPresentation: jest.fn().mockReturnValue({
+      getDisplaySetAppearance: jest.fn().mockReturnValue({
         colormap: { name: 'hsv', opacity: 0.5, opacityMapping: ramp, threshold: 2 },
       }),
     });
 
     getViewportAdapter(viewport).setLayerOpacity('pt-1', 0);
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1', {
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('pt-1', {
       colormap: { name: 'hsv', opacityMapping: ramp, threshold: 2, opacity: 0 },
     });
   });
 
   it('setLayerThreshold merges into the existing colormap', () => {
     const viewport = makeViewport({
-      getDisplaySetPresentation: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
+      getDisplaySetAppearance: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
     });
     expect(getViewportAdapter(viewport).setLayerThreshold('ds-1', 42)).toBe(true);
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('ds-1', {
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('ds-1', {
       colormap: { name: 'jet', threshold: 42 },
     });
   });
 
   it('getBlendMode reads the blend mode of the presentation', () => {
-    const getDisplaySetPresentation = jest.fn((dataId: string) =>
-      dataId === 'ds-mip' ? { blendMode: Enums.BlendModes.MAXIMUM_INTENSITY_BLEND } : {}
+    const getDisplaySetAppearance = jest.fn((displaySetId: string) =>
+      displaySetId === 'ds-mip' ? { blendMode: Enums.BlendModes.MAXIMUM_INTENSITY_BLEND } : {}
     );
     const mip = makeViewport({
-      getSourceDataId: jest.fn().mockReturnValue('ds-mip'),
-      getDisplaySetPresentation,
+      getSourceDisplaySetId: jest.fn().mockReturnValue('ds-mip'),
+      getDisplaySetAppearance,
     });
 
     expect(getViewportAdapter(mip).getBlendMode()).toBe(Enums.BlendModes.MAXIMUM_INTENSITY_BLEND);
@@ -289,67 +288,27 @@ describe('per-display-set appearance', () => {
   it('getOpacityGamma is linear', () => {
     expect(getViewportAdapter(makeViewport()).getOpacityGamma()).toBe(1);
   });
-
-  it('addresses a display set that shows under a data id of its own by its UID', () => {
-    const viewport = makeViewport({
-      getDisplaySets: jest
-        .fn()
-        .mockReturnValue([{ displaySetId: 'ct-1' }, { displaySetId: 'pt-1::volume' }]),
-      getDisplaySetPresentation: jest.fn((dataId: string) =>
-        dataId === 'pt-1::volume' ? { colormap: { name: 'hsv' } } : {}
-      ),
-    });
-    const adapter = getViewportAdapter(viewport);
-
-    expect(adapter.getColormap('pt-1')).toEqual({ name: 'hsv' });
-    expect(adapter.setLayerOpacity('pt-1', 0.5)).toBe(true);
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1::volume', {
-      colormap: { name: 'hsv', opacity: 0.5 },
-    });
-    adapter.getDefaultVOIRange('pt-1');
-    expect(viewport.getDefaultVOIRange).toHaveBeenCalledWith('pt-1::volume');
-  });
-
-  it('addresses a display set that shows under a data id of its own by that data id', () => {
-    const viewport = makeViewport({
-      getDisplaySets: jest
-        .fn()
-        .mockReturnValue([{ displaySetId: 'ct-1' }, { displaySetId: 'pt-1::volume' }]),
-    });
-
-    getViewportAdapter(viewport).setPresentation({ invert: true }, 'pt-1::volume');
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith('pt-1::volume', {
-      invert: true,
-    });
-  });
 });
 
 describe('data addressing', () => {
-  it('getDataIdForDisplaySet gives the bare UID', () => {
-    expect(getViewportAdapter(makeViewport()).getDataIdForDisplaySet('ds-1')).toBe('ds-1');
+  it('getShownDisplaySetId gives the UID when the viewport shows nothing yet', () => {
+    expect(getViewportAdapter(makeViewport()).getShownDisplaySetId('ds-1')).toBe('ds-1');
   });
 
-  it('getDataIdForDisplaySet gives the UID of a display set that the viewport shows', () => {
+  it('getShownDisplaySetId gives the UID of a display set that the viewport shows', () => {
     const viewport = makeViewport({
       getDisplaySets: jest
         .fn()
         .mockReturnValue([{ displaySetId: 'ct-1' }, { displaySetId: 'pt-1' }]),
     });
-    expect(getViewportAdapter(viewport).getDataIdForDisplaySet('pt-1')).toBe('pt-1');
+    expect(getViewportAdapter(viewport).getShownDisplaySetId('pt-1')).toBe('pt-1');
   });
 
-  it('getDataIdForDisplaySet gives the data id of its own of a display set shown in a second shape', () => {
-    const viewport = makeViewport({
-      getDisplaySets: jest.fn().mockReturnValue([{ displaySetId: 'ct-1::stack' }]),
-    });
-    expect(getViewportAdapter(viewport).getDataIdForDisplaySet('ct-1')).toBe('ct-1::stack');
-  });
-
-  it('getDataIdForDisplaySet gives undefined for a display set that the viewport does not show', () => {
+  it('getShownDisplaySetId gives undefined for a display set that the viewport does not show', () => {
     const viewport = makeViewport({
       getDisplaySets: jest.fn().mockReturnValue([{ displaySetId: 'mr-1' }]),
     });
-    expect(getViewportAdapter(viewport).getDataIdForDisplaySet('sr-1')).toBeUndefined();
+    expect(getViewportAdapter(viewport).getShownDisplaySetId('sr-1')).toBeUndefined();
   });
 
   it('getVolumeIds is empty for a viewport without actors', () => {
@@ -385,7 +344,9 @@ describe('data addressing', () => {
 
   it('getDataIdForVolumeId gives the binding that shows the volume', () => {
     const viewport = makeViewport({
-      findDataIdByVolumeId: jest.fn((id: string) => (id === 'volume-pt' ? 'ds-pt' : undefined)),
+      getDisplaySetIdForVolumeId: jest.fn((id: string) =>
+        id === 'volume-pt' ? 'ds-pt' : undefined
+      ),
     });
 
     expect(getViewportAdapter(viewport).getDataIdForVolumeId('volume-pt')).toBe('ds-pt');
@@ -416,13 +377,15 @@ describe('data addressing', () => {
 });
 
 describe('capture (copyDisplayedContentTo)', () => {
-  it('remounts the source dataId and copies presentation + view state', async () => {
+  it('remounts the source display set in its mode and copies presentation + view state', async () => {
     const source = makeViewport({
-      getDisplaySetPresentation: jest.fn().mockReturnValue({ invert: true }),
+      getDisplaySetAppearance: jest.fn().mockReturnValue({ invert: true }),
       getViewState: jest.fn().mockReturnValue({ orientation: 'axial', rotation: 45 }),
+      getDisplaySets: jest
+        .fn()
+        .mockReturnValue([{ displaySetId: 'source-uid', options: { mode: 'volume' } }]),
     });
     const target = makeViewport({
-      getSourceDataId: jest.fn().mockReturnValue('capture-uid'),
       setViewReference: jest.fn(),
     });
 
@@ -430,9 +393,9 @@ describe('capture (copyDisplayedContentTo)', () => {
 
     expect(target.setDisplaySets).toHaveBeenCalledWith({
       displaySetId: 'source-uid',
-      options: { orientation: 'axial', role: 'source' },
+      options: { orientation: 'axial', role: 'source', mode: 'volume' },
     });
-    expect(target.setDisplaySetPresentation).toHaveBeenCalledWith('capture-uid', { invert: true });
+    expect(target.setDisplaySetAppearance).toHaveBeenCalledWith('source-uid', { invert: true });
     expect(target.setViewReference).toHaveBeenCalledWith({
       viewPlaneNormal: [0, 0, 1],
       cameraFocalPoint: [1, 2, 3],

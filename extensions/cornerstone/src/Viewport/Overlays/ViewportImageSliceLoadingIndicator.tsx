@@ -53,7 +53,7 @@ function ViewportImageSliceLoadingIndicator({ viewportData, element }) {
   const setFinishLoadingState = evt => {
     clearTimeout(loadIndicatorRef.current);
 
-    shownImageIdIndex.current = evt.detail.imageIdIndex;
+    shownImageIdIndex.current = evt.detail.sliceIndex;
     setLoading(false);
   };
 

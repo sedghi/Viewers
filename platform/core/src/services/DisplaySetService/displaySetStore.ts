@@ -1,27 +1,23 @@
-import {
-  Enums,
-  metaData,
-  utilities as csMetadataUtilities,
-  registerDisplaySetProviders,
-} from '@cornerstonejs/metadata';
+import { metaData, displaySetRegistry, registerDisplaySetProviders } from '@cornerstonejs/metadata';
 import { DisplaySet } from '../../types';
 
-const DISPLAY_SET_MODULE = Enums.MetadataModules.DISPLAY_SET;
-
 /**
- * Storage adapter that keeps OHIF display sets in the `@cornerstonejs/metadata`
- * DISPLAY_SET typed cache (keyed by `displaySetInstanceUID`) instead of an
- * OHIF-private map, so cornerstone-native consumers can resolve the same
- * display sets through `metaData.getTyped(Enums.MetadataModules.DISPLAY_SET, uid)`.
+ * Storage adapter that keeps OHIF display sets in `displaySetRegistry` of
+ * `@cornerstonejs/metadata`, the one store of display sets: its
+ * `MetadataModules.DISPLAY_SET` typed cache, keyed by `displaySetInstanceUID`.
+ * The registry keeps the display set object itself, so a viewport that mounts
+ * a display set by its `displaySetInstanceUID` reads this object (its
+ * `imageIds`, its `instance`, its `volumeId`), and
+ * `metaData.getTyped(Enums.MetadataModules.DISPLAY_SET, uid)` gives it too.
+ * Each display set is added once, when it is made or replaced (an
+ * `addInstances` merge, an `extendInstances` growth, an SR re-hydration), and
+ * removed when it is deleted; nothing is registered when a viewport mounts it.
+ * A mount copies what it reads, so a display set that grew is seen with its new
+ * images by the next mount.
  *
- * The typed cache has no enumeration API, so a module-level UID index is kept
+ * The registry has no enumeration API, so a module-level UID index is kept
  * for iteration.  The index is module-level (like the previous module-level
  * `displaySetCache` map) so all service instances share the same store.
- *
- * Writes use `setCacheData` for exact `Map.set` overwrite semantics — the
- * `metaData.addTyped` ingest path warns and keeps the OLD value on duplicate
- * adds, which would break the re-add flows (invalidation, `addInstances`
- * merges, SR re-hydration).
  *
  * ### Lifetime
  *
@@ -73,13 +69,14 @@ export function ensureDisplaySetMetadataProviders(): void {
 }
 
 /**
- * Stores a display set, overwriting any previous value for the same
- * `displaySetInstanceUID` (matching `Map.set` semantics).
+ * Registers a display set with `displaySetRegistry.add` under its
+ * `displaySetInstanceUID`, replacing any previous value for the same UID
+ * (matching `Map.set` semantics). The registry keeps this object: no copy.
  */
 export function setDisplaySet(displaySet: DisplaySet): void {
   ensureDisplaySetMetadataProviders();
   const uid = displaySet.displaySetInstanceUID;
-  csMetadataUtilities.setCacheData(DISPLAY_SET_MODULE, uid, displaySet);
+  displaySetRegistry.add(uid, displaySet);
   displaySetUIDs.add(uid);
 }
 
@@ -91,7 +88,7 @@ export function setDisplaySet(displaySet: DisplaySet): void {
  * UID this store still believes in.
  */
 export function getDisplaySet(uid: string): DisplaySet | undefined {
-  const value = csMetadataUtilities.getCacheData(DISPLAY_SET_MODULE, uid) as DisplaySet | undefined;
+  const value = displaySetRegistry.get(uid) as DisplaySet | undefined;
   if (value === undefined && displaySetUIDs.has(uid)) {
     displaySetUIDs.delete(uid);
   }
@@ -105,14 +102,14 @@ export function hasDisplaySet(uid: string): boolean {
 /** Removes a display set from the store. */
 export function deleteDisplaySet(uid: string): boolean {
   const existed = displaySetUIDs.delete(uid);
-  csMetadataUtilities.clearTypedCacheData(DISPLAY_SET_MODULE, uid);
+  displaySetRegistry.remove(uid);
   return existed;
 }
 
 /**
- * Removes every display set owned by this store.  Clears per-UID rather than
- * clearing the whole DISPLAY_SET module so cornerstone-native entries written
- * by other code survive.
+ * Removes every display set owned by this store.  Removes per-UID rather than
+ * clearing the whole registry so display sets that other code registered
+ * survive.
  *
  * Called from `DisplaySetService.onModeExit()`.  The cornerstone extension's
  * own mode-exit `clearCacheData()` is broader and may get there first; either
@@ -120,7 +117,7 @@ export function deleteDisplaySet(uid: string): boolean {
  */
 export function clearDisplaySets(): void {
   for (const uid of displaySetUIDs) {
-    csMetadataUtilities.clearTypedCacheData(DISPLAY_SET_MODULE, uid);
+    displaySetRegistry.remove(uid);
   }
   displaySetUIDs.clear();
 }

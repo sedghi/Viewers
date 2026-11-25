@@ -135,8 +135,8 @@ function isVolume3DViewport(viewport: Types.IViewport | null | undefined): boole
 function readPresentation(viewport, activeDisplaySetInstanceUID) {
   try {
     const adapter = getViewportAdapter(viewport);
-    const dataId = adapter.getDataIdForDisplaySet(activeDisplaySetInstanceUID);
-    const properties = adapter.getPresentation(dataId);
+    const displaySetId = adapter.getShownDisplaySetId(activeDisplaySetInstanceUID);
+    const properties = adapter.getPresentation(displaySetId);
 
     if (!properties) {
       return null;
@@ -149,7 +149,7 @@ function readPresentation(viewport, activeDisplaySetInstanceUID) {
       // computed default VOI (the legacy getProperties always returned the
       // applied VOI). Without this, changing
       // the series left the overlay showing the previous series' window level.
-      voiRange = adapter.getDefaultVOIRange(dataId);
+      voiRange = adapter.getDefaultVOIRange(displaySetId);
     }
 
     return { voiRange, colormap: properties.colormap };
@@ -377,7 +377,9 @@ export function useViewportRendering(
     const element = viewport.element;
 
     const updateVOI = eventDetail => {
-      const { range } = eventDetail.detail;
+      const {
+        effective: { voiRange: range },
+      } = eventDetail.detail;
 
       if (!range) {
         return;
@@ -394,7 +396,9 @@ export function useViewportRendering(
     };
 
     const updateColormap = eventDetail => {
-      const { colormap } = eventDetail.detail;
+      const {
+        effective: { colormap },
+      } = eventDetail.detail;
 
       if (!colormap) {
         return;
@@ -414,12 +418,12 @@ export function useViewportRendering(
       }
     };
 
-    element.addEventListener(Enums.Events.VOI_MODIFIED, updateVOI);
-    element.addEventListener(Enums.Events.COLORMAP_MODIFIED, updateColormap);
+    element.addEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateVOI);
+    element.addEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateColormap);
 
     return () => {
-      element.removeEventListener(Enums.Events.VOI_MODIFIED, updateVOI);
-      element.removeEventListener(Enums.Events.COLORMAP_MODIFIED, updateColormap);
+      element.removeEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateVOI);
+      element.removeEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateColormap);
     };
   }, [activeDisplaySetInstanceUID, viewport, opacityToLinear]);
 

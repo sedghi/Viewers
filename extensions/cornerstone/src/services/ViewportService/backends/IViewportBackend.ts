@@ -6,7 +6,6 @@ import type {
   LutPresentation,
 } from '../../../types/Presentation';
 import type { StackViewportData, VolumeViewportData } from '../../../types/CornerstoneCacheService';
-import type { DataIdPayload } from './dataIdRegistry';
 
 /** A pending overlay (SEG/RTSTRUCT) add produced by the service's prelude. */
 export type OverlayMountTask = {
@@ -64,8 +63,9 @@ export interface VolumeMountContext {
  *
  * The service holds exactly one backend for its lifetime and routes these
  * concerns through it: mount dispatch, the per-family MOUNT BODIES
- * (mountStack/mountVolumes/mountEcg/mountOther/remount), presentation
- * capture/restore, and the dataId lifecycle. The service keeps the preludes
+ * (mountStack/mountVolumes/mountEcg/mountOther/remount) and presentation
+ * capture/restore. A mount names a display set by its `displaySetInstanceUID`,
+ * under which the display set service registered it. The service keeps the preludes
  * (option/property derivation, bookkeeping, events) and the end of an
  * overlay-only volume mount.
  */
@@ -83,39 +83,32 @@ export interface IViewportBackend {
   ): Promise<void>;
 
   /**
-   * Mounts an image stack: register the dataId, setDisplaySets, apply presentation +
-   * view state. A window is set only when the properties give one: without it the
-   * viewport shows each image of the stack with the window of its own metadata, and a
-   * window set here would hold for every image.
+   * Mounts an image stack: setDisplaySets in stack mode, on the initial image and with
+   * the presentation as its appearance, then the view state. A window is set only when
+   * the properties give one: without it the viewport shows each image of the stack with
+   * the window of its own metadata, and a window set here would hold for every image.
    */
   mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void>;
 
   /**
-   * Mounts the volumes (registered dataIds + one setDisplaySets call +
-   * per-binding presentations) and returns true: the service then only
+   * Mounts the volumes (one setDisplaySets call in volume mode, each display set
+   * with its volume id and its appearance) and returns true: the service then only
    * broadcasts. Returns false for an overlay-only mount (no base volume), which
    * the service finishes: its overlays are added via the segmentation
    * representations.
    */
   mountVolumes(viewport: Types.IViewport, context: VolumeMountContext): Promise<boolean>;
 
-  /**
-   * Mounts an ECG waveform: register the display set's dataId and mount through
-   * the setDisplaySets API.
-   */
-  mountEcg(
-    viewport: ECGViewport,
-    displaySet: { displaySetInstanceUID: string; imageIds?: string[] },
-    imageId: string
-  ): Promise<void>;
+  /** Mounts an ECG waveform by the UID of its display set through the setDisplaySets API. */
+  mountEcg(viewport: ECGViewport, displaySet: { displaySetInstanceUID: string }): Promise<void>;
 
   /**
-   * Mounts video / whole-slide content (the caller applies the view reference
-   * afterwards). Registers the family-specific dataId first.
+   * Mounts video / whole-slide content by the UID of its display set (the caller
+   * applies the view reference afterwards).
    */
   mountOther(
     viewport: Types.IViewport,
-    displaySet: { displaySetInstanceUID: string; imageIds: string[] }
+    displaySet: { displaySetInstanceUID: string }
   ): Promise<void>;
 
   /**
@@ -152,28 +145,7 @@ export interface IViewportBackend {
 
   /**
    * Restores a LUT presentation (VOI/colormap/invert) via
-   * setDisplaySetPresentation.
+   * setDisplaySetAppearance.
    */
   setLutPresentation(viewport: Types.IViewport, lutPresentation: LutPresentation): void;
-
-  /**
-   * Registers a display set for a viewport against cornerstone's global display
-   * set metadata provider, and gives the data id to mount it by: the display
-   * set UID, or a data id of its own while the UID is registered for the other
-   * shape (`<uid>::stack`, `<uid>::volume`; see `DataIdRegistry`). Ref-counted
-   * and tracked per viewport, so that it can be released on unmount.
-   */
-  registerDataId(viewportId: string, displaySetInstanceUID: string, payload: DataIdPayload): string;
-
-  /**
-   * Releases the dataset registrations a viewport owns (the UID of a display set
-   * leaves the provider when no data id of it is registered any more). Called
-   * from the service's disableElement BEFORE the viewport bookkeeping is deleted.
-   */
-  onViewportDisabled(viewportId: string): void;
-
-  /**
-   * Flushes all remaining registrations. Called from the service's destroy().
-   */
-  destroy(): void;
 }

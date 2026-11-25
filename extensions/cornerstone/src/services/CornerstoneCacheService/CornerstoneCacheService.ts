@@ -18,7 +18,6 @@ class CornerstoneCacheService {
     },
   };
 
-  stackImageIds: Map<string, string[]> = new Map();
   volumeImageIds: Map<string, string[]> = new Map();
   readonly servicesManager: AppTypes.ServicesManager;
 
@@ -104,7 +103,7 @@ class CornerstoneCacheService {
 
     if (dataShapeType === 'stack') {
       const displaySet = displaySetService.getDisplaySetByUID(invalidatedDisplaySetInstanceUID);
-      const imageIds = this._getCornerstoneStackImageIds(displaySet, dataSource);
+      const imageIds = this._refreshImageIds(displaySet, dataSource);
 
       // remove images from the cache to be able to re-load them
       imageIds.forEach(imageId => {
@@ -147,7 +146,13 @@ class CornerstoneCacheService {
       // remove the texture as well, but here we really just need a remove
       // from registry so that we load it again
       cs3DCache._volumeCache.delete(volumeId);
-      this.volumeImageIds.delete(volumeId);
+    }
+
+    const invalidatedDisplaySet = displaySetService.getDisplaySetByUID(
+      invalidatedDisplaySetInstanceUID
+    );
+    if (invalidatedDisplaySet && !(invalidatedDisplaySet.load instanceof Function)) {
+      this._refreshImageIds(invalidatedDisplaySet, dataSource);
     }
 
     const displaySets = viewportData.data.map(({ displaySetInstanceUID }) =>
@@ -203,14 +208,8 @@ class CornerstoneCacheService {
 
       await loadDisplaySetData(displaySet, this.servicesManager);
 
-      let stackImageIds = this.stackImageIds.get(displaySet.displaySetInstanceUID);
-
-      if (!stackImageIds) {
-        stackImageIds = this._getCornerstoneStackImageIds(displaySet, dataSource);
-        // assign imageIds to the displaySet
-        displaySet.imageIds = stackImageIds;
-        this.stackImageIds.set(displaySet.displaySetInstanceUID, stackImageIds);
-      }
+      const stackImageIds = this._getCornerstoneStackImageIds(displaySet, dataSource);
+      displaySet.imageIds = stackImageIds;
 
       StackViewportData.push({
         StudyInstanceUID,
@@ -278,8 +277,9 @@ class CornerstoneCacheService {
         });
 
         this.volumeImageIds.set(displaySet.displaySetInstanceUID, volumeImageIds);
+      }
 
-        // Add imageIds to the displaySet for volumes
+      if (volumeImageIds) {
         displaySet.imageIds = volumeImageIds;
       }
 
@@ -301,6 +301,19 @@ class CornerstoneCacheService {
 
   private _getCornerstoneStackImageIds(displaySet, dataSource): string[] {
     return dataSource.getImageIdsForDisplaySet(displaySet);
+  }
+
+  /**
+   * Gives a display set that changed (it grew, or its metadata changed) the image
+   * ids of the data source again, and forgets the image ids kept for its volume.
+   * A mount reads the image ids of the registered display set and keeps a copy, so
+   * the next mount shows the images that the display set has now.
+   */
+  private _refreshImageIds(displaySet, dataSource): string[] {
+    const imageIds = this._getCornerstoneStackImageIds(displaySet, dataSource);
+    displaySet.imageIds = imageIds;
+    this.volumeImageIds.delete(displaySet.displaySetInstanceUID);
+    return imageIds;
   }
 
   private _getCornerstoneVolumeImageIds(displaySet, dataSource): string[] {

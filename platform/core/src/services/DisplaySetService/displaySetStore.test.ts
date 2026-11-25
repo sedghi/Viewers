@@ -1,4 +1,9 @@
-import { Enums, metaData, utilities as csMetadataUtilities } from '@cornerstonejs/metadata';
+import {
+  Enums,
+  metaData,
+  displaySetRegistry,
+  utilities as csMetadataUtilities,
+} from '@cornerstonejs/metadata';
 import * as displaySetStore from './displaySetStore';
 
 const makeDisplaySet = (uid: string, extra: Record<string, unknown> = {}) =>
@@ -65,6 +70,45 @@ describe('displaySetStore', () => {
     const displaySet = makeDisplaySet('uid-typed');
     displaySetStore.setDisplaySet(displaySet);
     expect(metaData.getTyped(Enums.MetadataModules.DISPLAY_SET, 'uid-typed')).toBe(displaySet);
+  });
+
+  it('registers the display set object itself in displaySetRegistry', () => {
+    const displaySet = makeDisplaySet('uid-registered', { imageIds: ['a', 'b'] });
+    displaySetStore.setDisplaySet(displaySet);
+    expect(displaySetRegistry.has('uid-registered')).toBe(true);
+    expect(displaySetRegistry.get('uid-registered')).toBe(displaySet);
+    expect(displaySet).not.toHaveProperty('displaySetId');
+  });
+
+  it('gives the registry the images of a display set that grew', () => {
+    const displaySet = makeDisplaySet('uid-grows', { imageIds: ['a'] });
+    displaySetStore.setDisplaySet(displaySet);
+    displaySet.imageIds = ['a', 'b'];
+    expect(displaySetRegistry.get('uid-grows')?.imageIds).toEqual(['a', 'b']);
+  });
+
+  it('replaces the registration when a display set is stored again', () => {
+    displaySetStore.setDisplaySet(makeDisplaySet('uid-1', { generation: 1 }));
+    const second = makeDisplaySet('uid-1', { generation: 2 });
+    displaySetStore.setDisplaySet(second);
+    expect(displaySetRegistry.get('uid-1')).toBe(second);
+  });
+
+  it('removes the registration when a display set is deleted', () => {
+    displaySetStore.setDisplaySet(makeDisplaySet('uid-1'));
+    displaySetStore.deleteDisplaySet('uid-1');
+    expect(displaySetRegistry.has('uid-1')).toBe(false);
+  });
+
+  it('removes its own registrations on clearDisplaySets and keeps the others', () => {
+    displaySetRegistry.add('other-code', { imageIds: ['x'] });
+    displaySetStore.setDisplaySet(makeDisplaySet('uid-1'));
+    displaySetStore.setDisplaySet(makeDisplaySet('uid-2'));
+    displaySetStore.clearDisplaySets();
+    expect(displaySetRegistry.has('uid-1')).toBe(false);
+    expect(displaySetRegistry.has('uid-2')).toBe(false);
+    expect(displaySetRegistry.has('other-code')).toBe(true);
+    displaySetRegistry.remove('other-code');
   });
 
   it('survives an external typed-cache wipe by pruning its index', () => {

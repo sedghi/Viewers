@@ -1354,7 +1354,20 @@ failed first, a build, or a run that is named).
     data id is the display set UID, or `<uid>::stack` / `<uid>::volume`; ask the adapter.
 - **Fix, in cornerstone:** none for the scheme; the guide's model has one id for each. The
   references are M51.
-- **State:** fixed in package U7 (not committed yet). Checks:
+- **Replaced (task O2, 25 November):** Cornerstone keeps what is true of the data in the
+  registration and what one viewport wants on its mount (`mode`, `volumeId`,
+  `initialImageIdIndex`, `appearance`), and a mount copies what it reads, so a display set
+  registered once under its UID shows as a stack in one viewport and as a volume in
+  another (task DS3 of cornerstone). OHIF registers each display set once, when it is
+  made (`displaySetStore.ts`, M54), and mounts it by its UID with `mode: 'stack'` or
+  `mode: 'volume'`. `DataIdRegistry`, `utils/displaySetDataId.ts` and the scheme
+  `<uid>::stack` / `<uid>::volume` are deleted, and so is point 5 of OHIF's migration page
+  (data ids). Checked: `ViewportBackend.test.ts` ("shows one display set as a stack in one
+  viewport and as a volume in another under its UID (M42)") and, in the viewer, an axial CT
+  as a stack beside its axial volume (M54). The Playwright run of M54 is the run of
+  `SEGHydrationFrom3DFourUp.spec.ts`.
+- **State:** closed by task O2 (not committed yet); the workaround of package U7 is
+  deleted. The checks of package U7 below are history:
   - jest: `utils/displaySetDataId.test.ts` (5 tests), `backends/dataIdRegistry.test.ts` (10
     tests: a stack mount after a volume one, a volume mount after a stack one, the same
     display set in both at once, the remounts; 9 failed on the registry of `2f4718f986`,
@@ -1662,8 +1675,18 @@ failed first, a build, or a run that is named).
   an application keeps the registration of a data id while references to it can be shown.
   With the first, OHIF's registry could release the data id of a second shape at its last
   viewport again.
-- **State:** the OHIF part is fixed in package U7 (not committed yet); the cornerstone part
-  is open.
+- **Replaced (task O2, 25 November):** Cornerstone judges a reference by its image or its
+  plane, also when its display set is no longer registered, and a stack moves nothing for
+  a reference of a volume that names no image (the row "No view reference changes the
+  source; a reference is judged by its image or its plane" of `5-from-a-6-beta.md`). And
+  with one id per display set the id of a reference is the UID of a display set that the
+  store keeps for the whole mode. OHIF keeps no registration for references any more: the
+  registry of package U7 is deleted (M42, M54).
+- **Checked in the viewer** (M54): the CT as a stack and as an axial volume, a length on
+  each, then the pane of the other shape removed: a jump to the length of the volume puts
+  the stack, which stays a stack, on image 30; a jump to the length of the stack puts the
+  volume on slice 40. The same jumps with both panes land on 30 and 40.
+- **State:** closed by task O2 and cornerstone (not committed yet).
 
 ## M52. A list of opacities in `colormap.opacity` takes the place of the overall opacity
 
@@ -1703,3 +1726,210 @@ failed first, a build, or a run that is named).
   `opacity`): it should then read an `opacityMapping` without `opacity` as 1.
 - **State:** open, waits for cornerstone. What a user sees: after a change of the colour
   map of the PET of a fusion, the opacity slider is back at 100%.
+
+## M53. The codemod step of the names after 6.0.0-beta.2, on this branch (task O1)
+
+- **Run:** the `api-names` step of Cornerstone3D at `880c03496`, from
+  `packages/codemods`: `node scripts/run-registry.mjs --steps api-names
+  <ohif>/extensions <ohif>/modes <ohif>/platform` on `78432e76cb` (1,854 source files,
+  34 s), then prettier on the changed files. The diff, the JSON of every reported site
+  and the log are in the lane folder of task O1 (`codemod.diff`, `codemod.json`,
+  `codemod.log`).
+- **Numbers:** 16 files, 37 changed lines; **35 rewritten, 66 manual sites in 15 files,
+  16 review sites in 8 files**. The same as the measure of task CM1 on a copy of the same
+  commit: its diff has the same added and removed lines, and its 117 report entries are
+  the same (file, line, rule).
+  - Rewritten: 6 `VIEWPORT_NEW_IMAGE_SET` and 4 `VOLUME_VIEWPORT_NEW_VOLUME` to
+    `DISPLAY_SETS_CHANGED`, 4 `VOI_MODIFIED` and 2 `COLORMAP_MODIFIED` to
+    `DISPLAY_SET_APPEARANCE_CHANGED` (with one read of `detail.range` and one of
+    `detail.colormap` to `detail.effective.*`), 4 `viewportProjection.getPresentation`
+    to `getFraming`, 4 `withPresentation` to `withFraming`, 3 `Types.ViewPresentation`
+    to `Types.ViewFraming`, 4 `genericViewportDisplaySetMetadataProvider` to
+    `displaySetRegistry` and its `get(type, id)` to `get(id)`, 1 `detail.imageIdIndex` of
+    `NEW_IMAGE` to `detail.sliceIndex`.
+- **Wrong rewrites:** none.
+- **A site the step could have resolved from the file (for cornerstone):** two test files
+  mock `viewportProjection` in a `jest.mock('@cornerstonejs/core', ...)` factory. The step
+  rewrote the reads `viewportProjection.getPresentation` and `withPresentation` of the
+  same files, and left the keys of the mock as they were, without a report, so the tests
+  read `undefined.mockReset()` (`ViewportBackend.test.ts`, `viewportOperations.test.ts`).
+  Smallest input:
+
+  ```ts
+  import { viewportProjection } from '@cornerstonejs/core';
+
+  jest.mock('@cornerstonejs/core', () => ({
+    ...jest.requireActual('@cornerstonejs/core'),
+    viewportProjection: { getPresentation: jest.fn(), withPresentation: jest.fn() },
+  }));
+
+  const getPresentation = viewportProjection.getPresentation as jest.Mock;
+  ```
+
+  The step writes `viewportProjection.getFraming` on the last line and leaves the keys
+  `getPresentation` and `withPresentation`; it should rename them to `getFraming` and
+  `withFraming` (the factory is the module `@cornerstonejs/core` and the key is
+  `viewportProjection`), or report them as it reports the keys of a mock of
+  `setDisplaySetPresentation`. Fixed by hand in OHIF. To do in cornerstone (a fixture of
+  the family of the framing names).
+- **Also seen:** a listener `evt => evt.detail` of the renamed `DISPLAY_SETS_CHANGED`
+  (`CornerstoneViewportService.ts`, the prefetch listener) has a type error after the
+  rewrite (`detail` does not exist on `Event`) on the line after the changed one. Before
+  the rewrite the old name was not an event of 6.0, so `evt` was `any`. The step lists the
+  site for review, and the measure of CM1 counts errors on changed lines only, so its "no
+  new type error" does not see it. Fixed in OHIF by typing the parameter
+  (`Types.EventTypes.DisplaySetsChangedEvent`); the listener itself is the work of task O5.
+- **Where the manual and review sites went:**
+  - by hand, renames only (task O1): `setDisplaySetPresentation`,
+    `getDisplaySetPresentation`, `resetDisplaySetPresentation` (39 sites, the adapter,
+    the backend, `viewportOperations.ts` and the mocks of the tests), `getSourceDataId`
+    (4) and `findDataIdByVolumeId` (1);
+  - gone with the code (task O2): the `add` of a descriptor that is not a literal
+    (`dataIdRegistry.ts`, deleted), the 3D `renderMode` (`ViewportBackend.ts`, deleted),
+    the `dataId` of the colour bar data (OHIF's own key, now `displaySetId`);
+  - left, they compile: 16 `colormap.opacity` and the 7 `DISPLAY_SET_APPEARANCE_CHANGED`
+    sites of `ViewportWindowLevel.tsx` and `useViewportRendering.tsx` (task O3); the 10
+    `DISPLAY_SETS_CHANGED` listeners and the 2 `detail.imageIdIndex` reads of
+    `ViewportImageScrollbar.tsx` and `ViewportSliceProgressScrollbar/helpers.ts`, which
+    read `undefined` until they read `sliceIndex` (task O5).
+- **Type check** (`tsc` of the root, error sets against `78432e76cb`, the lines of the
+  linked checkout left out): 1,820 error kinds (file, code, message) in 8,797 lines before,
+  1,795 in 8,752 after this entry and M54. 27 kinds are gone (the six removed event names
+  in 8 files, the four projection names in 4 files, the two deleted test files,
+  `genericViewports`). No kind is new: the error of `appConfig` in `init.tsx`
+  (`appConfig` is `unknown` there) names `viewportRendering` where it named
+  `genericViewports`, and the counts of the test-runner globals (`it`, `expect`, which the
+  root `tsc` does not type) grow with the new tests.
+- **Build:** `pnpm run build` passes.
+- **State:** done in task O1 (not committed yet). The defect of the step is open, waits
+  for cornerstone.
+
+## M54. One store of display sets: each display set is registered once, a mount says what it wants (task O2)
+
+- **Seen:** on the build of `880c03496` the registry of display sets is one store, the
+  `DISPLAY_SET` module of `@cornerstonejs/metadata`, the store where `displaySetStore.ts`
+  already kept OHIF's display sets. The backend still registered a payload under the UID
+  of a display set at each mount (`DataIdRegistry`, `{ kind, imageIds, volumeId,
+  initialImageIdIndex }`) and removed it at the last release: on this build that
+  replaces OHIF's display set object in the shared store with the payload, and then
+  deletes it, so `displaySetService.getDisplaySetByUID` gives the payload, then nothing.
+  A test of the viewport service shows it on the code of `78432e76cb`: a stack mount and
+  a `disableElement` remove the display set from the store (the test of "a layout change"
+  below fails there).
+- **Fix, in OHIF:**
+  - `displaySetStore.ts` registers each display set with `displaySetRegistry.add(uid,
+    displaySet)` of `@cornerstonejs/metadata` when it is made or replaced, reads it with
+    `get` and removes it with `remove` (delete, `onModeExit`). The registered object is
+    the display set: no copy, no `displaySetId`.
+  - Nothing is registered at a mount. `backends/dataIdRegistry.ts` and
+    `utils/displaySetDataId.ts` are deleted with their tests (`<uid>::stack`,
+    `<uid>::volume`), and with them `registerDataId`, `onViewportDisabled` and `destroy`
+    of the backend. A viewport names a display set by its `displaySetInstanceUID`.
+  - Each mount says what its viewport wants (`PlanarMountOptions`,
+    `Volume3DMountOptions`):
+    - a stack: `{ mode: 'stack', orientation: ACQUISITION, role: 'source',
+      initialImageIdIndex, appearance, renderBackend }`;
+    - a volume or MPR pane: one `setDisplaySets` call, each display set with `{ mode:
+      'volume', orientation, role, volumeId, appearance, renderBackend }`, the
+      `volumeId` the one that `CornerstoneCacheService` made (`${volumeLoaderSchema}:${uid}`
+      for an image display set, the volume of a parametric map);
+    - a 3D viewport: `{ role, volumeId, appearance }`; `{ renderMode: 'vtkVolume3d' }` is
+      gone;
+    - an ECG, video or whole slide viewport: `{ displaySetId: uid }`. Cornerstone reads
+      the image id of the `instance` of the display set (video, ECG), and the `imageIds`
+      and the `WADO_WEB_CLIENT` metadata of the first image (whole slide).
+    - The appearance of the first draw is on the mount: the VOI, invert and colormap of
+      the hanging protocol, or of the stored LUT presentation (a stack), and for a
+      volume the hanging protocol values with the blend mode and the slab of a projection,
+      and the LUT presentation over the source; the preset of a 3D viewport. The calls of
+      `setDisplaySetPresentation` after the mount and the `applyPreset` on the actor are
+      gone. The appearance work proper (overrides and effective values, opacity) is task
+      O3.
+  - The mode comes from OHIF's viewport type (the shape that `CornerstoneCacheService`
+    stores): `'stack'` for a stack viewport, `'volume'` for a volume, MPR or fusion pane.
+    No OHIF mount asks for `'auto'`: the viewport type always says what the pane is, and
+    `'auto'` would show the axial pane of an axial CT, or a dynamic volume that is not in
+    the cache yet, as a stack. The capture of the download dialog mounts the source in the
+    mode that the source viewport reports (`getDisplaySets()`).
+  - `CornerstoneCacheService` gives each display set its `imageIds` at each mount (it gave
+    them only when its per-UID cache was empty, so a display set replaced by a new object
+    had none), and gives a display set that changed (it grew, or its metadata changed) the
+    image ids of the data source again when a viewport that shows it is invalidated. Its
+    per-UID cache of stack image ids is gone: after a growth it kept the old images. The
+    invalidation of a volume removed the kept image ids under the volume id while they
+    are kept under the UID.
+  - A parametric map names its volume: its load sets `displaySet.volumeId` to the volume
+    it makes. Cornerstone mounts a display set without image ids by the `volumeId` of its
+    registration; a `volumeId` on the mount alone is refused ("has no imageIds or volumeId
+    of a cached volume"), measured in the viewer.
+  - The adapter has no mapping of ids any more. `getDataIdForDisplaySet` is
+    `getShownDisplaySetId`: the UID when the viewport shows it (or shows nothing), else
+    undefined, so that the window and colour bar of an SR, SEG or RTSTRUCT viewport read the
+    source (M44).
+  - `appConfig.genericViewports` is gone: its one setting is `appConfig.viewportRendering`.
+    OHIF's migration page says so, with before and after; the page of the display set
+    store says what a viewport reads from a display set.
+- **Checks:**
+  - jest (all): 162 suites, 1,959 tests pass. On `78432e76cb`, counted from the files:
+    164 suites, 1,962 tests; the two suites of the deleted files go (15 tests), and the
+    tests below are new. `displaySetStore.test.ts` (5 new; 3 fail with the store of
+    `78432e76cb`), `CornerstoneCacheService.test.ts` (4 new, a display set that grows: all
+    fail on `78432e76cb`), `CornerstoneViewportService.test.ts` ("a layout change keeps a
+    display set in the store when the viewports that showed it are released": fails on an
+    export of `78432e76cb`), `ViewportBackend.test.ts` (the mounts of each family, one
+    display set as a stack and as a volume under its UID, nothing registered at a mount).
+  - In the viewer (dev server with `TEST_ENV=true`, probes in the lane folder of task O1,
+    `specs/` and `probes/`):
+    - the CT of `1.3.6.1.4.1.14519.5.2.1.256467663913010332776401703474716742458` (axial,
+      52 images) as a stack in one pane and as an axial volume in the other: the panes
+      say `stack` and `volume` under the same id, the store holds OHIF's object, no second
+      id is registered. A length drawn on the volume (slice 30) and one on the stack
+      (image 40): each jump lands on its image with both panes, with the stack alone (it
+      stays a stack, image 30) and with the volume alone (slice 40);
+    - the dynamic PET of `2.25.232704420736447710317909004159492840763` in the preclinical
+      4D mode: the three panes in `volume` mode with
+      `cornerstoneStreamingDynamicImageVolume:<uid>`; a computed display set made as
+      `PanelGenerateImage` makes it and swapped in by `swapDynamicWithComputedDisplaySet`:
+      the three panes in `volume` mode with its volume;
+    - ECG (`1.3.76.13.65829.2.20130125082826.1072139.2`), whole slide
+      (`1.2.276.0.7230010.3.1.2.296485376.1.1665793212.499772`) and video
+      (`2.25.96975534054447904995905761963464388233`, in Chrome from the AWS source; see
+      M55): each mounted by its UID from OHIF's object;
+    - a display set with a volume and no image ids, as a parametric map: refused
+      without `volumeId` on the object, mounted as an overlay with it. No parametric map is
+      in the test data, so OHIF's own PMAP flow was not run.
+  - SEG and RTSTRUCT over a stack and an MPR, hydration, layout and hanging protocol
+    changes: the Playwright suite, once, 6 workers, `TEST_ENV=true` (7.7 minutes): 238
+    passed, 5 failed, 4 skipped. `SEGHydrationFrom3DFourUp.spec.ts` (the case of M42, the
+    one failure of the run of 22 November) passes. The 5 failures all fell in the first
+    two minutes of the run (`ContourSegmentationFillOutlineOpacity` "should hide the
+    inactive segmentation contour when inactive display is turned off",
+    `DataOverlayMenu`, `DicomTagBrowser` "should open DICOM Tag Browser with active
+    viewport series when viewport has display set", `FreehandContourSegmentation` "should
+    keep distinct freehand contours drawn into the same segment separate", `FreehandROI`
+    "rectangle and freehand at identical coordinates should yield comparable area"); the
+    five specs run again alone, 2 workers: 26 of 26 pass. No baseline was changed.
+- **State:** fixed in task O2 (not committed yet). M42 and M51 are closed by it.
+
+## M55. A video that does not load leaves its mount waiting for ever
+
+- **Seen (task O2):** the video study of the test data
+  (`2.25.96975534054447904995905761963464388233`) through the `e2e` data source: the
+  viewport stays empty, and `viewport.setDisplaySets({ displaySetId })` neither resolves
+  nor rejects (30 s, then the page was closed); no error in the console. The video element
+  has `error.code` 4 (`DEMUXER_ERROR_COULD_NOT_OPEN`) and `networkState` 3: the URL of the
+  static test data (`.../index.mp4`) gives the HTML page of the dev server, the file is
+  `pixeldata.mp4`. The bundled Chromium of Playwright cannot decode H.264 at all
+  (`canPlayType('video/mp4; codecs="avc1.42E01E"')` is empty), so it waits the same way for
+  the AWS copy, which Chrome plays.
+- **Why:** `waitForVideoReady` of `VideoViewport.ts` waits for `loadeddata` or `canplay`
+  and listens to no `error` event.
+- **Smallest case**, cornerstone calls only: a `VideoViewport`,
+  `displaySetRegistry.add('v', { imageId })` with an `imageUrlModule` whose `rendered` URL
+  is not a video, then `await viewport.setDisplaySets({ displaySetId: 'v' })`: never
+  settles; `DISPLAY_SETS_CHANGED` never fires.
+- **Fix, in cornerstone:** to do: the mount rejects with the media error of the element.
+- **Fix, in OHIF:** none (rule 3). The URL of the video of the static test data
+  (`index.mp4` for a file named `pixeldata.mp4`) is a question of the test data and of
+  `directURL`, on `master` too; not looked into further.
+- **State:** open, waits for cornerstone.

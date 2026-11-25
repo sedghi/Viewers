@@ -40,7 +40,7 @@ export interface ViewportRenderingSelection {
  * all viewports per-session, and `?<viewportType>.viewportRendering=<backend>`
  * (e.g. `?orthographic.viewportRendering=cpu`) overrides it for a single
  * viewport type via the per-mount `renderBackend` option. URL params take
- * precedence over `appConfig.genericViewports.viewportRendering`, which accepts
+ * precedence over `appConfig.viewportRendering`, which accepts
  * either a backend string or `{ default?, stack?, orthographic? }`.
  *
  * 'webgl' is an alias for cornerstone's 'gpu' (VTK/WebGL) backend; 'cpu' and

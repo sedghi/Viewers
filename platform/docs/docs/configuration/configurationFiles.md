@@ -194,13 +194,13 @@ if auth headers are used, a preflight request is required.
   - `interleavedLoading` (default `true`): the loader fills the frames that have not loaded yet with copies of the nearby loaded frames. Each frame becomes exact when its own data loads.
 
   These options are not fully safe on every device. A texture that is too large can lose the WebGL context, and then the user must reload the page. `config/dev.js`, `config/netlify.js`, `config/e2e.js` and `config/customization.js` set `lossyDownsampling: { final: true }`. `config/dev.js`, `config/netlify.js` and `config/e2e.js` also select the `medium` preset, and a `?customization=gpu/<preset>` URL can select a different preset. The other bundled configs keep the defaults. `config/default.js` and the `config/docker-nginx-*.js` recipes show the setting in a comment.
-- `genericViewports`: the settings of the viewports. Its one setting is `viewportRendering`, the render backend of Cornerstone3D:
+- `viewportRendering`: the render backend of Cornerstone3D:
   - a backend for all viewports: `'auto'`, `'webgl'` (Cornerstone3D's `'gpu'` backend), `'cpu'`, or the id of a backend registered with Cornerstone3D's `registerRenderBackend()`;
   - or an object with a `default` backend and a backend for `stack` or `orthographic` (a volume slice), for example `{ default: 'webgl', orthographic: 'cpu' }`.
 
   Without it the backend is `'auto'`, or `'cpu'` when `useCPURendering` is true. The URL parameters `?viewportRendering=cpu` and `?<viewportType>.viewportRendering=cpu` (for example `?orthographic.viewportRendering=cpu`) override it for a session.
 
-  `genericViewports.enabled`, `useGenericViewport` and the URL parameter `useNextViewports` are gone in 3.14: Cornerstone3D 6 has one kind of viewport. See [Cornerstone3D 6](../migration-guide/3p13-to-3p14/cornerstone3d-6.md).
+  `genericViewports`, `useGenericViewport` and the URL parameter `useNextViewports` are gone in 3.14: Cornerstone3D 6 has one kind of viewport, and `genericViewports.viewportRendering` is `viewportRendering`. See [Cornerstone3D 6](../migration-guide/3p13-to-3p14/cornerstone3d-6.md).
 - `useSharedArrayBuffer` (default to 'TRUE', options: 'AUTO', 'FALSE', 'TRUE', note that these are strings), for volume loading we use sharedArrayBuffer to be able to
   load the volume progressively as the data arrives (each webworker has the shared buffer and can write to it). However, there might be certain environments that do not support sharedArrayBuffer. In that case, you can set this flag to false and the viewer will use the regular arrayBuffer which might be slower for large volume loading.
 - `supportsWildcard`: (default to false), if set to true, the datasource will support wildcard matching for patient name and patient id.

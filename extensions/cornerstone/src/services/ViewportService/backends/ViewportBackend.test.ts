@@ -1,5 +1,5 @@
-import { Enums, metaData, viewportProjection } from '@cornerstonejs/core';
-import type { PlanarViewport, Types } from '@cornerstonejs/core';
+import { Enums, displaySetRegistry, metaData, viewportProjection } from '@cornerstonejs/core';
+import type { ECGViewport, PlanarViewport, Types } from '@cornerstonejs/core';
 import { ViewportBackend } from './ViewportBackend';
 import type { StackMountContext, VolumeMountContext } from './IViewportBackend';
 import type { IViewportServiceInternals } from './IViewportServiceInternals';
@@ -11,7 +11,7 @@ jest.mock('@cornerstonejs/core', () => {
 
   return {
     ...actual,
-    viewportProjection: { getPresentation: jest.fn(), withPresentation: jest.fn() },
+    viewportProjection: { getFraming: jest.fn(), withFraming: jest.fn() },
   };
 });
 
@@ -19,8 +19,8 @@ jest.mock('@cornerstonejs/tools', () => ({
   utilities: { stackContextPrefetch: { enable: jest.fn() } },
 }));
 
-const getPresentation = viewportProjection.getPresentation as jest.Mock;
-const withPresentation = viewportProjection.withPresentation as jest.Mock;
+const getPresentation = viewportProjection.getFraming as jest.Mock;
+const withPresentation = viewportProjection.withFraming as jest.Mock;
 
 const imageIds = ['image-0', 'image-1', 'image-2'];
 
@@ -36,34 +36,64 @@ function makeService(): jest.Mocked<IViewportServiceInternals> {
   };
 }
 
-function makeViewport() {
+function makeViewport(id = 'viewport-1') {
   return {
-    id: 'viewport-1',
+    id,
     element: {},
     setDisplaySets: jest.fn().mockResolvedValue(undefined),
-    setDisplaySetPresentation: jest.fn(),
+    setDisplaySetAppearance: jest.fn(),
     setViewState: jest.fn(),
+    render: jest.fn(),
   };
 }
 
-/** Mounts a stack whose images each have a window in their metadata. */
-async function mountStack(properties: Record<string, unknown>) {
-  const backend = new ViewportBackend(makeService());
-  const viewport = makeViewport();
+/** The options of the one entry of the first setDisplaySets call of a viewport. */
+function mountOptionsOf(viewport: ReturnType<typeof makeViewport>, entry = 0) {
+  return viewport.setDisplaySets.mock.calls[0][entry].options;
+}
 
-  await backend.mountStack(
+function mountStackOf(
+  backend: ViewportBackend,
+  viewport: ReturnType<typeof makeViewport>,
+  properties: Record<string, unknown> = {},
+  initialImageIndex = 0
+) {
+  return backend.mountStack(
     viewport as unknown as PlanarViewport,
     {
       displaySetInstanceUIDs: ['display-set-1'],
       imageIds,
-      initialImageIndex: 0,
+      initialImageIndex,
       properties,
       presentations: {},
     } as StackMountContext
   );
-  backend.onViewportDisabled(viewport.id);
+}
 
-  return viewport;
+function mountVolumeOf(
+  backend: ViewportBackend,
+  viewport: ReturnType<typeof makeViewport> & { type?: string },
+  context: Partial<VolumeMountContext> = {}
+) {
+  return backend.mountVolumes(
+    viewport as unknown as Types.IViewport,
+    {
+      filteredVolumeInputArray: [
+        {
+          volumeInput: {
+            imageIds,
+            volumeId: 'volumeLoader:display-set-1',
+            displaySetInstanceUID: 'display-set-1',
+          },
+        },
+      ],
+      volumesProperties: [{ properties: { voiRange: { lower: 0, upper: 100 } } }],
+      viewportInfo: { getOrientation: () => Enums.OrientationAxis.AXIAL },
+      overlayProcessingResults: [],
+      presentations: {},
+      ...context,
+    } as unknown as VolumeMountContext
+  );
 }
 
 describe('the window of a stack mount', () => {
@@ -80,106 +110,152 @@ describe('the window of a stack mount', () => {
   });
 
   it('sets no window when none is given, so that each image shows its own', async () => {
-    const viewport = await mountStack({});
+    const viewport = makeViewport();
+    await mountStackOf(new ViewportBackend(makeService()), viewport);
 
     expect(viewport.setDisplaySets).toHaveBeenCalledTimes(1);
-    expect(viewport.setDisplaySetPresentation).not.toHaveBeenCalled();
+    expect(mountOptionsOf(viewport).appearance).toEqual({});
+    expect(viewport.setDisplaySetAppearance).not.toHaveBeenCalled();
   });
 
-  it('sets the window that is given', async () => {
+  it('draws the window that is given from the first draw, on the mount', async () => {
     const voiRange = { lower: -160, upper: 240 };
-    const viewport = await mountStack({ voiRange });
+    const viewport = makeViewport();
+    await mountStackOf(new ViewportBackend(makeService()), viewport, { voiRange });
 
-    expect(viewport.setDisplaySetPresentation).toHaveBeenCalledWith({ voiRange });
+    expect(mountOptionsOf(viewport).appearance).toEqual({ voiRange });
+    expect(viewport.setDisplaySetAppearance).not.toHaveBeenCalled();
   });
 });
 
-describe('the data id of a mount', () => {
-  const voiRange = { lower: 0, upper: 100 };
+describe('the mount of a display set', () => {
+  const ohifDisplaySet = { displaySetInstanceUID: 'display-set-1', imageIds, Modality: 'CT' };
   let backend: ViewportBackend;
-
-  function makeVolumeViewport(id: string) {
-    return {
-      id,
-      setDisplaySets: jest.fn().mockResolvedValue(undefined),
-      setDisplaySetPresentation: jest.fn(),
-      render: jest.fn(),
-    };
-  }
-
-  function mountVolume(viewport: ReturnType<typeof makeVolumeViewport>) {
-    return backend.mountVolumes(
-      viewport as unknown as Types.IViewport,
-      {
-        filteredVolumeInputArray: [
-          {
-            volumeInput: {
-              imageIds,
-              volumeId: 'volumeLoader:display-set-1',
-              displaySetInstanceUID: 'display-set-1',
-            },
-          },
-        ],
-        volumesProperties: [{ properties: { voiRange } }],
-        viewportInfo: { getOrientation: () => Enums.OrientationAxis.AXIAL },
-        overlayProcessingResults: [],
-        presentations: {},
-      } as unknown as VolumeMountContext
-    );
-  }
-
-  function mountStackOf(viewport: ReturnType<typeof makeViewport>) {
-    return backend.mountStack(
-      viewport as unknown as PlanarViewport,
-      {
-        displaySetInstanceUIDs: ['display-set-1'],
-        imageIds,
-        initialImageIndex: 0,
-        properties: {},
-        presentations: {},
-      } as StackMountContext
-    );
-  }
 
   beforeEach(() => {
     backend = new ViewportBackend(makeService());
+    displaySetRegistry.add('display-set-1', ohifDisplaySet);
   });
 
   afterEach(() => {
-    backend.destroy();
+    displaySetRegistry.remove('display-set-1');
   });
 
-  it('mounts a stack of a display set that another viewport shows as a volume by a data id of its own', async () => {
-    const volumeViewport = makeVolumeViewport('mpr-axial');
-    const stackViewport = makeViewport();
+  it('names the display set by its UID and says on its options that a stack viewport wants a stack, on its first image', async () => {
+    const viewport = makeViewport();
+    await mountStackOf(backend, viewport, {}, 2);
 
-    await mountVolume(volumeViewport);
-    await mountStackOf(stackViewport);
-
-    expect(volumeViewport.setDisplaySets).toHaveBeenCalledWith(
-      expect.objectContaining({ displaySetId: 'display-set-1' })
-    );
-    expect(stackViewport.setDisplaySets).toHaveBeenCalledWith(
-      expect.objectContaining({ displaySetId: 'display-set-1::stack' })
-    );
-  });
-
-  it('mounts a volume of a display set that another viewport shows as a stack by a data id of its own', async () => {
-    const stackViewport = makeViewport();
-    const volumeViewport = makeVolumeViewport('mpr-axial');
-
-    await mountStackOf(stackViewport);
-    await mountVolume(volumeViewport);
-
-    expect(stackViewport.setDisplaySets).toHaveBeenCalledWith(
-      expect.objectContaining({ displaySetId: 'display-set-1' })
-    );
-    expect(volumeViewport.setDisplaySets).toHaveBeenCalledWith(
-      expect.objectContaining({ displaySetId: 'display-set-1::volume' })
-    );
-    expect(volumeViewport.setDisplaySetPresentation).toHaveBeenCalledWith('display-set-1::volume', {
-      voiRange,
+    expect(viewport.setDisplaySets).toHaveBeenCalledWith({
+      displaySetId: 'display-set-1',
+      options: expect.objectContaining({
+        mode: 'stack',
+        role: 'source',
+        initialImageIdIndex: 2,
+      }),
     });
+  });
+
+  it('shows one display set as a stack in one viewport and as a volume in another under its UID (M42)', async () => {
+    const volumeViewport = makeViewport('mpr-axial');
+    const stackViewport = makeViewport('stack');
+
+    await mountVolumeOf(backend, volumeViewport);
+    await mountStackOf(backend, stackViewport);
+
+    expect(volumeViewport.setDisplaySets).toHaveBeenCalledWith({
+      displaySetId: 'display-set-1',
+      options: {
+        mode: 'volume',
+        orientation: Enums.OrientationAxis.AXIAL,
+        role: 'source',
+        volumeId: 'volumeLoader:display-set-1',
+        appearance: { voiRange: { lower: 0, upper: 100 } },
+      },
+    });
+    expect(stackViewport.setDisplaySets).toHaveBeenCalledWith({
+      displaySetId: 'display-set-1',
+      options: expect.objectContaining({ mode: 'stack', initialImageIdIndex: 0 }),
+    });
+    expect(volumeViewport.setDisplaySetAppearance).not.toHaveBeenCalled();
+  });
+
+  it('registers nothing at the mount: the registry keeps the display set object of OHIF', async () => {
+    await mountVolumeOf(backend, makeViewport('mpr-axial'));
+    await mountStackOf(backend, makeViewport('stack'));
+
+    expect(displaySetRegistry.get('display-set-1')).toBe(ohifDisplaySet);
+    expect(displaySetRegistry.has('display-set-1::stack')).toBe(false);
+    expect(displaySetRegistry.has('display-set-1::volume')).toBe(false);
+  });
+
+  it('gives the source of a volume mount the stored LUT presentation over the hanging protocol window', async () => {
+    const viewport = makeViewport('mpr-axial');
+    const stored = { voiRange: { lower: 40, upper: 80 }, invert: true };
+
+    await mountVolumeOf(backend, viewport, {
+      presentations: { lutPresentation: { viewportType: 'volume', properties: stored } },
+    } as unknown as Partial<VolumeMountContext>);
+
+    expect(mountOptionsOf(viewport).appearance).toEqual(stored);
+  });
+
+  it('puts the slab and the blend mode of a projection on the appearance of a planar volume mount', async () => {
+    const viewport = makeViewport('mip');
+
+    await mountVolumeOf(backend, viewport, {
+      filteredVolumeInputArray: [
+        {
+          volumeInput: {
+            imageIds,
+            volumeId: 'volumeLoader:display-set-1',
+            displaySetInstanceUID: 'display-set-1',
+            blendMode: Enums.BlendModes.MAXIMUM_INTENSITY_BLEND,
+            slabThickness: 400,
+          },
+          displaySetOptions: {},
+        },
+      ],
+    });
+
+    expect(mountOptionsOf(viewport).appearance).toEqual({
+      voiRange: { lower: 0, upper: 100 },
+      blendMode: Enums.BlendModes.MAXIMUM_INTENSITY_BLEND,
+      slabThickness: 400,
+    });
+  });
+
+  it('mounts a 3D viewport with the volume id and the preset, and no render mode', async () => {
+    const viewport = { ...makeViewport('viewport-3d'), type: Enums.ViewportType.VOLUME_3D };
+
+    await mountVolumeOf(backend, viewport, {
+      volumesProperties: [{ properties: { preset: 'CT-Bone', colormap: { name: 'hsv' } } }],
+    } as unknown as Partial<VolumeMountContext>);
+
+    expect(viewport.setDisplaySets).toHaveBeenCalledWith({
+      displaySetId: 'display-set-1',
+      options: {
+        role: 'source',
+        volumeId: 'volumeLoader:display-set-1',
+        appearance: { preset: 'CT-Bone' },
+      },
+    });
+  });
+
+  it('mounts an ECG and a video or whole slide display set by its UID only', async () => {
+    const ecgViewport = makeViewport('ecg');
+    const videoViewport = makeViewport('video');
+
+    await backend.mountEcg(ecgViewport as unknown as ECGViewport, {
+      displaySetInstanceUID: 'ecg-1',
+    });
+    await backend.mountOther(videoViewport as unknown as Types.IViewport, {
+      displaySetInstanceUID: 'video-1',
+    });
+
+    expect(ecgViewport.setDisplaySets).toHaveBeenCalledWith({ displaySetId: 'ecg-1' });
+    expect(videoViewport.setDisplaySets).toHaveBeenCalledWith({ displaySetId: 'video-1' });
+    expect(displaySetRegistry.has('ecg-1')).toBe(false);
+    expect(displaySetRegistry.has('video-1')).toBe(false);
   });
 });
 

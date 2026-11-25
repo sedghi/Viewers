@@ -26,7 +26,7 @@ export interface ColormapParams {
 /**
  * Per-viewport interaction/appearance operations, extracted out of commandsModule so
  * command bodies stay thin. The implementation (`viewportOperations`) uses the
- * cornerstone API of the viewport directly (getViewState, setDisplaySetPresentation,
+ * cornerstone API of the viewport directly (getViewState, setDisplaySetAppearance,
  * getViewReference), or the viewport adapter where it has the call.
  *
  * RENDER: no method calls viewport.render(). The caller renders, matching today's

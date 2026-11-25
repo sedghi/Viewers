@@ -79,10 +79,6 @@ export default async function init({
 
   cornerstone.setRenderBackend(Boolean(appConfig.useCPURendering) ? 'cpu' : 'auto');
 
-  // The viewport rendering setting lives under one config object:
-  // appConfig.genericViewports = { viewportRendering }.
-  const genericViewportsConfig = appConfig.genericViewports ?? {};
-
   // viewportRendering selects the render backend per-session:
   // `?viewportRendering=cpu|webgl|webgpu|auto` for all viewports, plus
   // `?<viewportType>.viewportRendering=<backend>` (e.g.
@@ -91,7 +87,7 @@ export default async function init({
   // cornerstone's setRenderBackend, letting a session force GPU when the
   // deployed config defaults to CPU.
   const { renderBackend, renderBackendByViewportType } = resolveViewportRendering(
-    genericViewportsConfig.viewportRendering
+    appConfig.viewportRendering
   );
   if (renderBackend) {
     try {

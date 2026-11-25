@@ -25,7 +25,7 @@ import type {
  */
 type NativePlanarViewport = CoreTypes.IViewport & {
   resetViewState?: () => void;
-  resetDisplaySetPresentation?: (dataId?: string) => void;
+  resetDisplaySetAppearance?: (displaySetId?: string) => void;
   getZoom?: () => number;
   setZoom?: (zoom: number) => void;
 };
@@ -48,8 +48,8 @@ type VtkActorChain = {
  *
  * Appearance and camera/view-state ops go through the viewport adapter (which
  * encapsulates getViewState/setViewState and
- * getDisplaySetPresentation/setDisplaySetPresentation, including the
- * active-binding dataId default); the remaining ops call the viewport's own
+ * getDisplaySetAppearance/setDisplaySetAppearance, including the
+ * active-binding default); the remaining ops call the viewport's own
  * members directly.
  *
  * No method calls viewport.render() — the command renders.
@@ -93,7 +93,7 @@ export const viewportOperations: IViewportOperations = {
   reset(viewport: CoreTypes.IViewport): void {
     const vp = viewport as NativePlanarViewport;
     // Reset the per-display-set presentation (VOI/colormap/invert) to defaults.
-    vp.resetDisplaySetPresentation?.();
+    vp.resetDisplaySetAppearance?.();
     // A planar viewport has no resetCamera; resetViewState resets pan/zoom/rotation/orientation/flip.
     vp.resetViewState?.();
   },
@@ -162,7 +162,7 @@ export const viewportOperations: IViewportOperations = {
 
     const planarViewport = viewport as PlanarViewport;
     const camera = planarViewport.getResolvedView()?.toICamera();
-    const presentation = viewportProjection.getPresentation(planarViewport, {
+    const presentation = viewportProjection.getFraming(planarViewport, {
       selector: { zoom: true, pan: true },
     });
 
@@ -175,7 +175,7 @@ export const viewportOperations: IViewportOperations = {
     const [canvasX, canvasY] = planarViewport.worldToCanvas(center);
     const { clientWidth, clientHeight } = planarViewport.canvas;
     const measurementSize = vec3.dist(extent.min, extent.max);
-    const nextViewState = viewportProjection.withPresentation(planarViewport, {
+    const nextViewState = viewportProjection.withFraming(planarViewport, {
       zoom:
         measurementSize > camera.parallelScale
           ? zoom / (measurementSize / camera.parallelScale)
@@ -211,10 +211,10 @@ export const viewportOperations: IViewportOperations = {
   },
 
   setColormap(viewport: CoreTypes.IViewport, params: ColormapParams): void {
-    // Target the binding for params.displaySetInstanceUID. The adapter resolves the UID to
-    // the dataId of the display set's binding, so a PT/CT *fusion* colormap lands
-    // on the overlay (PT) binding instead of defaulting to the source (CT). When no id is
-    // given (single-volume / plain stack colormap) the adapter falls back to the source.
+    // Target the binding for params.displaySetInstanceUID, the id of the display set's
+    // binding, so a PT/CT *fusion* colormap lands on the overlay (PT) binding instead of
+    // defaulting to the source (CT). When no id is given (single-volume / plain stack
+    // colormap) the adapter falls back to the source.
     getViewportAdapter(viewport).setPresentation(
       { colormap: params.colormap },
       params.displaySetInstanceUID

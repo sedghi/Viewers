@@ -18,14 +18,31 @@ has one viewport path now.
 |---|---|---|
 | `useGenericViewport` | app config | Delete it. |
 | `genericViewports.enabled` | app config | Delete it. |
+| `genericViewports.viewportRendering` | app config | Move it to the top level: `viewportRendering`. |
 | `useNextViewports` | URL parameter | Drop it from links and bookmarks. |
 
 The viewer does not read these settings any more. Every viewport is a
 Cornerstone3D 6 viewport, with or without them.
 
-`genericViewports.viewportRendering` stays, with the URL parameters
-`viewportRendering` and `<viewportType>.viewportRendering`. It picks the render
-backend; see `genericViewports` in
+The render backend setting is `viewportRendering` now, at the top level of the
+app config, with the URL parameters `viewportRendering` and
+`<viewportType>.viewportRendering` as before. Before:
+
+```js
+window.config = {
+  genericViewports: { viewportRendering: { default: 'webgl', orthographic: 'cpu' } },
+};
+```
+
+After:
+
+```js
+window.config = {
+  viewportRendering: { default: 'webgl', orthographic: 'cpu' },
+};
+```
+
+See `viewportRendering` in
 [Configuration Options](../../configuration/configurationFiles.md#configuration-options).
 
 The words of hanging protocols, modes and `viewportOptions` stay as they are:
@@ -61,14 +78,21 @@ of the data (a stack or a volume) itself.
    viewport with its class (`PlanarViewport`, `VolumeViewport3D`,
    `VideoViewport`, `WSIViewport`, `ECGViewport`) where you call a member of that
    class, for example `renderingEngine.getViewport<PlanarViewport>(viewportId)`.
-5. A viewport names each display set that it shows by a data id
-   (`viewport.getDisplaySets()`, `getSourceDataId()`, the `dataId` of a view
-   reference and of the metadata of an annotation). The viewer uses the display
-   set UID, except while a series shows as a stack in one viewport and as a
-   volume in another: the second of the two then has `<uid>::stack` or
-   `<uid>::volume`. Do not take a data id for a display set UID. Give the
-   adapter the display set UID (its presentation calls find the display set's
-   data id), or ask it with `getDataIdForDisplaySet(displaySetInstanceUID)`.
+5. A viewport names each display set that it shows by its
+   `displaySetInstanceUID` (`viewport.getDisplaySets()`,
+   `getSourceDisplaySetId()`, the `displaySetId` of a view reference and of the
+   metadata of an annotation), also when one series shows as a stack in one
+   viewport and as a volume in another. `DisplaySetService` registers each
+   display set once, when it is made, with `displaySetRegistry.add` of
+   `@cornerstonejs/metadata`, and the viewports read that object: do not
+   register a display set again, and do not add another object under its UID,
+   which would replace the display set itself. A mount says what the viewport
+   wants of it: `setDisplaySets({ displaySetId: displaySetInstanceUID, options:
+   { mode: 'volume', orientation, volumeId } })`. See
+   [Display set storage](./display-set-store.md#viewports-read-the-stored-display-set).
+   `getDataIdForDisplaySet` of the adapter is
+   `getShownDisplaySetId(displaySetInstanceUID)`: the UID when the viewport
+   shows that display set, else undefined.
 
 ## Removed and renamed exports of `@ohif/extension-cornerstone`
 
