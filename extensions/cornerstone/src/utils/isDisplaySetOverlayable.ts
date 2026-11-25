@@ -51,9 +51,9 @@ export function isDisplaySetOverlayable({
 
   if (DERIVED_OVERLAY_MODALITIES.includes(displaySet.Modality)) {
     // The display set the overlay was made against always qualifies. Note it is
-    // not required to be reconstructable: an RTSTRUCT over a stack is exactly
-    // the case `getHydrationViewportTypeForModality` pins to 'stack' on
-    // hydrate, so the reconstructable gate below must not apply here.
+    // not required to be reconstructable: an RTSTRUCT is drawn over the stack
+    // of the series it was made against, so the reconstructable gate below must
+    // not apply here.
     if (displaySet.referencedDisplaySetInstanceUID === backgroundDisplaySet.displaySetInstanceUID) {
       return true;
     }

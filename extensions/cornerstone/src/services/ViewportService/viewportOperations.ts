@@ -125,12 +125,10 @@ export const viewportOperations = {
   },
 
   /**
-   * Zoom by direction: >0 in, <0 out, 0 = fit-to-window. The parallel scale
-   * and the zoom are inversely related, so the zoom is divided by the scale
-   * factor of the legacy direction. Fit to window keeps the orientation: the
-   * legacy resetCamera() reset pan, zoom, rotation and flip but never the
-   * viewing orientation, while a full resetViewState() would also snap an
-   * MPR pane back to its requested axis.
+   * Zoom by direction: >0 in, <0 out, 0 = fit-to-window. A step in zooms by
+   * 1 / 0.9 and a step out by 1 / 1.1. Fit to window resets pan, zoom,
+   * rotation and flip but keeps the orientation: a full resetViewState()
+   * would also snap an MPR pane back to its requested axis.
    */
   scaleBy(viewport: CoreTypes.IViewport, direction: number): void {
     const scaleFactor = direction > 0 ? 0.9 : 1.1;

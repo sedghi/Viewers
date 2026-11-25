@@ -12,6 +12,8 @@ import { TrackedMeasurementsService } from './services';
 // Import types to ensure they're included in the build
 import './types';
 
+const unsubscriptions: Array<() => void> = [];
+
 const measurementTrackingExtension = {
   /**
    * Only required property. Should be a unique value across all extensions.
@@ -33,13 +35,15 @@ const measurementTrackingExtension = {
     const { customizationService, toolbarService, trackedMeasurementsService } =
       servicesManager.services;
 
-    toolbarService.registerEventForToolbarUpdate(trackedMeasurementsService, [
-      trackedMeasurementsService.EVENTS.TRACKED_SERIES_CHANGED,
-      trackedMeasurementsService.EVENTS.SERIES_ADDED,
-      trackedMeasurementsService.EVENTS.SERIES_REMOVED,
-      trackedMeasurementsService.EVENTS.TRACKING_ENABLED,
-      trackedMeasurementsService.EVENTS.TRACKING_DISABLED,
-    ]);
+    unsubscriptions.push(
+      toolbarService.registerEventForToolbarUpdate(trackedMeasurementsService, [
+        trackedMeasurementsService.EVENTS.TRACKED_SERIES_CHANGED,
+        trackedMeasurementsService.EVENTS.SERIES_ADDED,
+        trackedMeasurementsService.EVENTS.SERIES_REMOVED,
+        trackedMeasurementsService.EVENTS.TRACKING_ENABLED,
+        trackedMeasurementsService.EVENTS.TRACKING_DISABLED,
+      ])
+    );
 
     customizationService.setCustomizations({
       'studyBrowser.thumbnailDoubleClickCallback': {
@@ -49,6 +53,11 @@ const measurementTrackingExtension = {
         $set: customOnDropHandlerCallback,
       },
     });
+  },
+
+  onModeExit() {
+    unsubscriptions.forEach(unsubscribe => unsubscribe());
+    unsubscriptions.length = 0;
   },
   getCustomizationModule,
 };

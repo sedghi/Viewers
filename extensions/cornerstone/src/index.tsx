@@ -37,7 +37,7 @@ import RectangleROI from './utils/measurementServiceMappings/RectangleROI';
 import type { PublicViewportOptions } from './services/ViewportService/Viewport';
 import ImageOverlayViewerTool from './tools/ImageOverlayViewerTool';
 import getSOPInstanceAttributes from './utils/measurementServiceMappings/utils/getSOPInstanceAttributes';
-import { OVERLAY_OPACITY, getHydrationViewportTypeForModality } from './utils/viewportPolicies';
+import { OVERLAY_OPACITY } from './utils/viewportPolicies';
 import { findNearbyToolData } from './utils/findNearbyToolData';
 import { createFrameViewSynchronizer } from './synchronizers/frameViewSynchronizer';
 import { getSopClassHandlerModule } from './getSopClassHandlerModule';
@@ -121,19 +121,19 @@ const cornerstoneExtension: Types.Extensions.Extension = {
     const annotationUnsubscriptions = setUpAnnotationEventHandlers();
     unsubscriptions.push(...annotationUnsubscriptions);
 
-    toolbarService.registerEventForToolbarUpdate(cornerstoneViewportService, [
-      cornerstoneViewportService.EVENTS.VIEWPORT_DATA_CHANGED,
-    ]);
-
-    toolbarService.registerEventForToolbarUpdate(segmentationService, [
-      segmentationService.EVENTS.SEGMENTATION_REMOVED,
-      segmentationService.EVENTS.SEGMENTATION_MODIFIED,
-      segmentationService.EVENTS.SEGMENTATION_ANNOTATION_CUT_MERGE_PROCESS_COMPLETED,
-    ]);
-
-    toolbarService.registerEventForToolbarUpdate(cornerstone.eventTarget, [
-      cornerstoneTools.Enums.Events.TOOL_ACTIVATED,
-    ]);
+    unsubscriptions.push(
+      toolbarService.registerEventForToolbarUpdate(cornerstoneViewportService, [
+        cornerstoneViewportService.EVENTS.VIEWPORT_DATA_CHANGED,
+      ]),
+      toolbarService.registerEventForToolbarUpdate(segmentationService, [
+        segmentationService.EVENTS.SEGMENTATION_REMOVED,
+        segmentationService.EVENTS.SEGMENTATION_MODIFIED,
+        segmentationService.EVENTS.SEGMENTATION_ANNOTATION_CUT_MERGE_PROCESS_COMPLETED,
+      ]),
+      toolbarService.registerEventForToolbarUpdate(cornerstone.eventTarget, [
+        cornerstoneTools.Enums.Events.TOOL_ACTIVATED,
+      ])
+    );
 
     // Apply the undo/redo history size on mode entry rather than in
     // preRegistration, because the global customizations are applied after
@@ -307,7 +307,6 @@ export {
   ImageOverlayViewerTool,
   getSOPInstanceAttributes,
   OVERLAY_OPACITY,
-  getHydrationViewportTypeForModality,
   dicomLoaderService,
   // Export all stores
   useLutPresentationStore,

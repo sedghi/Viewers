@@ -1,7 +1,7 @@
 /**
  * The opacities by SUV of the PET over the CT of the fusion panes. They are the
- * ramp of OHIF 3.13 (0 at SUV 0, 0.8 at 0.1, 0.9 from 1 on) as the legacy
- * volume viewport of Cornerstone3D 5.x drew it: each opacity `a` as
+ * ramp of OHIF 3.13 (0 at SUV 0, 0.8 at 0.1, 0.9 from 1 on) as the
+ * `VolumeViewport` of Cornerstone3D 5.x drew it: each opacity `a` as
  * `1 - (1 - a) ** 0.125`, the exponent of its blend for the volumes of a
  * PET/CT study. Cornerstone3D 6.0 draws an opacity as it is given, so the
  * fusion keeps the look of 3.13 with these weaker points; the opacity slider

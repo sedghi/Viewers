@@ -16,7 +16,7 @@ viewport by its `type` with the guards of `../../utils/viewportTypeGuards.ts`
 | `viewportPresentations.ts` | The position presentation (the view reference and `getViewFraming()`) and the LUT presentation (the appearance overrides of each display set): read from a viewport and given back to one. |
 | `viewportOperations.ts` | The bodies of the viewport commands (flip, rotate, invert, window level, colormap, orientation, zoom, the 3D volume rendering settings). |
 | `Viewport.ts` | `ViewportInfo`: the options of a viewport of the grid, before and after its mount. |
-| `../../utils/viewportPolicies.ts` | Behavioral policy: appearance defaults and workflow rules (overlay opacity, the stack pin when an RTSTRUCT is hydrated). |
+| `../../utils/viewportPolicies.ts` | Behavioral policy: appearance defaults (the overlay opacity). |
 | `../SegmentationService/` | The labelmap add (`classifyAndPrepareLabelmapAdd.ts`) and the layers of an overlapping SEG (`assembleSegmentationDataForSEG.ts`). |
 
 ## A renderer on a server

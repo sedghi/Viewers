@@ -31,9 +31,6 @@ import {
   callInputDialog,
 } from '@ohif/extension-default';
 import toggleImageSliceSync from './utils/imageSliceSync/toggleImageSliceSync';
-// RTSTRUCT contour hydration pins the referenced image to stack mode, a decision
-// made before a target viewport exists.
-import { getHydrationViewportTypeForModality } from './utils/viewportPolicies';
 import { getFirstAnnotationSelected } from './utils/measurementServiceMappings/utils/selection';
 import { getViewportEnabledElement } from './utils/getViewportEnabledElement';
 import getActiveViewportEnabledElement from './utils/getActiveViewportEnabledElement';
@@ -409,9 +406,6 @@ function commandsModule({
           viewportId,
           displaySetInstanceUIDs: [referencedDisplaySet.displaySetInstanceUID],
           derivedDisplaySetInstanceUID: displaySet.displaySetInstanceUID,
-          // RTSTRUCT-on-next pins the referenced image to stack mode on hydrate;
-          // see the policy's rationale in utils/viewportPolicies.
-          viewportType: getHydrationViewportTypeForModality(displaySet.Modality),
         });
 
         const disableEditing = customizationService.getCustomization(
@@ -2224,7 +2218,6 @@ function commandsModule({
     loadSegmentationDisplaySetsForViewport: ({
       viewportId,
       displaySetInstanceUIDs,
-      viewportType,
       // The SEG/RTSTRUCT being hydrated. Passing it lets the target selection
       // include panes that share its frame of reference rather than only those
       // hung with the exact referenced display set, and lets it work when there
@@ -2247,25 +2240,10 @@ function commandsModule({
         csViewport?.setNeedsRender?.();
       });
 
-      // A pinned viewportType (RTSTRUCT contour hydration requests 'stack')
-      // is a statement about the pane hydration was
-      // invoked on, whose background is being set to the referenced image. The
-      // other panes here were matched because they already show something the
-      // segmentation can be drawn over - by frame of reference, and keeping the
-      // display sets they already have - so their own render mode is the right
-      // one and forcing 'stack' onto them would flip an MPR pane to a stack.
-      // Note the merged entries carry no viewportOptions at all, so the grid
-      // reducer would merge a bare `{ viewportType }` straight over the pane's
-      // real options.
-      const targetViewportId = viewportId || viewportGridService.getActiveViewportId();
-
       actions.setDisplaySetsForViewports({
         viewportsToUpdate: updatedViewports.map(viewport => ({
           viewportId: viewport.viewportId,
           displaySetInstanceUIDs: viewport.displaySetInstanceUIDs,
-          ...(viewportType && viewport.viewportId === targetViewportId
-            ? { viewportOptions: { ...viewport.viewportOptions, viewportType } }
-            : {}),
         })),
       });
     },

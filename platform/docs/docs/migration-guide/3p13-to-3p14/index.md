@@ -28,6 +28,11 @@ This guide covers changes when upgrading from OHIF version 3.13 to version 3.14.
   presentation stores hold `appearances` and `viewFraming`. A runtime plugin
   that imports `@cornerstonejs/core` or `@cornerstonejs/tools` must be rebuilt
   against Cornerstone3D 6.
+- **[Toolbar update registrations](./toolbar-service.md)** —
+  `toolbarService.registerEventForToolbarUpdate` returns the function that
+  removes its listeners. An extension that registers in `onModeEnter` calls it
+  in `onModeExit`; before, each entry into a mode added one more listener.
+  `toolbarService._serviceSubscriptions` is removed.
 - **[React 19](./react-19.md)** — the monorepo moves to **React 19.2.7**.
   `@ohif/ui-next` now declares react/react-dom as `peerDependencies`, so
   consuming applications must supply React 19, and extensions and modes require

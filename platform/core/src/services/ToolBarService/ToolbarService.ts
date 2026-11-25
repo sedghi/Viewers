@@ -110,7 +110,6 @@ export default class ToolbarService extends PubSubService {
   _extensionManager: ExtensionManager;
   _servicesManager: AppTypes.ServicesManager;
   _evaluateFunction: Record<string, EvaluateFunction> = {};
-  _serviceSubscriptions = [];
 
   constructor(
     commandsManager: CommandsManager,
@@ -147,11 +146,19 @@ export default class ToolbarService extends PubSubService {
   }
 
   /**
-   * Registers a service and its event to listen for updates and refreshes the toolbar state when the event is triggered.
-   * @param service - The service to register.
-   * @param event - The event to listen for.
+   * Refreshes the toolbar state when one of the events of a service or of an event
+   * target fires.
+   *
+   * Returns the function that removes every listener the call added. A registration
+   * made in an extension's `onModeEnter` is released by calling it in `onModeExit`;
+   * a registration made once at the init of the app lives as long as the app.
+   *
+   * @param service - A service with `subscribe` (a pub-sub service of OHIF) or an
+   *   event target with `addEventListener` (the `eventTarget` of Cornerstone3D).
+   * @param events - The events to listen for.
+   * @returns The function that removes the listeners.
    */
-  public registerEventForToolbarUpdate(service, events) {
+  public registerEventForToolbarUpdate(service, events: string[]): () => void {
     const { viewportGridService } = this._servicesManager.services;
     const callback = () => {
       const viewportId = viewportGridService.getActiveViewportId();
@@ -160,13 +167,16 @@ export default class ToolbarService extends PubSubService {
 
     const unsubscriptions = events.map(event => {
       if (service.subscribe) {
-        return service.subscribe(event, callback);
-      } else if (service.addEventListener) {
-        return service.addEventListener(event, callback);
+        return service.subscribe(event, callback).unsubscribe;
       }
+      if (service.addEventListener) {
+        service.addEventListener(event, callback);
+        return () => service.removeEventListener(event, callback);
+      }
+      return () => undefined;
     });
 
-    unsubscriptions.forEach(unsub => this._serviceSubscriptions.push(unsub));
+    return () => unsubscriptions.forEach(unsubscribe => unsubscribe());
   }
 
   /**

@@ -60,13 +60,9 @@ See `viewportRendering` in
 ### What a user sees
 
 The viewer looks and behaves as in 3.13 without `?useNextViewports`, except
-for these changes. The first is a rule of the viewer; the others come from
-Cornerstone3D 6 and are named in its migration guide.
+for these changes. They come from Cornerstone3D 6 and are named in its migration
+guide.
 
-- A pane in which an RTSTRUCT is hydrated shows its referenced series as a
-  stack, also when it was a pane of an MPR: contours draw on a stack and it
-  scrolls fast. 3.13 did this with `?useNextViewports` only, and kept such a
-  pane a volume without it.
 - An ECG shows three rows of four leads and a rhythm strip (a record of eight
   leads or more and five seconds or more), where 3.13 showed twelve rows of one
   lead.
@@ -87,6 +83,12 @@ Cornerstone3D 6 and are named in its migration guide.
   [The opacity of a colormap](#the-opacity-of-a-colormap-in-a-hanging-protocol)).
 - Reset of a pane resets the invert too, and an MPR pane keeps its rotation
   through a layout change and back.
+
+Against 3.13 with `?useNextViewports`, one more change: a pane in which an
+RTSTRUCT is hydrated keeps its viewport type and its orientation, as it does in
+3.13 without the parameter. With the parameter, 3.13 made that pane a stack of the
+referenced series, so the sagittal or the coronal pane of an MPR showed axial
+images.
 
 ## For a mode or a hanging protocol
 
@@ -232,6 +234,8 @@ stretch" in the Cornerstone3D 6 guide.
 | `getViewportFocalPoint(viewport)` | Removed: `viewport.getViewReference()?.cameraFocalPoint`, the centre of the slice on display. |
 | `NEXT_FUSION_PT_OPACITY` | Removed. Give a PET over a CT an opacity ramp by SUV in `colormap.opacityMapping`, as the TMTV mode does (`FUSION_PT_OPACITY_MAPPING`, not exported); the opacity slider scales the ramp. |
 | `NEXT_OVERLAY_OPACITY` | `OVERLAY_OPACITY`, the same value. |
+| `getHydrationViewportTypeForModality(modality)` | Removed. Hydrating an RTSTRUCT or a SEG keeps the viewport type and the orientation of every pane: there is no type to pin. |
+| The `viewportType` option of the command `loadSegmentationDisplaySetsForViewport` | Removed: the command keeps the type of each pane. To show a pane as a stack, give it `viewportOptions: { viewportType: 'stack' }` with `setDisplaySetsForViewports`. |
 | `cornerstoneViewportService.EVENTS.VIEWPORT_VOLUMES_CHANGED` | Removed: `Enums.Events.DISPLAY_SETS_CHANGED` of `@cornerstonejs/core` on the element of the viewport, with `detail.viewportId` (see [The events of a viewport](#the-events-of-a-viewport)). |
 | `Types.LutPresentation`: `{ viewportType, properties }` (the `ViewportProperties` of Cornerstone3D 5, or a map of them by volume id), the value of `useLutPresentationStore` | `{ viewportType, appearances }`: the overrides of each display set by its `displaySetInstanceUID`, each a `Types.DisplaySetAppearanceOverrides` (see [The appearance of a display set](#the-appearance-of-a-display-set)). |
 | `Types.PositionPresentation`: `{ viewportType, viewReference, viewPresentation }`, the value of `usePositionPresentationStore` | `{ viewportType, viewReference, viewFraming }`, `viewFraming` from `viewport.getViewFraming()` (see [The position presentation](#the-position-presentation)). |

@@ -1,6 +1,6 @@
 /**
- * The named home for the BEHAVIORAL POLICIES of the viewport path: appearance
- * defaults and workflow rules that are not the mount lifecycle (that's
+ * The named home for the BEHAVIORAL POLICIES of the viewports: appearance
+ * defaults that are not the mount lifecycle (that's
  * `services/ViewportService/`). Keeping them in one greppable file is the
  * point: a policy that lives inline in a mode or hanging protocol is
  * invisible to the next reader.
@@ -13,14 +13,3 @@
  * ~80-90%: an overlay starts at this value.
  */
 export const OVERLAY_OPACITY = 0.4;
-
-/**
- * Viewport type to pin when hydrating a segmentation's referenced display set.
- * RTSTRUCT contours render correctly on a stack viewport and scroll fast, so
- * the referenced image stays in stack mode on hydrate rather than being
- * promoted to a volume slice (which the perf acceptance criteria forbid).
- * Scoped to RTSTRUCT; SEG keeps the default (undefined = no pin).
- */
-export function getHydrationViewportTypeForModality(modality: string): 'stack' | undefined {
-  return modality === 'RTSTRUCT' ? 'stack' : undefined;
-}

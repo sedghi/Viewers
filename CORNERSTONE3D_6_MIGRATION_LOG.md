@@ -14,13 +14,15 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (25 November, tasks O9, O9b and O10)
+## Summary (25 November, tasks O9 to O11)
 
-The state of every entry today, on the branch at `b7e4ae19a2` (task O9b) plus the work
-of task O10 (not committed yet). Task O9 checked the entries on the Cornerstone3D link at
+The state of every entry today, on the branch at `2e5ecdd662` (task O10) plus the work
+of task O11 (not committed yet). Task O9 checked the entries on the Cornerstone3D link at
 `735fc811e`; task O9b moved the link to `28dd3ab33`, the final head of the unified API
 plan, checked M71 there and ran jest and the Playwright suite again on it; task O10 fixed
-OHIF's two open entries (M74, M75) on that link and found M76.
+OHIF's two open entries (M74, M75) on that link and found M76; task O11 fixed M76,
+deleted the RTSTRUCT stack pin of the `?useNextViewports` path (M77) and found M78 and
+M79.
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -40,7 +42,7 @@ not a defect.
 | M11 | A labelmap asked for on a 3D viewport was not made a surface | OHIF + Cornerstone | fixed `e5881fc1a7` and in cornerstone (C5, its row 127) |
 | M12 | The initial image of a protocol was not applied to a volume | OHIF | fixed `8f7232418c` |
 | M13 | The type comparison counted paths of the linked checkout as errors | OHIF method + Cornerstone | fixed: the comparison; the declaration paths in cornerstone (C2, row 114); O9: no such error on the link |
-| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link); the run in CI open, waits for the owner (open point 2 of the plan) |
+| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link; O11: 245 passed (2 new tests), 0 failed, 4 skipped (7.6 min), same link); the run in CI open, waits for the owner (open point 2 of the plan) |
 | M15 | An optional call of a legacy member failed without a sign | OHIF | fixed `8f7232418c`; the Cornerstone guide names it (step by step) |
 | M16 | Three places did the same thing twice after the codemod | OHIF + Cornerstone codemod | OHIF fixed `8f7232418c`; open for cornerstone: a report of a rewrite that duplicates a line (small) |
 | M17 | The window level panel had no rows | OHIF | fixed `67ab3444fd` (M61) |
@@ -100,23 +102,26 @@ not a defect.
 | M71 | A destroyed stack viewport keeps its prefetch listener | Cornerstone | fixed in cornerstone `28dd3ab33` (FX6), checked in O9b |
 | M72 | On the CPU a jump to a measurement pushed the image out of the pane | OHIF | fixed `ca046b21d2` (O9) |
 | M73 | The PET axial pane of TMTV showed its slice without the instance number | OHIF | fixed `ca046b21d2` (O9) |
-| M74 | A volume of a display set that grew while no viewport showed it keeps its first images | OHIF | fixed in task O10 (not committed yet); `master` has it too |
-| M75 | OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it | OHIF | fixed in task O10 (not committed yet), with the element state that held destroyed elements; `master` has it too |
-| M76 | Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed | OHIF | open, OHIF (small: one listener per mode entry, holds no element); the same on `master` |
+| M74 | A volume of a display set that grew while no viewport showed it keeps its first images | OHIF | fixed `2e5ecdd662` (O10); `master` has it too |
+| M75 | OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it | OHIF | fixed `2e5ecdd662` (O10), with the element state that held destroyed elements; `master` has it too |
+| M76 | Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed | OHIF | fixed in task O11 (not committed yet); `master` has it too |
+| M77 | Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR | OHIF | fixed in task O11 (not committed yet): the rule of the `?useNextViewports` path is deleted |
+| M78 | A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll | Cornerstone | open, waits for cornerstone |
+| M79 | A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT | Cornerstone | open, waits for cornerstone (a known difference from `master`, whose cuts came from M31) |
 
-**The count.** 76 entries; 8 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69), so the upgrade met **68 problems**:
+**The count.** 79 entries; 8 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69), so the upgrade met **71 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 29 | 26, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b) | 3: M41, M46, M48, each waits for cornerstone | |
-| OHIF (24 in its code, 6 in its tests) | 30 | 28 in OHIF (M74 and M75 in task O10, not committed yet) | 1: M76, the same on `master` | 1: M19 |
+| Cornerstone3D (the library, its codemod or its guide) | 31 | 26, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b) | 5: M41, M46, M48, M78, M79, each waits for cornerstone | |
+| OHIF (25 in its code, 6 in its tests) | 31 | 30 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in task O11, not committed yet) | | 1: M19 |
 | Both | 8 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
 | Cause not found | 1 (M50) | closed by measurement in task O9 | | |
 
-Open today: **M14** (waits for the owner: the Playwright run in CI), **M41, M46, M48**
-(wait for cornerstone), **M76** (OHIF, small), and three small asks of Cornerstone3D in
-M10, M16 and M27 whose OHIF part is done.
+Open today: **M14** (waits for the owner: the Playwright run in CI), **M41, M46, M48,
+M78, M79** (wait for cornerstone), and three small asks of Cornerstone3D in M10, M16 and
+M27 whose OHIF part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
 
@@ -3021,7 +3026,7 @@ M10, M16 and M27 whose OHIF part is done.
     `extendInstances`, one invalidation, still one display set) while no viewport shows it.
     The next MPR: 79 slices in the three panes on this branch, one volume of the display
     set in the cache; 55 slices on this branch without the fix and on `master`.
-- **State:** fixed in task O10 (not committed yet).
+- **State:** fixed in task O10, committed in `2e5ecdd662`.
 
 ## M75. OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it
 
@@ -3085,7 +3090,7 @@ M10, M16 and M27 whose OHIF part is done.
     of the 25 destroyed elements none is alive after the forced collection (was 5), and
     no destroyed element has a listener left (the only alive element is the one the pane
     still uses).
-- **State:** fixed in task O10 (not committed yet).
+- **State:** fixed in task O10, committed in `2e5ecdd662`.
 
 ## M76. Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed
 
@@ -3104,13 +3109,179 @@ M10, M16 and M27 whose OHIF part is done.
   extension: each mode entry adds one more callback to each. `master` has the same code.
 - **What it costs:** little: one more toolbar refresh per event per mode entry, no element
   held.
-- **Fix, in OHIF:** to do. Releasing every subscription at the mode exit is not enough as
-  it is: `registerEventForToolbarUpdate` is also called once at the init of the default
-  and cornerstone extensions (cine, hotkeys, colorbar, segmentation), and those
-  registrations must outlive a mode. The fix is that `registerEventForToolbarUpdate` gives
-  back an unsubscription that works for both kinds of target and the extensions that call
-  it in `onModeEnter` release it in their `onModeExit`. Not done in task O10: it changes
-  the API of a service of `@ohif/core` and every caller, and the entry is not one of the
-  two of the task.
+- **Fix, in OHIF (task O11):** `registerEventForToolbarUpdate` returns the function that
+  removes every listener it added: the `unsubscribe` of each `subscribe` for a pub-sub
+  service, a `removeEventListener` of the same callback for an event target. The field
+  `_serviceSubscriptions`, which kept the return values and was never read, is removed.
+  The cornerstone extension puts the three releases of its `onModeEnter` into the list
+  that its `onModeExit` already runs; the measurement tracking extension keeps its
+  release and gets an `onModeExit` that runs it. The registrations made once at the init
+  of the app (cine and hotkeys in the default extension, colorbar and segmentation in the
+  cornerstone extension) do not keep the return value and live as long as the app, as
+  before. A change of the API of `@ohif/core` (a return value, and the field gone): in
+  OHIF's migration guide for 3.14, page `toolbar-service.md`, and its index.
 - **Fix, in cornerstone:** none.
-- **State:** open, OHIF (small), the same on `master`.
+- **Checks (task O11):**
+  - `ToolbarService.registerEventForToolbarUpdate.test.ts` (new, `@ohif/core`): the
+    toolbar refreshes on an event of a pub-sub service and of an event target until the
+    release, and five registrations released in turn keep one listener on each. On the
+    service as it was, all 3 failed (`release is not a function`; lane O11
+    `jest-m76-service-failfirst.log`).
+  - `onModeEnterExit.test.ts` (new, cornerstone extension): five `onModeEnter` and
+    `onModeExit` of the extension with the real toolbar service. Failed first: the
+    `TOOL_ACTIVATED` listeners of `eventTarget` 1, 2, 3, 4, 5, the subscriptions of the
+    viewport service 1 to 5 and of the segmentation service 9, 12, 15, ...
+    (`jest-m76-extension-failfirst.log`); now the same after each entry and 0 after the
+    last exit.
+  - In the viewer (lane O11 `specs/modeRoundTrip.spec.ts`, the method of lane O10): the
+    viewer left for the study list and opened again five times. On the committed
+    `2e5ecdd662` (served from an export on port 3335): `eventTarget` 64, 65, 66, 67, 68, 69
+    listeners after each opening, `TOOL_ACTIVATED` 2 to 7, the subscriptions of the
+    tracked measurements service 10, 15, 20, 25, 30, 35, of `VIEWPORT_DATA_CHANGED` 4, 9,
+    10, 11, 12, 13. With the fix: `eventTarget` 64 and `TOOL_ACTIVATED` 2 at every
+    opening, the tracked measurements service 10, `VIEWPORT_DATA_CHANGED` 4 then 8 from
+    the second opening on (4 subscriptions that come once, at the second opening, and do
+    not grow; the same step is in the run before the fix).
+- **State:** fixed in task O11 (not committed yet).
+
+## M77. Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR
+
+- **Seen (the orchestrator, 25 November, on `master` `6fe59945a0` and the branch
+  `b7e4ae19a2`; measured again in task O11):** study
+  `1.3.6.1.4.1.5962.99.1.2968617883.1314880426.1493322302363.3.0`, Layout then MPR, a
+  pane made active, the RTSTRUCT thumbnail double clicked, "yes" to the hydration. The
+  pane the RTSTRUCT was loaded from became a stack in the acquisition orientation
+  (`getDisplaySets()`: `mode: 'stack'`, 262 slices), so the sagittal or the coronal pane
+  showed axial images; the axial pane looked the same, but was a stack too. On `master`
+  every pane stays a volume in its orientation.
+- **Why:** `getHydrationViewportTypeForModality` (`utils/viewportPolicies.ts`) gave
+  `'stack'` for an RTSTRUCT. `hydrateSecondaryDisplaySet` passed it as `viewportType` to
+  `loadSegmentationDisplaySetsForViewport`, which merged `viewportOptions: { viewportType:
+  'stack' }` over the options of the target pane. It was the rule of the
+  `?useNextViewports` path of 3.13 (`modality === 'RTSTRUCT' && isNextViewportsEnabled()`,
+  OHIF #6101, `3c0e245398`, "keep referenced CT in stack mode on RTSTRUCT hydrate"), kept
+  without its condition when the flag went, so it held for every pane. Its reason, in that
+  commit: on the next path of 5.x the hydration of an RTSTRUCT on a stack pane mounted the
+  CT as a volume slice, "the slow path", while contours on a stack scrolled fast. That
+  promotion was M22 (the preview `[CT, RTSTRUCT]` mounted as a volume, kept by the
+  first-writer-wins registry of data ids), fixed in package U3 (`1653f6df00`) and M42, and
+  the registry is gone since task O2. So the pin protected nothing on 6.0.
+- **Measured (task O11, lane O11 `specs/rtPanes.spec.ts`, `cases/rt/{pin,nopin,master}`):**
+  every way an RTSTRUCT reaches a pane, on the committed branch (`pin`), on the branch
+  without the pin and on `master` (port 3336, its own `e2e.js`). Grid type and
+  orientation, then what the viewport mounts, before and after:
+
+  | Way | Pane | With the pin | Without the pin | `master` |
+  |---|---|---|---|---|
+  | (a) hydration from a stack pane | the stack | stack, 262 slices: unchanged | the same | the same |
+  | (b) hydration from the axial pane of an MPR | axial | stack, acquisition, 262 | volume, axial, 262 | volume, axial |
+  | (b) from the sagittal pane | sagittal | stack, acquisition, 262 | volume, sagittal, 512 | volume, sagittal, 512 |
+  | (b) from the coronal pane | coronal | stack, acquisition, 262 | volume, coronal, 512 | volume, coronal, 512 |
+  | (c) hydration in the stack pane, then Axial Primary, MPR, the 1x1 grid (`RTHydrationThenMPR`) | all | stack, then volumes in their orientations, then the axial volume | the same | the same |
+  | (d) the data overlay menu: stack then MPR, MPR then the sagittal pane (`RTDataOverlayNoHydrationThenMPR`, `MPRThenRTOverlayNoHydration`) | all | every pane keeps its type | the same | the same |
+  | (d) an RTSTRUCT over a series it does not reference (`RTDataOverlayForUnreferencedDisplaySetNoHydration`) | the stack | becomes a volume (acquisition): the rule of the overlay menu, not the hydration | the same | the same |
+  | (e) the segmentation mode, hydration | the stack | stays a stack | the same | the same |
+  | (f) hydration, then maximize and restore (`RTContourViewportLayoutChange`) | the 4 stacks | stay stacks | the same | the same |
+  | (g) the confirmation disabled (`RTHydrationDisableConfirmation`) | the stack | stays a stack | the same | the same |
+
+  No way promotes a stack to a volume with the pin off. Scroll timing (40 steps of one
+  slice, median time from the scroll to the next annotation render of the pane): a stack
+  pane with the contours 144 ms with the pin, 156 ms without (the same pane, a stack in
+  both), 33 ms on `master`; the MPR pane the RTSTRUCT was loaded from 149 to 151 ms with
+  the pin (a stack), 33 ms without (a volume), 33 to 37 ms on `master`. So on 6.0 the
+  stack is the slow side: M78.
+- **Fix, in OHIF (task O11):** `getHydrationViewportTypeForModality`, its export from
+  `@ohif/extension-cornerstone`, its call in `hydrateSecondaryDisplaySet` and the
+  `viewportType` option of `loadSegmentationDisplaySetsForViewport` (with the merge of
+  options that only it fed) are deleted: the command sets the display sets of each pane
+  and nothing else, for an RTSTRUCT as for a SEG. `getUpdatedViewportsForSegmentation`
+  (`utils/hydrationUtils.ts`) never read the option and is unchanged; the type of the grid
+  it reads is the one of the customization of automatic hydration, which stays. The
+  comments that named the pin are corrected (`isDisplaySetOverlayable.ts`, the header of
+  `viewportPolicies.ts`, the README of the viewport service). The migration guide said
+  that an RTSTRUCT pane becomes a stack: against 3.13 without the parameter nothing
+  changes, so the line is gone from "What a user sees", and a note says that against
+  3.13 with `?useNextViewports` the pane keeps its type now; the export and the option
+  have rows in "Removed and renamed exports".
+- **Fix, in cornerstone:** none.
+- **Checks (task O11):**
+  - `hydrateSecondaryDisplaySet.test.ts` (new, cornerstone extension, the real commands
+    module over a grid that merges an update as the grid reducer does in a protocol
+    layout): an RTSTRUCT hydrated in the axial, sagittal or coronal pane of an MPR leaves
+    every pane a volume in its orientation; in a stack pane, a stack; a SEG in the sagittal
+    pane, a sagittal volume. With the pin the three MPR cases failed (`stack` for
+    `volume`; lane O11 `jest-pin-failfirst.log`). The jest config of the extension maps
+    `@ohif/extension-default` to the stub of `cornerstone-dicom-seg` and
+    `@cornerstonejs/tools/segmentation` to its file (the export map of the package), which
+    the commands module needs to load.
+  - `tests/RTHydrationFromMPRKeepsPaneOrientation.spec.ts` (new): the RTSTRUCT hydrated
+    from the sagittal and from the coronal pane; every pane keeps its grid type, its
+    orientation, its mount and its number of slices (262, 512, 512). Both tests failed on
+    the committed `2e5ecdd662` (an export served on port 3335: `stack`, `acquisition`,
+    262; lane O11 `pw-spec-pin-failfirst.log`) and pass on the change.
+  - The 11 RTSTRUCT specs pass with the change (`pw-rt-specs.log`), the four pictures of
+    `RTHydrationFromMPR.spec.ts` (made with the pin on the axial pane) among them: no
+    baseline changed.
+- **State:** fixed in task O11 (not committed yet).
+
+## M78. A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll
+
+- **Seen (task O11, lane O11 `scratch/stackDelay.mjs`, `cases/stack-delay-*.json`):** the
+  stack pane of the RTSTRUCT study of M77, one slice per scroll. On the branch the image
+  renders 15 ms after the scroll and the annotations 159 to 164 ms after it with the
+  hydrated RTSTRUCT (2,265 contour annotations), 17 to 18 ms with no annotation. On
+  `master` the same pane renders the image at 14 to 16 ms and the annotations at 18 to
+  22 ms, with the same RTSTRUCT. A pane of the branch in volume mode with the same contours:
+  33 ms (M77).
+- **Why (a CPU profile of ten scrolls, `cases/stack-profile-branch.txt`):** of 1,955 ms of
+  samples the most self time is in metadata: OHIF's metadata provider `get` 223 ms,
+  `imagePlaneModule` 175 ms, `combineFrameInstance` 158 ms,
+  `_retrieveMultiframeMetadataImageURI` 76 ms, `_getCornerstoneDICOMImageLoaderTag` 61 ms,
+  reached from `baseImageIdQueryFilter`, `isReferenceViewableInContext` and
+  `isReferencedImageCompatible` of the core: in stack mode, each draw asks for each of the
+  2,265 annotations whether its referenced image can be viewed, through the image plane
+  metadata of that image.
+- **Smallest case (Cornerstone calls only, not built):** a `PlanarViewport` in stack mode
+  over a series of 262 images, 2,265 `PlanarFreehandContourSegmentationTool` annotations
+  each with the `referencedImageId` of one image of the series; the time from
+  `utilities.scroll(viewport, { delta: 1 })` to `ANNOTATION_RENDERED`, against the same
+  viewport with no annotation and in volume mode.
+- **Fix, in OHIF:** none (rule 3). The change of M77 keeps the panes of an MPR volumes,
+  where this cost is not paid; a stack with many contours pays it, as before.
+- **Fix, in cornerstone:** to do: the filter of the annotations of a stack should not read
+  the metadata of the referenced image of every annotation on every draw.
+- **State:** open, waits for cornerstone.
+
+## M79. A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT
+
+- **Seen (task O11, `scratch/cutProbe.mjs`, `cases/cut-*.json`, the steps of M77 from the
+  sagittal pane):** after the load and the hydration, `master` draws 51 SVG paths in the
+  sagittal pane and none in the axial and coronal panes (from the coronal pane: 21 in the
+  coronal pane); the 2,265 contour annotations have the view plane normal `[1, 0, 0]`. The
+  branch, with or without the pin of M77, draws 13 paths in the axial pane (slice 131)
+  and none in the sagittal and coronal panes; the annotations have `[0, 0, -1]`.
+- **Why on `master`:** M31: 5.18.3 gives each contour annotation the normal of the pane
+  that draws it first. The sagittal lines of `master` are the axial polygons seen edge
+  on, not cuts, and its axial pane draws nothing. Cornerstone `1b3b2247e` takes the plane
+  of a contour from its points.
+- **Has Cornerstone3D 6 a way to draw the cut of a planar contour on another plane:** yes.
+  `contourDisplay.render` of the tools, for a viewport whose plane does not match the
+  contours (and whose status is `RENDERED`), asks the polySeg add-on for surfaces
+  (`computeSurfaceData`), cuts them with the planes of the slices of the viewport
+  (`clipAndCacheSurfacesForViewport`, worker task `cutSurfacesIntoPlanes`) and adds the
+  cuts as contour annotations in the plane of the viewport
+  (`createAndAddContourSegmentationsFromClippedSurfaces`). OHIF registers polySeg
+  (`initCornerstoneTools.js`). On the branch the path runs: `polySeg.cutSurfacesIntoPlanes`
+  runs once after the hydration from the sagittal pane (246 to 270 ms), but no surface is
+  made: the cache holds the 31 `CONTOUR` geometries and no `SURFACE` one, the task
+  `getSurfacesAABBs` that runs before a cut of new surfaces does not run, no annotation in
+  the plane of the pane is added, and nothing is logged. So the cut is made over no
+  surface. Where `computeSurfaceData` loses the surfaces of a contour segmentation was not
+  looked for.
+- **Fix, in OHIF:** none (rule 3).
+- **Fix, in cornerstone:** to do: the surfaces of a contour segmentation for the cut, or a
+  message that says why there is none.
+- **State:** open, waits for cornerstone. A known difference from `master` that the user
+  sees: the sagittal and coronal panes of an MPR show no contour after an RTSTRUCT is
+  hydrated; on `master` the pane it was loaded from showed flat lines and the axial pane
+  nothing.
