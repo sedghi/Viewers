@@ -2,8 +2,7 @@ import { cache, Enums, volumeLoader } from '@cornerstonejs/core';
 import type { Types } from '@cornerstonejs/core';
 import CornerstoneCacheService from './CornerstoneCacheService';
 import ViewportInfo from '../ViewportService/Viewport';
-import { ViewportBackend } from '../ViewportService/backends/ViewportBackend';
-import type { IViewportServiceInternals } from '../ViewportService/backends/IViewportServiceInternals';
+import CornerstoneViewportService from '../ViewportService/CornerstoneViewportService';
 
 const { ViewportType } = Enums;
 
@@ -43,22 +42,20 @@ function makeOverlayDisplaySet(Modality: string) {
   };
 }
 
-function makeServiceInternals(): jest.Mocked<IViewportServiceInternals> {
-  return {
-    _setStackViewport: jest.fn().mockResolvedValue(undefined),
-    _setVolumeViewport: jest.fn().mockResolvedValue(undefined),
-    _setEcgViewport: jest.fn().mockResolvedValue(undefined),
-    _setOtherViewport: jest.fn().mockResolvedValue(undefined),
-    setPresentations: jest.fn(),
-    _addOverlayRepresentations: jest.fn().mockResolvedValue(undefined),
-    _trackViewportDisplaySets: jest.fn(),
-  };
+/** A viewport service whose mount of each family is stubbed, to see which one a mount takes. */
+function makeViewportService() {
+  const service = new CornerstoneViewportService({} as AppTypes.ServicesManager);
+  jest.spyOn(service, '_setStackViewport').mockResolvedValue(undefined);
+  jest.spyOn(service, '_setVolumeViewport').mockResolvedValue(undefined);
+  jest.spyOn(service, '_setEcgViewport').mockResolvedValue(undefined);
+  jest.spyOn(service, '_setOtherViewport').mockResolvedValue(undefined);
+  return service;
 }
 
 /**
  * What the viewer does with the `viewportOptions` of a hanging protocol
  * viewport: the cache service builds the viewport data, the viewport info
- * takes the options and the data, and the backend picks the mount.
+ * takes the options and the data, and the viewport service picks the mount.
  */
 async function hangViewport(viewportType: string, displaySets = makeDisplaySets()) {
   const cacheService = new CornerstoneCacheService({} as AppTypes.ServicesManager);
@@ -73,13 +70,9 @@ async function hangViewport(viewportType: string, displaySets = makeDisplaySets(
   viewportInfo.setPublicViewportOptions({ viewportType }, viewportData.viewportType);
   viewportInfo.setViewportData(viewportData);
 
-  const service = makeServiceInternals();
+  const service = makeViewportService();
   const viewport = { id: 'viewport-1', type: viewportInfo.getViewportType() };
-  await new ViewportBackend(service).dispatchMount(
-    viewport as unknown as Types.IViewport,
-    viewportData,
-    viewportInfo
-  );
+  await service._setDisplaySets(viewport as unknown as Types.IViewport, viewportData, viewportInfo);
 
   return { viewportData, viewportInfo, service };
 }

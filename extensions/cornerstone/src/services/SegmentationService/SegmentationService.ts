@@ -26,8 +26,9 @@ import { mapROIContoursToRTStructData } from './RTSTRUCT/mapROIContoursToRTStruc
 import { SegmentationPresentation, SegmentationPresentationItem } from '../../types/Presentation';
 import { EasingFunctionEnum, EasingFunctionMap } from '../../utils/transitions';
 import { ViewReference } from '@cornerstonejs/core/types';
-import { SegmentationBackend, type ISegmentationBackend } from './backends';
-import { getViewportAdapter } from '../ViewportService/adapter';
+import { classifyAndPrepareLabelmapAdd } from './classifyAndPrepareLabelmapAdd';
+import { assembleSegmentationDataForSEG } from './assembleSegmentationDataForSEG';
+import { isVolumeViewport3D } from '../../utils/viewportTypeGuards';
 
 const { DefaultHistoryMemo } = csUtils.HistoryMemo;
 
@@ -118,7 +119,6 @@ class SegmentationService extends PubSubService {
 
   private _segmentationIdToColorLUTIndexMap: Map<string, number>;
   private _segmentationGroupStatsMap: Map<string, any>;
-  private readonly _segBackend: ISegmentationBackend;
   readonly servicesManager: AppTypes.ServicesManager;
   // The highlighted segment's animation state, keyed by segmentHighlightKey. A
   // segment that is not selected has no entry. Each highlight runs as a
@@ -136,8 +136,6 @@ class SegmentationService extends PubSubService {
     this.servicesManager = servicesManager;
 
     this._segmentationGroupStatsMap = new Map();
-
-    this._segBackend = new SegmentationBackend();
   }
 
   public onModeEnter(): void {
@@ -338,7 +336,7 @@ class SegmentationService extends PubSubService {
     }
 
     // A stale/invalid segmentationId yields no segmentation; fail fast with a clear
-    // message instead of dereferencing representationData deep inside the backend
+    // message instead of dereferencing representationData deep inside the labelmap
     // classification below.
     if (!segmentation) {
       throw new Error(
@@ -348,12 +346,15 @@ class SegmentationService extends PubSubService {
 
     const colorLUTIndex = this._segmentationIdToColorLUTIndexMap.get(segmentationId);
 
-    const defaultRepresentationType: csToolsEnums.SegmentationRepresentations =
-      getViewportAdapter(csViewport).getShape() === 'volume3d' ? SURFACE : LABELMAP;
+    const defaultRepresentationType: csToolsEnums.SegmentationRepresentations = isVolumeViewport3D(
+      csViewport
+    )
+      ? SURFACE
+      : LABELMAP;
     let representationTypeToUse = type || defaultRepresentationType;
 
     if (representationTypeToUse === LABELMAP) {
-      const classification = await this._segBackend.classifyAndPrepareLabelmapAdd(
+      const classification = await classifyAndPrepareLabelmapAdd(
         csViewport,
         segmentation,
         viewportId,
@@ -651,9 +652,9 @@ class SegmentationService extends PubSubService {
     const colorLUTIndex = addColorLUT(colorLUT);
     this._segmentationIdToColorLUTIndexMap.set(segmentationId, colorLUTIndex);
 
-    // The backend registers an overlapping SEG as multiple labelmap layers (slice
+    // An overlapping SEG is registered as multiple labelmap layers (slice
     // rendering), and any other SEG as a single layer.
-    const seg = this._segBackend.assembleSegmentationDataForSEG({
+    const seg = assembleSegmentationDataForSEG({
       segmentationId,
       segDisplaySet,
       derivedImageIds,
@@ -1573,12 +1574,10 @@ class SegmentationService extends PubSubService {
         return;
       }
 
-      // Recenter via the backend (setViewReference). Skip the highlight when the
-      // recenter did not happen.
-      const didJump = this._segBackend.jumpToSegmentCenter(viewport, world);
+      viewport.setViewReference({ cameraFocalPoint: world });
+      viewport.render();
 
-      didJump &&
-        highlightSegment &&
+      highlightSegment &&
         this.highlightSegment(
           segmentationId,
           segmentIndex,
@@ -1811,7 +1810,7 @@ class SegmentationService extends PubSubService {
 
           const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
-          if (viewport && getViewportAdapter(viewport).getShape() === 'stack') {
+          if (viewport?.getCurrentMode() === 'stack') {
             return;
           }
 

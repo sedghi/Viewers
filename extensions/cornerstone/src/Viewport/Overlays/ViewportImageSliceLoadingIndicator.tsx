@@ -7,7 +7,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Enums, getEnabledElement } from '@cornerstonejs/core';
 import type { PlanarViewport } from '@cornerstonejs/core';
-import { getViewportAdapter } from '../../services/ViewportService/adapter';
+import { isPlanarViewport } from '../../utils/viewportTypeGuards';
 
 /**
  * The stack viewport of an element, or undefined when the element shows
@@ -16,11 +16,11 @@ import { getViewportAdapter } from '../../services/ViewportService/adapter';
 function getStackViewport(element: HTMLDivElement): PlanarViewport | undefined {
   const viewport = getEnabledElement(element)?.viewport;
 
-  if (!viewport || getViewportAdapter(viewport).getShape() !== 'stack') {
+  if (!isPlanarViewport(viewport) || viewport.getCurrentMode() !== 'stack') {
     return undefined;
   }
 
-  return viewport as PlanarViewport;
+  return viewport;
 }
 
 function ViewportImageSliceLoadingIndicator({ viewportData, element }) {

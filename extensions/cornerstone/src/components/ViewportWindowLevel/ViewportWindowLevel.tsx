@@ -5,7 +5,7 @@ import { Enums, eventTarget, cache, utilities as csUtils } from '@cornerstonejs/
 import type { Types } from '@cornerstonejs/core';
 import { useActiveViewportDisplaySets } from '@ohif/core';
 import { getWindowLevelsData, keepRowsWithoutRange } from './utils';
-import { getPlanarOr3DViewport } from '../../utils/getPlanarOr3DViewport';
+import { getPlanarOr3DViewport } from '../../utils/viewportTypeGuards';
 
 const { Events } = Enums;
 

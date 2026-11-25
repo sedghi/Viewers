@@ -2,7 +2,8 @@ import { Enums, displaySetRegistry, utilities } from '@cornerstonejs/core';
 import type { PlanarViewport } from '@cornerstonejs/core';
 import { utilities as csToolsUtils } from '@cornerstonejs/tools';
 import CornerstoneViewportService from './CornerstoneViewportService';
-import type { IViewportBackend, StackMountContext } from './backends/IViewportBackend';
+import * as viewportMounts from './viewportMounts';
+import type { StackMountContext } from './viewportMounts';
 import type ViewportInfo from './Viewport';
 import type { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
 import type { ViewportShape } from '../../utils/viewportDataShape';
@@ -113,9 +114,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       const { service, viewportInfo, viewportData } = makeServiceWithViewport('stack', {
         initialImageOptions: { preset: 'last' },
       });
-      const mountStack = jest.fn().mockResolvedValue(undefined);
-      (service as unknown as { backend: { mountStack: jest.Mock } }).backend.mountStack =
-        mountStack;
+      const mountStack = jest.spyOn(viewportMounts, 'mountStack').mockResolvedValue(undefined);
       const viewport = {
         id: 'viewport-1',
         element: { addEventListener: jest.fn() },
@@ -148,7 +147,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       expect(getInitialImageIndex(service, viewportInfo)).toBeUndefined();
     });
 
-    /** Mounts a volume of 11 slices on the viewport of a service whose backend mounts it. */
+    /** Mounts a volume of 11 slices on the viewport of a service, the mount itself stubbed. */
     const mountVolume = async (viewportOptions: object, presentations: object) => {
       const { service } = makeServiceWithViewport('volume', {
         viewportType: 'volume',
@@ -158,12 +157,13 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         id: 'viewport-1',
         element: {},
         getNumberOfSlices: () => 11,
+        isReferenceViewable: () => false,
+        render: jest.fn(),
       } as unknown as PlanarViewport;
       const internals = service as unknown as {
-        backend: { mountVolumes: jest.Mock };
         _processExtraDisplaySetsForViewport: () => unknown[];
       };
-      internals.backend.mountVolumes = jest.fn().mockResolvedValue(true);
+      const mountVolumes = jest.spyOn(viewportMounts, 'mountVolumes').mockResolvedValue(undefined);
       jest.spyOn(internals, '_processExtraDisplaySetsForViewport').mockReturnValue([]);
       jest.spyOn(service, 'getCornerstoneViewport').mockReturnValue(viewport);
 
@@ -173,7 +173,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         presentations
       );
 
-      return { viewport, mountVolumes: internals.backend.mountVolumes };
+      return { viewport, mountVolumes };
     };
 
     it('a volume mount jumps to the initial image of the preset', async () => {
@@ -276,6 +276,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       const { service } = makeServiceWithViewport('volume', { viewportType: 'volume' });
       const overrides = { ct: { voiRange: { lower: -160, upper: 240 } }, pt: { opacity: 0.4 } };
       const viewport = {
+        type: Enums.ViewportType.PLANAR,
         getDisplaySets: () => [{ displaySetId: 'ct' }, { displaySetId: 'pt' }],
         getDisplaySetAppearance: jest.fn((displaySetId: string) => overrides[displaySetId]),
         getEffectiveDisplaySetAppearance: jest.fn(),
@@ -294,12 +295,10 @@ describe('CornerstoneViewportService and the shape of the data', () => {
     const mountStack = async (displaySetOptions: object, presentations: object) => {
       const { service, viewportInfo, viewportData } = makeServiceWithViewport('stack');
       viewportInfo.setPublicDisplaySetOptions([displaySetOptions]);
-      const backendMount = jest.fn().mockResolvedValue(undefined);
+      const mountStack = jest.spyOn(viewportMounts, 'mountStack').mockResolvedValue(undefined);
       const internals = service as unknown as {
-        backend: { mountStack: jest.Mock };
         _processExtraDisplaySetsForViewport: () => unknown[];
       };
-      internals.backend.mountStack = backendMount;
       jest.spyOn(internals, '_processExtraDisplaySetsForViewport').mockReturnValue([]);
       const viewport = {
         id: 'viewport-1',
@@ -313,7 +312,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         presentations
       );
 
-      return backendMount.mock.calls[0][1] as StackMountContext;
+      return mountStack.mock.calls[0][1] as StackMountContext;
     };
 
     const protocolOptions = {
@@ -325,7 +324,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
     it('a stack takes the window, the colormap and the opacity of its display set options', async () => {
       const context = await mountStack(protocolOptions, {});
 
-      expect(context.properties).toEqual({
+      expect(context.appearance).toEqual({
         voiRange: utilities.windowLevel.toLowHighRange(400, 40),
         colormap: { name: 'hsv' },
         opacity: 0.6,
@@ -338,7 +337,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         lutPresentation: { viewportType: 'stack', appearances: { 'display-set': stored } },
       });
 
-      expect(context.properties).toEqual(stored);
+      expect(context.appearance).toEqual(stored);
     });
 
     it('a stack whose stored appearance was reset keeps the window of its images', async () => {
@@ -346,7 +345,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         lutPresentation: { viewportType: 'stack', appearances: { 'display-set': {} } },
       });
 
-      expect(context.properties).toEqual({});
+      expect(context.appearance).toEqual({});
     });
   });
 
@@ -446,9 +445,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
   describe('the events of a mount', () => {
     it('a stack mount adds no listener to the element of its viewport, however often it mounts', async () => {
       const { service, viewportInfo, viewportData } = makeServiceWithViewport('stack');
-      (service as unknown as { backend: { mountStack: jest.Mock } }).backend.mountStack = jest
-        .fn()
-        .mockResolvedValue(undefined);
+      jest.spyOn(viewportMounts, 'mountStack').mockResolvedValue(undefined);
       const addEventListener = jest.fn();
       const viewport = {
         id: 'viewport-1',
@@ -460,6 +457,37 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       }
 
       expect(addEventListener).not.toHaveBeenCalled();
+    });
+
+    it('mounts an ECG and a video or whole slide display set by its UID only', async () => {
+      const service = new CornerstoneViewportService(makeServicesManager());
+      const ecgViewport = {
+        id: 'ecg',
+        type: ViewportType.ECG,
+        setDisplaySets: jest.fn().mockResolvedValue(undefined),
+      };
+      const videoViewport = {
+        id: 'video',
+        type: ViewportType.VIDEO,
+        setDisplaySets: jest.fn().mockResolvedValue(undefined),
+        setViewReference: jest.fn(),
+      };
+      const dataOf = (displaySetInstanceUID: string) =>
+        ({
+          viewportType: ViewportType.PLANAR,
+          data: [{ displaySetInstanceUID, imageIds: ['image-0'] }],
+        }) as unknown as StackViewportData;
+      const videoInfo = { getViewReference: () => undefined } as unknown as ViewportInfo;
+
+      await service._setEcgViewport(ecgViewport as never, dataOf('ecg-1'));
+      await service._setOtherViewport(videoViewport as never, dataOf('video-1'), videoInfo);
+
+      expect(ecgViewport.setDisplaySets).toHaveBeenCalledWith({ displaySetId: 'ecg-1' });
+      expect(videoViewport.setDisplaySets).toHaveBeenCalledWith({ displaySetId: 'video-1' });
+      expect(service.viewportsDisplaySets.get('ecg')).toEqual(['ecg-1']);
+      expect(service.viewportsDisplaySets.get('video')).toEqual(['video-1']);
+      expect(displaySetRegistry.has('ecg-1')).toBe(false);
+      expect(displaySetRegistry.has('video-1')).toBe(false);
     });
 
     it('has no event of its own for the volumes of a viewport: DISPLAY_SETS_CHANGED says it', () => {
@@ -474,8 +502,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       jest.spyOn(csToolsUtils.stackContextPrefetch, 'enable').mockImplementation(() => undefined);
       const displaySet = { displaySetInstanceUID: 'display-set', imageIds, Modality: 'CT' };
       displaySetRegistry.add('display-set', displaySet);
-      const { service, viewportInfo } = makeServiceWithViewport('stack');
-      const backend = (service as unknown as { backend: IViewportBackend }).backend;
+      const { service } = makeServiceWithViewport('stack');
       const viewport = {
         id: 'viewport-1',
         element: {},
@@ -483,17 +510,11 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         setViewState: jest.fn(),
       };
 
-      await backend.mountStack(
-        viewport as unknown as PlanarViewport,
-        {
-          displaySetInstanceUIDs: ['display-set'],
-          imageIds,
-          initialImageIndex: 0,
-          properties: {},
-          presentations: {},
-          viewportInfo,
-        } as StackMountContext
-      );
+      await viewportMounts.mountStack(viewport as unknown as PlanarViewport, {
+        displaySetInstanceUID: 'display-set',
+        initialImageIndex: 0,
+        appearance: {},
+      });
       service.disableElement('viewport-1');
 
       expect(displaySetRegistry.get('display-set')).toBe(displaySet);

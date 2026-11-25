@@ -65,20 +65,24 @@ of the data (a stack or a volume) itself.
    npx codemod @cornerstonejs/cornerstone3d-6
    ```
 
-2. Ask the viewport through the viewer's adapter where it has the call.
-   `getViewportAdapter(viewport)` of `@ohif/extension-cornerstone` is the
-   viewer's one door to a viewport, the same for every kind: the view state,
-   the appearance of each display set (window, colormap, opacity), the view
-   plane normal and the focal point, the volume ids, and the shape of what the
-   viewport shows. See
+2. Call the viewport of Cornerstone3D. The viewer has no adapter between
+   itself and a viewport any more: the view state, the appearance of each
+   display set (window, colormap, opacity), the view reference with its view
+   plane normal and focal point, the volume ids and what the viewport shows
+   are members of the viewport. See
+   [The viewport adapter is gone](#the-viewport-adapter-is-gone) for each
+   method of the adapter and the call that replaces it, and
    [The appearance of a display set](#the-appearance-of-a-display-set).
 3. Do not read `viewport.type` to tell a stack from a volume: both are
-   `planar`. Ask `getViewportAdapter(viewport).getShape()` (`stack`, `volume`,
-   `volume3d` or `other`), or `viewport.getCurrentMode()`.
+   `planar`. Ask `viewport.getCurrentMode()` (`'stack'`, `'volume'`,
+   `'volume3d'`, `'geometry3d'`, `'video'`, `'wholeSlide'`, `'ecg'` or
+   `'empty'`).
 4. `Types.IViewport` of Cornerstone3D 6 has fewer members than in 5. Type a
    viewport with its class (`PlanarViewport`, `VolumeViewport3D`,
    `VideoViewport`, `WSIViewport`, `ECGViewport`) where you call a member of that
-   class, for example `renderingEngine.getViewport<PlanarViewport>(viewportId)`.
+   class, and narrow it by its `type`, for example
+   `viewport.type === Enums.ViewportType.PLANAR`. Each class has its own
+   literal `type`, so a test of the type narrows a union of the classes.
 5. A viewport names each display set that it shows by its
    `displaySetInstanceUID` (`viewport.getDisplaySets()`,
    `getSourceDisplaySetId()`, the `displaySetId` of a view reference and of the
@@ -91,9 +95,10 @@ of the data (a stack or a volume) itself.
    wants of it: `setDisplaySets({ displaySetId: displaySetInstanceUID, options:
    { mode: 'volume', orientation, volumeId } })`. See
    [Display set storage](./display-set-store.md#viewports-read-the-stored-display-set).
-   `getDataIdForDisplaySet` of the adapter is
-   `getShownDisplaySetId(displaySetInstanceUID)`: the UID when the viewport
-   shows that display set, else undefined.
+   Whether a viewport shows a display set: `viewport.getDisplaySets()` lists
+   the UIDs. An SR, SEG or RTSTRUCT viewport shows the images that they
+   reference and not their own UID; the viewer then reads the source of the
+   viewport (an appearance call without a UID).
 
 ## The appearance of a display set
 
@@ -105,15 +110,15 @@ display, the invert of a MONOCHROME1 image, opacity 1).
 
 | 3.13 | 3.14 |
 |---|---|
-| `getViewportAdapter(viewport).getPresentation(displaySetId?)` | `getAppearance(displaySetId?)`: the overrides. Store or copy this. |
-| (the presentation with `getDefaultVOIRange` as a fallback) | `getEffectiveAppearance(displaySetId?)`: what is drawn. Show or compare this. |
-| `setPresentation(props, displaySetId?)` | `setAppearance(props, displaySetId?)` |
-| `getDefaultVOIRange(displaySetId?)`, `getColormap(displaySetInstanceUID)` | Removed: `getEffectiveAppearance(displaySetId).voiRange`, `.colormap` |
-| `setLayerOpacity(displaySetInstanceUID, opacity)` | Removed: `setAppearance({ opacity }, displaySetInstanceUID)` |
-| `setLayerThreshold(displaySetInstanceUID, threshold)` | Removed: `setAppearance({ colormap: { threshold } }, displaySetInstanceUID)`. The colormap keeps its name and its `opacityMapping`. |
+| `getViewportAdapter(viewport).getPresentation(displaySetId?)` | `viewport.getDisplaySetAppearance(displaySetId?)`: the overrides. Store or copy this. |
+| (the presentation with `getDefaultVOIRange` as a fallback) | `viewport.getEffectiveDisplaySetAppearance(displaySetId?)`: what is drawn. Show or compare this. |
+| `setPresentation(props, displaySetId?)` | `viewport.setDisplaySetAppearance(displaySetId, props)`; `viewport.setDisplaySetAppearance(props)` for the source |
+| `getDefaultVOIRange(displaySetId?)`, `getColormap(displaySetInstanceUID)` | Removed: `viewport.getEffectiveDisplaySetAppearance(displaySetId).voiRange`, `.colormap` |
+| `setLayerOpacity(displaySetInstanceUID, opacity)` | Removed: `viewport.setDisplaySetAppearance(displaySetInstanceUID, { opacity })` |
+| `setLayerThreshold(displaySetInstanceUID, threshold)` | Removed: `viewport.setDisplaySetAppearance(displaySetInstanceUID, { colormap: { threshold } })`. The colormap keeps its name and its `opacityMapping`. |
 | `getOpacityGamma()` | Removed. The opacity slider sets the opacity that is drawn. |
 | `isComputedVOI` of a presentation | Removed. The overrides hold only what a caller set, so nothing guesses whether a window came from the user by comparing numbers. |
-| The types `ViewportPresentation`, `ViewportColormap` (with `opacity`) | `ViewportAppearance`, `ViewportColormap` (with `opacityMapping`) |
+| The types `ViewportPresentation`, `ViewportColormap` (with `opacity`) | `PlanarDisplaySetAppearance`, `Volume3DDisplaySetAppearance` and `Types.AppearanceColormap` (with `opacityMapping`) of `@cornerstonejs/core`; the stored appearance of a display set is `Types.DisplaySetAppearanceOverrides` of `@ohif/extension-cornerstone` |
 | `useViewportRendering(...).opacityLinear`, `.setOpacityLinear` | Removed: `.opacity`, `.setOpacity`. |
 
 A viewport fires `Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED` where it fired
@@ -332,23 +337,56 @@ the fit, so a capture of another size shows the same part of the image.
 | `isNextViewport(viewport)` | Removed. Every viewport is a Cornerstone3D 6 viewport. |
 | `NEXT_FUSION_PT_OPACITY` | Removed. The PET of the TMTV fusion has its opacity ramp by SUV again (`colormap.opacityMapping`), with the look of 3.13 without `?useNextViewports`, and the opacity slider scales the ramp. |
 | `NEXT_OVERLAY_OPACITY` | `OVERLAY_OPACITY` |
+| `getViewportAdapter(viewport)` | Removed. Call the viewport: see [The viewport adapter is gone](#the-viewport-adapter-is-gone). |
+| `isVolumeRenderingViewport(viewport)` | Removed: `viewport.getCurrentMode() === 'volume'`, a planar viewport that shows a volume (an MPR pane, a fusion), the viewports that take the threshold and the opacity of a layer. Public in 3.13, nothing in 3.14. |
+| `getViewportFocalPoint(viewport)` | Removed: `viewport.getViewReference()?.cameraFocalPoint`, the centre of the slice on display. Public in 3.13, nothing in 3.14. |
 
-The classes behind the adapter and the services have plain names now. The
-extension does not export them. A fork that imports them from the sources of
+The adapter, the backends and the interfaces in front of them are gone. The
+extension did not export them. A fork that imports them from the sources of
 the extension (`extensions/cornerstone/src/`) changes its imports:
 
 | 3.13 | 3.14 |
 |---|---|
-| `NextViewportAdapter`, in `services/ViewportService/adapter/NextViewportAdapter.ts` | `ViewportAdapter`, in `services/ViewportService/adapter/ViewportAdapter.ts` |
-| `NextViewportBackend`, in `services/ViewportService/backends/NextViewportBackend.ts` | `ViewportBackend`, in `services/ViewportService/backends/ViewportBackend.ts` |
-| `nextViewportOperations`, in `services/ViewportService/backends/NextViewportOperations.ts` | `viewportOperations`, in `services/ViewportService/backends/viewportOperations.ts` |
-| `NextSegmentationBackend`, in `services/SegmentationService/backends/NextSegmentationBackend.ts` | `SegmentationBackend`, in `services/SegmentationService/backends/SegmentationBackend.ts` |
+| `NextViewportAdapter`, `IViewportAdapter`, `getViewportAdapter`, in `services/ViewportService/adapter/` | Removed: the members of the viewport (see [The viewport adapter is gone](#the-viewport-adapter-is-gone)) |
+| The types `ViewportAppearance`, `ViewportColormap`, `ViewportViewState`, `ViewportShape` of the adapter | `Types.DisplaySetAppearanceOverrides` of the extension; `Types.AppearanceColormap` and the view state type of each viewport class (`PlanarViewState`, `Volume3DCamera`, ...) of `@cornerstonejs/core`; `ViewportShape` stays in `utils/viewportDataShape.ts`, for the data of a hanging protocol before the mount |
+| `NextViewportBackend` and `IViewportBackend`, in `services/ViewportService/backends/` | The mount of each family is `CornerstoneViewportService._setDisplaySets`; the mount options of a stack and of volumes are `mountStack` and `mountVolumes` of `services/ViewportService/viewportMounts.ts`; the presentations are `getPositionPresentation`, `setPositionPresentation`, `getLutPresentation` and `setLutPresentation` of `services/ViewportService/viewportPresentations.ts` |
+| `IViewportServiceInternals` | Removed: `CornerstoneViewportService` implements `IViewportService` of `@ohif/core` only |
+| `nextViewportOperations` and `IViewportOperations`, in `services/ViewportService/backends/` | `viewportOperations`, in `services/ViewportService/viewportOperations.ts`; its `getViewPlaneNormal(viewport)` is `viewport.getViewReference()?.viewPlaneNormal` |
+| `NextSegmentationBackend` and `ISegmentationBackend`, in `services/SegmentationService/backends/` | The functions `classifyAndPrepareLabelmapAdd` and `assembleSegmentationDataForSEG`, in `services/SegmentationService/`; its `jumpToSegmentCenter(viewport, world)` is `viewport.setViewReference({ cameraFocalPoint: world })` |
 | `LegacyViewportAdapter`, `LEGACY_OPACITY_GAMMA`, `LegacyViewportBackend`, `legacyViewportOperations`, `LegacySegmentationBackend` | Removed |
 | `utils/nextViewports.ts` | `utils/viewportRendering.ts` (the render backend), without the switch |
 | `utils/nextViewportPolicies.ts` | `utils/viewportPolicies.ts` |
 
-The interfaces `IViewportAdapter`, `IViewportBackend`, `IViewportOperations` and
-`ISegmentationBackend` keep their names.
+A renderer on a server is not a second implementation of these classes. It
+is a render backend (`registerRenderBackend`) or a viewport type
+(`registerViewportType`) of Cornerstone3D, which the viewer mounts as any
+other, or an extension of its own that implements `IViewportService` of
+`@ohif/core`.
+
+## The viewport adapter is gone
+
+`getViewportAdapter(viewport)` gave an adapter over the viewport, with one
+member for each question the viewer asked. Each question is a member of the
+viewport of Cornerstone3D 6 now; call the viewport. A planar and a 3D viewport
+have `getVolumeIds`, `getDisplaySetIdForVolumeId` and `getScalarRange`; a
+planar viewport has `isInAcquisitionPlane`.
+
+| Adapter member (3.13) | 3.14 |
+|---|---|
+| `getShape()` | `viewport.getCurrentMode()` for what the viewport shows (`'stack'`, `'volume'`, `'volume3d'`, `'geometry3d'`, ...); `viewport.type === Enums.ViewportType.VOLUME_3D` for a 3D viewport, also an empty one |
+| `isVolumeRendering()` | `viewport.getCurrentMode() === 'volume'` |
+| `canReorientInPlace()` | `viewport.getCurrentMode()` is `'volume'` or `'volume3d'` |
+| `isInAcquisitionPlane()` | `viewport.isInAcquisitionPlane()` of a planar viewport: true for a stack, and for a volume whose view plane normal is the scan axis of its source |
+| `hasContent()` | `viewport.getCurrentMode()` is not `'empty'` (nor `'unknown'`) |
+| `getViewState()`, `setViewState(patch)` | `viewport.getViewState()`, `viewport.setViewState(patch)`; the keys are those of the view state of its class (`PlanarViewState`, `Volume3DCamera`, ...) |
+| `getViewPlaneNormal()` | `viewport.getViewReference()?.viewPlaneNormal` |
+| `getFocalPoint()` | `viewport.getViewReference()?.cameraFocalPoint` |
+| `getAppearance(displaySetId?)` | `viewport.getDisplaySetAppearance(displaySetId?) ?? {}` |
+| `getEffectiveAppearance(displaySetId?)` | `viewport.getEffectiveDisplaySetAppearance(displaySetId?) ?? {}` |
+| `setAppearance(props, displaySetId?)` | `viewport.setDisplaySetAppearance(displaySetId, props)`, or `viewport.setDisplaySetAppearance(props)` for the source |
+| `getBlendMode(displaySetId?)` | `viewport.getDisplaySetAppearance(displaySetId?)?.blendMode` of a planar or 3D viewport |
+| `getShownDisplaySetId(displaySetInstanceUID)` | The viewer's own rule: the UID when `viewport.getDisplaySets()` lists it or is empty, else undefined (the source answers for an SR, SEG or RTSTRUCT viewport) |
+| `getVolumeIds()` | `viewport.getVolumeIds()` of a planar or 3D viewport: the volumes, the source first, without the labelmap of a segmentation; `getVolumeIds({ includeSegmentations: true })` lists the labelmaps too |
 
 ## Runtime plugins must be rebuilt against Cornerstone3D 6
 

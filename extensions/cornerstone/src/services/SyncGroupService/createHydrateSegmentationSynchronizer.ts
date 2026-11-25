@@ -7,7 +7,7 @@ import {
 } from '@cornerstonejs/tools';
 
 import { isAnyDisplaySetCommon } from '../../utils/isAnyDisplaySetCommon';
-import { getViewportAdapter } from '../ViewportService/adapter';
+import { getPlanarOr3DViewport, isVolumeViewport3D } from '../../utils/viewportTypeGuards';
 
 const { createSynchronizer } = SynchronizerManager;
 const { SEGMENTATION_REPRESENTATION_MODIFIED } = Enums.Events;
@@ -89,7 +89,7 @@ const segmentationRepresentationModifiedCallback = async (
   }
 
   // Ensure the segmentation representation aligns with the target viewport type
-  const is3D = getViewportAdapter(viewport).getShape() === 'volume3d';
+  const is3D = isVolumeViewport3D(viewport);
   const requestedRepresentation =
     segmentationRepresentationType as Enums.SegmentationRepresentations;
   const { Surface, Labelmap } = Enums.SegmentationRepresentations;
@@ -105,7 +105,8 @@ const segmentationRepresentationModifiedCallback = async (
     type,
     config: {
       blendMode:
-        getViewportAdapter(viewport).getBlendMode() === BlendModes.MAXIMUM_INTENSITY_BLEND
+        getPlanarOr3DViewport(viewport)?.getDisplaySetAppearance()?.blendMode ===
+        BlendModes.MAXIMUM_INTENSITY_BLEND
           ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND
           : undefined,
     },

@@ -8,7 +8,7 @@ import React, { useEffect } from 'react';
 import type { PlanarViewport } from '@cornerstonejs/core';
 import { utilities as csUtils } from '@cornerstonejs/core';
 import { ImageScrollbar } from '@ohif/ui-next';
-import { getViewportAdapter } from '../../services/ViewportService/adapter';
+import { isVolumeViewport3D } from '../../utils/viewportTypeGuards';
 import { getSliceEventName, getViewportSliceCount } from '../../utils/viewportDataShape';
 import { getImageIndexFromEvent } from './ViewportSliceProgressScrollbar/helpers';
 
@@ -51,7 +51,7 @@ function CornerstoneImageScrollbar({
       viewportId
     ) as PlanarViewport;
 
-    if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
+    if (!viewport || isVolumeViewport3D(viewport)) {
       return;
     }
 
@@ -78,7 +78,7 @@ function CornerstoneImageScrollbar({
       const viewport = cornerstoneViewportService.getCornerstoneViewport(
         viewportId
       ) as PlanarViewport;
-      if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
+      if (!viewport || isVolumeViewport3D(viewport)) {
         return;
       }
       const imageIndex = getImageIndexFromEvent(event);

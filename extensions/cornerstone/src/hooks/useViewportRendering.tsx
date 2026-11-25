@@ -2,8 +2,8 @@ import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { useSystem } from '@ohif/core';
 import { useViewportDisplaySets } from './useViewportDisplaySets';
 import { Types, utilities, Enums } from '@cornerstonejs/core';
-import { getViewportAdapter } from '../services/ViewportService/adapter';
-import { getPlanarOr3DViewport } from '../utils/getPlanarOr3DViewport';
+import { getPlanarOr3DViewport, isVolumeViewport3D } from '../utils/viewportTypeGuards';
+import { getShownDisplaySetId } from '../utils/getShownDisplaySetId';
 import { WindowLevelPreset } from '../types/WindowLevel';
 import { ColorbarPositionType, ColorbarOptions, ColorbarProperties } from '../types/Colorbar';
 import { VolumeRenderingConfig } from '../types/VolumeRenderingConfig';
@@ -111,19 +111,13 @@ function resolveActiveColormap(
     if (!viewport) {
       return null;
     }
-    const { colormap } = getViewportAdapter(viewport).getEffectiveAppearance(
-      activeDisplaySetInstanceUID
-    );
+    const { colormap } =
+      viewport.getEffectiveDisplaySetAppearance(activeDisplaySetInstanceUID) ?? {};
     return colormap || colormaps?.find(c => c.Name === 'Grayscale') || colormaps?.[0];
   } catch (error) {
     console.error('Error getting viewport colormap:', error);
     return colormaps?.find(c => c.Name === 'Grayscale') || colormaps?.[0];
   }
-}
-
-/** Whether the viewport is a 3D viewport. False when there is no viewport. */
-function isVolume3DViewport(viewport: Types.IViewport | null | undefined): boolean {
-  return !!viewport && getViewportAdapter(viewport).getShape() === 'volume3d';
 }
 
 /**
@@ -137,9 +131,10 @@ function isVolume3DViewport(viewport: Types.IViewport | null | undefined): boole
  */
 function readEffectiveAppearance(viewport, activeDisplaySetInstanceUID) {
   try {
-    const adapter = getViewportAdapter(viewport);
-    return adapter.getEffectiveAppearance(
-      adapter.getShownDisplaySetId(activeDisplaySetInstanceUID)
+    return (
+      viewport.getEffectiveDisplaySetAppearance(
+        getShownDisplaySetId(viewport, activeDisplaySetInstanceUID)
+      ) ?? {}
     );
   } catch (error) {
     console.error('Error reading the appearance of the viewport:', error);
@@ -159,8 +154,7 @@ function isEventOfDisplaySet(
   activeDisplaySetInstanceUID: string,
   detail: Types.EventTypes.DisplaySetAppearanceChangedEventDetail
 ): boolean {
-  const shownDisplaySetId =
-    getViewportAdapter(viewport).getShownDisplaySetId(activeDisplaySetInstanceUID);
+  const shownDisplaySetId = getShownDisplaySetId(viewport, activeDisplaySetInstanceUID);
 
   return shownDisplaySetId
     ? detail.displaySetId === shownDisplaySetId
@@ -185,7 +179,7 @@ export function useViewportRendering(
   const [viewport, setViewport] = useState<Types.IViewport | null>(() =>
     viewportId ? (cornerstoneViewportService.getCornerstoneViewport(viewportId) ?? null) : null
   );
-  const [is3DVolume, setIs3DVolume] = useState(isVolume3DViewport(viewport));
+  const [is3DVolume, setIs3DVolume] = useState(isVolumeViewport3D(viewport));
 
   const [opacity, setOpacityState] = useState<number | undefined>();
   const [threshold, setThresholdState] = useState<number | undefined>();
@@ -310,7 +304,7 @@ export function useViewportRendering(
   }, [allWindowLevelPresets, activeDisplaySetInstanceUID]);
 
   useEffect(() => {
-    setIs3DVolume(isVolume3DViewport(viewport));
+    setIs3DVolume(isVolumeViewport3D(viewport));
 
     if (!viewport || !activeDisplaySetInstanceUID) {
       return;
@@ -594,7 +588,7 @@ export function useViewportRendering(
 
       const displaySetInstanceUID = validateActiveDisplaySet();
 
-      getViewportAdapter(viewport).setAppearance({ opacity: opacityValue }, displaySetInstanceUID);
+      viewport.setDisplaySetAppearance(displaySetInstanceUID, { opacity: opacityValue });
       viewport.render();
     },
     [validateActiveDisplaySet, viewport]
@@ -609,10 +603,9 @@ export function useViewportRendering(
       const displaySetInstanceUID = validateActiveDisplaySet();
       setThresholdState(thresholdValue);
 
-      getViewportAdapter(viewport).setAppearance(
-        { colormap: { threshold: thresholdValue } },
-        displaySetInstanceUID
-      );
+      viewport.setDisplaySetAppearance(displaySetInstanceUID, {
+        colormap: { threshold: thresholdValue },
+      });
       viewport.render();
     },
     [validateActiveDisplaySet, viewport]

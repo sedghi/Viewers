@@ -1958,11 +1958,37 @@ failed first, a build, or a run that is named).
   `displaySetRegistry.add('v', { imageId })` with an `imageUrlModule` whose `rendered` URL
   is not a video, then `await viewport.setDisplaySets({ displaySetId: 'v' })`: never
   settles; `DISPLAY_SETS_CHANGED` never fires.
-- **Fix, in cornerstone:** to do: the mount rejects with the media error of the element.
+- **Fix, in cornerstone:** the mount rejects with the media error of the element
+  (cornerstone3D `99867e2c5`, FX2).
 - **Fix, in OHIF:** none (rule 3). The URL of the video of the static test data
   (`index.mp4` for a file named `pixeldata.mp4`) is a question of the test data and of
   `directURL`, on `master` too; not looked into further.
-- **State:** open, waits for cornerstone.
+- **Seen in the viewer (task O7, link at `99867e2c5`; lane O7 `specs/m55video.spec.ts`,
+  `specs/m55next.spec.ts`, `cases/m55/`):**
+  - `viewport.setDisplaySets({ displaySetId })` of the video rejects at once with
+    `[VideoViewport] The display set "<id>" did not load its video <url>:
+    MEDIA_ERR_SRC_NOT_SUPPORTED (PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer:
+    open context failed)`; `DISPLAY_SETS_CHANGED` fires 0 times; the viewport is `empty`
+    with no video element.
+  - The next mount works: the AWS copy of the video in Chrome, its first load answered
+    with a 404 by a route, then the route removed: `setDisplaySets` of the same viewport
+    resolves, `DISPLAY_SETS_CHANGED` fires once, the mode is `video`, and OHIF's mount of
+    the pane plays the video (3360 frames). On `master` the pane stays empty after the
+    route is removed.
+  - What OHIF does with the rejection: `setViewportData` catches it and logs
+    `[CornerstoneViewportService] Failed to set the viewport data` with that message, once;
+    no unhandled rejection; `VIEWPORT_DATA_CHANGED` is not fired; the pane stays empty with
+    its overlay. What OHIF does when the images of a stack fail to load (all `frames/` of
+    the TMTV study answered with a 404), on both sides: a console error and
+    `appConfig.httpErrorHandler` (a `console.warn` in the default and e2e configs) through
+    `IMAGE_LOAD_FAILED`, a black pane, no notification and no message in the pane. The
+    message "Error Loading Image" of `ViewportImageSliceLoadingIndicator` never shows, on
+    `master` either: it waits for `imageIdToBeLoaded`, which nothing sets.
+- **Decided:** a video pane behaves as a stack pane already: the error goes to the console
+  with the message of Cornerstone, the pane stays empty, and a later mount works. Nothing
+  changed in OHIF. (The ECG mount shows a notification, `The ECG waveform could not be
+  loaded.`; a stack and a video do not.)
+- **State:** fixed in cornerstone `99867e2c5`; OHIF decided as above (task O7).
 
 ## M56. The appearance of a display set: one event, two getters, no guessing (task O3)
 
@@ -2136,10 +2162,16 @@ failed first, a build, or a run that is named).
 - **Also seen:** `setViewFraming` of a 3D framing without its `camera` (`{ pan, position,
   rotation, scale, zoom }`) leaves the viewport without a view plane normal and a zoom
   (`getViewFraming()` gives `zoom: undefined`). OHIF never writes such a patch.
-- **Fix, in cornerstone:** to do: a 3D framing read without a canvas size keeps the pan of
-  its camera (the last size the viewport had, or the pan left out, so the camera decides).
-- **Fix, in OHIF:** none (rule 3). The backend stores `getViewFraming()` as it is.
-- **State:** open, waits for cornerstone.
+- **Fix, in cornerstone:** every family frames the view at the last size its canvas had
+  while its element has none (cornerstone3D `3f3c6ff7a`, FX3).
+- **Fix, in OHIF:** none (rule 3). The service stores `getViewFraming()` as it is.
+- **Seen in the viewer (task O7, link at `99867e2c5`; lane O7 `specs/m59pan3d.spec.ts`,
+  `cases/m59/`):** 3D only of the LIVER CT, a pan (middle drag) and a zoom (right drag):
+  pan `[58.34, 29.24]`, zoom 0.731. A grid change to 2x1 and back to 1x1: pan, zoom and
+  focal point come back exactly. 3D only, MPR, 3D only: they come back exactly. `master`
+  gives the same values to 0.01.
+- **State:** fixed in cornerstone `3f3c6ff7a`; checked in the viewer in task O7. A round
+  trip through a 3D pane of another size is M67.
 
 ## M60. The display set event, the slice index and the scroll events in OHIF (task O5)
 
@@ -2392,3 +2424,165 @@ failed first, a build, or a run that is named).
   image, or one event per scroll, or the guide says it under the display set event.
 - **Fix, in OHIF:** none needed.
 - **State:** open, a question for cornerstone.
+
+## M67. A 3D pane that goes to a pane of another size and back comes back with half its pan
+
+- **Seen (task O7, link at `99867e2c5`; lane O7 `specs/m59pan3d.spec.ts`,
+  `specs/m59fourup.spec.ts`, `cases/m59/`):** 3D only of the LIVER CT (1275 by 942), pan
+  `[58.34, 29.24]` and zoom 0.731; 3D four up: the 3D pane (638 by 470) shows pan
+  `[29.11, 14.59]`, the same world point at its centre (focal point x -33.99 for -34.04);
+  3D only again: pan `[29.11, 14.59]`, the focal point moved (x -24.01). `master` keeps
+  `[58.34, 29.24]` in both steps (in the small pane at another world point).
+- **Why (measured, not read in the code):** the framing read in the small pane is the same
+  visible, hidden and detached (FX3 is right). `setViewFraming` of a framing read in a
+  638 by 470 pane, written to a 1275 by 942 pane, gives the same pan in canvas pixels,
+  as the guide says for a 3D framing (zoom and pan against the fit of the viewport it is
+  written to). The way in keeps the world point instead: the framing is written to the new
+  pane and a resize, which keeps the camera of a 3D viewport, follows. The two rules
+  together lose half of the pan on the round trip.
+- **Smallest case**, Cornerstone3D calls only (measured in the viewer, lane O7
+  `cases/m59/fourup-min.json`): the 3D pane of 3D four up (638 by 470), `setPan([30, 15])`,
+  `const framing = viewport.getViewFraming()`; the 3D pane of 3D only (1275 by 942),
+  `resetViewState()`, `setViewFraming(framing)`: `getPan()` gives `[30, 15]` and the focal
+  point is another world point. A resize keeps the camera of a 3D viewport, so the world
+  point (guide, "Smaller changes"); not measured alone.
+- **Fix, in cornerstone:** a question: which of the two is the rule for a 3D view that
+  goes to a canvas of another size (the planar framing keeps the fit, the 3D resize keeps
+  the camera). Not looked into further: outside tasks O7 and O8.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, a question for cornerstone.
+
+## M68. The viewport adapter is deleted: OHIF calls the viewports of Cornerstone3D (task O7)
+
+- **Seen (read in the code):** after tasks O1 to O6 every member of `IViewportAdapter`
+  was a pass to a member of the viewport, through optional calls on a structural type
+  (`getCurrentMode?.()`, `getDisplaySetAppearance?.(...)`) and an index signature on its
+  types, except two: `getShownDisplaySetId` (the rule of M44) and `getVolumeIds` (a scan
+  of the actors). 23 files of code called it, in 79 places; the extension exported
+  `getViewportAdapter`, `isVolumeRenderingViewport` and `getViewportFocalPoint`.
+- **Fix, in OHIF:** `services/ViewportService/adapter/` is deleted (`IViewportAdapter`,
+  `ViewportAdapter`, `getViewportAdapter`, the index, the contract test of 22 tests).
+  Each member and what replaces it:
+
+  | Adapter member | Replaced by | Kind |
+  |---|---|---|
+  | `getShape() === 'volume3d'` | `isVolumeViewport3D(viewport)`: `viewport.type === VOLUME_3D`, as the adapter answered by the type, also for an empty 3D pane | Cornerstone type, narrowed |
+  | `getShape() === 'stack'` / `'volume'` | `viewport.getCurrentMode() === 'stack'` / `'volume'` | Cornerstone call |
+  | `isVolumeRendering()`, `isVolumeRenderingViewport(viewport)` | `viewport.getCurrentMode() === 'volume'` | Cornerstone call |
+  | `canReorientInPlace()` | `getCurrentMode()` is `'volume'` or `'volume3d'` | Cornerstone call |
+  | `isInAcquisitionPlane()` | `viewport.isInAcquisitionPlane()` of a planar viewport (true for a stack, the geometry for a volume) | Cornerstone call |
+  | `hasContent()` | `getCurrentMode()` not `'empty'` and not `'unknown'` | Cornerstone call |
+  | `getViewState()`, `setViewState()` | `viewport.getViewState()`, `setViewState()`; the flips and the rotation read as `Pick<Types.ICamera, ...>` | Cornerstone call |
+  | `getViewPlaneNormal()`, `getFocalPoint()`, `getViewportFocalPoint(viewport)` | `viewport.getViewReference()?.viewPlaneNormal`, `?.cameraFocalPoint` | Cornerstone call |
+  | `getAppearance(id)`, `getEffectiveAppearance(id)` | `getDisplaySetAppearance(id) ?? {}`, `getEffectiveDisplaySetAppearance(id) ?? {}` | Cornerstone call |
+  | `setAppearance(props, id?)` | `setDisplaySetAppearance(id, props)`, or `setDisplaySetAppearance(props)` for the source | Cornerstone call |
+  | `getBlendMode()` | `getPlanarOr3DViewport(viewport)?.getDisplaySetAppearance()?.blendMode` | Cornerstone call |
+  | `getShownDisplaySetId(uid)` | `getShownDisplaySetId(viewport, uid)`, `utils/getShownDisplaySetId.ts` (M44: the UID when `getDisplaySets()` lists it or is empty) | OHIF helper, OHIF's own rule |
+  | `getVolumeIds()` | `getPlanarOr3DViewport(viewport)?.getVolumeIds() ?? []`, without labelmaps (below) | Cornerstone call |
+  | the types `ViewportAppearance`, `ViewportColormap`, `ViewportViewState`, `VOIRange` | `DisplaySetAppearanceOverrides` (`types/Presentation.ts`: `Partial<PlanarDisplaySetAppearance & Volume3DDisplaySetAppearance>`); the others unused | Cornerstone types |
+
+  `utils/viewportTypeGuards.ts` replaces `utils/getPlanarOr3DViewport.ts`:
+  `isPlanarViewport`, `isVolumeViewport3D`, `isVideoViewport`, `isECGViewport` (type
+  predicates by `viewport.type`, no cast) and `getPlanarOr3DViewport`. The zoom command
+  asks `viewportHasZoom` of Cornerstone3D. No `as unknown as`, no `Record<string, unknown>`
+  and no optional-method type on a viewport is left in the callers.
+- **`getVolumeIds`, per caller:** the adapter's actor scan gave what
+  `viewport.getVolumeIds()` gives, without labelmaps, in all 30 panes of six situations
+  (MPR, 3D four up, an MR MPR with a hydrated SEG, the TMTV fusion with and without a new
+  labelmap, a stack with a labelmap; lane O7 `specs/volumeIds.spec.ts`,
+  `cases/volumeIds/log.json`); only `getVolumeIds({ includeSegmentations: true })` of the
+  MIP pane lists a labelmap. The cine (the dynamic volume a pane plays, and the panes that
+  show it) and the command `getVolumeIdForDisplaySet` take `getVolumeIds()`: a labelmap is
+  never a volume that plays, and the command never gave one.
+- **The exports** `getViewportAdapter`, `isVolumeRenderingViewport` and
+  `getViewportFocalPoint` of `@ohif/extension-cornerstone` are gone, each with a row in the
+  migration guide (`cornerstone3d-6.md`, "Removed and renamed exports" and "The viewport
+  adapter is gone"). tmtv and the default extension call the viewport.
+- **Decided:** the LUT presentation stores the overrides of a planar or a 3D viewport only
+  (`getPlanarOr3DViewport`), the two families whose mounts read it; a video, whole slide
+  or ECG pane stored its overrides before and nothing read them.
+- **Checks:** jest: `utils/getShownDisplaySetId.test.ts` (new, the three cases of M44 from
+  the contract test); `initCineService.test.ts` gives the viewports `getVolumeIds` in place
+  of actors; two mocks of `SegmentationService.test.ts` get `getCurrentMode` and one of
+  `CornerstoneViewportService.test.ts` a `type` (the adapter called them optionally).
+  The rest of the checks are in M69.
+- **State:** fixed in task O7 (not committed yet).
+
+## M69. The interfaces with one implementation are deleted (task O8)
+
+- **Seen (read in the code):** `IViewportBackend`, `IViewportServiceInternals`,
+  `IViewportOperations` and `ISegmentationBackend` (35 places in 14 files) each had one
+  implementation. They were kept on 21 November for a renderer on a server. The service
+  and `ViewportBackend` called each other: the service computed a mount and passed it to
+  the backend, which mounted and called the service back (`setPresentations`,
+  `_addOverlayRepresentations`, `_trackViewportDisplaySets`); `mountEcg`, `mountOther`,
+  `setLutPresentation`, `setPositionPresentation` and `getPositionPresentation` were passes.
+- **Fix, in OHIF:** the four interfaces and both `backends/` folders are deleted.
+  - `CornerstoneViewportService` implements `IViewportService` of `@ohif/core` only. It
+    routes a mount to its family (`_setDisplaySets`, the body of `dispatchMount`), mounts
+    an ECG, a video and a whole slide by the UID itself, re-mounts with the camera kept
+    (`updateViewport`, the body of `remount`), and after a mount replays the position and
+    segmentation presentations and adds the overlays, in the order the backend did.
+  - `viewportMounts.ts`: `mountStack` and `mountVolumes`, the translation of the viewport
+    data of a hanging protocol into `setDisplaySets` (options, appearance, slab, render
+    backend), with no call back into the service.
+  - `viewportPresentations.ts`: `getPositionPresentation`, `setPositionPresentation`,
+    `getLutPresentation`, `setLutPresentation`; `WITH_ORIENTATION` is defined there once
+    (the backend had a copy) and the service exports it as before.
+  - `viewportOperations.ts` moves to `services/ViewportService/`, without its interface;
+    its `getViewPlaneNormal` (a pass) is gone, the service reads the view reference.
+  - `SegmentationService/classifyAndPrepareLabelmapAdd.ts` and
+    `SegmentationService/assembleSegmentationDataForSEG.ts` (the SEG overlap group
+    assembly) are plain functions; `jumpToSegmentCenter` (a pass that always answered
+    true) is `viewport.setViewReference({ cameraFocalPoint: world })` in the service.
+  - `backends/README.md` is `services/ViewportService/README.md`: where each concern lives,
+    and that a renderer on a server goes under `IViewport` in Cornerstone3D
+    (`registerRenderBackend`, `registerViewportType`) or into an OHIF extension of its own
+    that implements `IViewportService`.
+- **Checks (tasks O7 and O8 together, link at `99867e2c5`):**
+  - jest: 170 suites, 1986 tests pass (lane O7 `jest-final.json`; base 169 and 2004: the
+    contract test of the adapter (22 tests) is gone, `ViewportBackend.test.ts` is
+    `viewportMounts.test.ts` and `viewportPresentations.test.ts`, its ECG and video case is
+    in `CornerstoneViewportService.test.ts`, `CornerstoneCacheService.test.ts` routes
+    through the service).
+  - Type check against the base `67ab3444fd` (lane O7 `tsc-base.log`, `tsc-after.log`): no
+    new error; 8971 error lines become 8864, all of the 107 the test-runner globals of the
+    deleted test files. No error kind of the source goes: the adapter-era code had none of
+    its own, its casts and optional calls hid the types; the calls to the viewports are
+    typed and checked now.
+  - Build passes. Lint: no new error or warning on the 41 changed files.
+  - The numbers (lane O7 `measure.sh`, source without tests and docs):
+
+    | | master `6fe59945a0` | plan start `78432e76cb` | before O7 `67ab3444fd` | after O8 |
+    |---|---|---|---|---|
+    | lines of `services/ViewportService/` | 4899 | 4179 | 3576 | 2825 |
+    | lines of the cornerstone extension | 43233 | 42098 | 41441 | 40661 |
+    | `as any` / `as unknown as` on a line that names a viewport (all OHIF source) | 18 | 15 | 11 | 0 |
+    | plain casts to a viewport type (`as PlanarViewport`, ...) | 41 | 31 | 30 | 16 |
+    | files that import a viewport class or type of Cornerstone3D by name | 1 | 21 | 22 | 18 |
+    | files that use `Types.IViewport` | 23 | 13 | 15 | 14 |
+  - Lines of the change: OHIF source without tests and docs 1213 added, 1995 deleted
+    (`viewportOperations.ts` moved and counts on both sides); tests 781 added, 1060
+    deleted; the migration guide and the READMEs (without this log) 133 added, 83 deleted.
+  - Playwright, the whole suite, 6 workers, `TEST_ENV=true`: before (link at `99867e2c5`,
+    no change) 243 passed, 0 failed, 4 skipped in 7.0 min; after 242 passed, 1 failed, 4
+    skipped in 7.0 min (lane O7 `pw-base.json`, `pw-after.json`). The failure is
+    `ContourSegmentColorChange.spec.ts` "changes the contour color when the user saves the
+    edits", a flaky spec that fails as often on the base: M70. No baseline picture changed.
+- **State:** fixed in task O8 (not committed yet).
+
+## M70. A spec of the contour colour reads the stroke before the next draw
+
+- **Seen (task O8):** `ContourSegmentColorChange.spec.ts` "changes the contour color when
+  the user saves the edits" fails now and then: the stroke of the SVG path is still
+  `rgba(0, 235, 235, 1)` where `rgba(255, 0, 255, 1)` is expected. Alone, ten runs each
+  (`--repeat-each=10`, one worker): 3 of 10 fail on the base `67ab3444fd` (an export of
+  the commit with the installed packages linked, served on the same port) and 3 of 10 on
+  the branch with tasks O7 and O8. The base run of the whole suite passed it by chance.
+- **Why (read in the spec):** it reads the `stroke` of the path right after the colour
+  dialog closes and the row of the panel shows the new colour; the SVG of the contour is
+  drawn again at the next render of the viewport, which may not have happened yet.
+- **Fix, in OHIF:** to do, in the test: wait for the stroke (`expect.poll` or
+  `toHaveAttribute` on the path) instead of reading it once. Not done here: a test that
+  these tasks do not touch.
+- **State:** open, a flaky test, the same on the base.

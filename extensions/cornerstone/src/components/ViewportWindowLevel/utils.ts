@@ -3,7 +3,7 @@ import type { Types } from '@cornerstonejs/core';
 import vtkColorMaps from '@kitware/vtk.js/Rendering/Core/ColorTransferFunction/ColorMaps';
 import { utilities as csUtils } from '@cornerstonejs/core';
 import { getViewportVolumeHistogram } from './getViewportVolumeHistogram';
-import { getPlanarOr3DViewport } from '../../utils/getPlanarOr3DViewport';
+import { getPlanarOr3DViewport } from '../../utils/viewportTypeGuards';
 
 /**
  * Gets window levels data for a viewport: one row for each volume that the

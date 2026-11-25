@@ -1,34 +1,48 @@
-import type { PlanarViewport, VolumeViewport3D } from '@cornerstonejs/core';
+import type { PlanarDisplaySetAppearance } from '@cornerstonejs/core';
 import {
   utilities as csUtils,
   CONSTANTS as csConstants,
   Enums as csEnums,
   Types as CoreTypes,
+  viewportHasZoom,
   viewportProjection,
 } from '@cornerstonejs/core';
 import { vec3 } from 'gl-matrix';
-import { getViewportAdapter } from '../adapter';
-import { getCenterExtent } from '../../../utils/getCenterExtent';
-import { isMeasurementWithinViewport } from '../../../utils/isMeasurementWithinViewport';
-import type {
-  IViewportOperations,
-  FlipValue,
-  RotationMode,
-  VolumeLightingOptions,
-  WindowLevelParams,
-  ColormapParams,
-} from './IViewportOperations';
+import { getCenterExtent } from '../../utils/getCenterExtent';
+import { isMeasurementWithinViewport } from '../../utils/isMeasurementWithinViewport';
+import {
+  getPlanarOr3DViewport,
+  isPlanarViewport,
+  isVolumeViewport3D,
+} from '../../utils/viewportTypeGuards';
 
-/**
- * Members of a planar viewport that the viewport adapter does not cover, read
- * structurally at the boundary.
- */
-type NativePlanarViewport = CoreTypes.IViewport & {
-  resetViewState?: () => void;
-  resetDisplaySetAppearance?: (displaySetId?: string) => void;
-  getZoom?: () => number;
-  setZoom?: (zoom: number) => void;
-};
+type FlipValue = 'toggle' | boolean;
+type RotationMode = 'apply' | 'set';
+
+/** The keys of a view state that the flip and rotate operations read. */
+type FlipAndRotation = Pick<CoreTypes.ICamera, 'rotation' | 'flipHorizontal' | 'flipVertical'>;
+
+interface VolumeLightingOptions {
+  shade?: boolean;
+  ambient?: number;
+  diffuse?: number;
+  specular?: number;
+}
+
+interface WindowLevelParams {
+  windowWidth: number;
+  windowCenter: number;
+  /** The binding to change (e.g. the PT overlay in a fusion). The source binding when absent. */
+  displaySetInstanceUID?: string;
+}
+
+interface ColormapParams {
+  colormap: Record<string, unknown>;
+  /** The opacity of the display set, 0 to 1. The opacity stays as it is when absent. */
+  opacity?: number;
+  /** The binding to change (e.g. the PT overlay in a fusion). The source binding when absent. */
+  displaySetInstanceUID?: string;
+}
 
 // Loose view of the VTK actor/mapper/property chain used by the 3D VR ops. These
 // live on vtk.js objects, not cornerstone types, so they are accessed structurally.
@@ -40,45 +54,59 @@ type VtkActorChain = {
 };
 
 /**
+ * Changes the appearance of a display set of a viewport, named by its UID, or
+ * of the source of the viewport when no UID is given.
+ */
+function setAppearanceOfDisplaySetOrSource(
+  viewport: CoreTypes.IViewport,
+  props: object,
+  displaySetInstanceUID?: string
+): void {
+  if (displaySetInstanceUID) {
+    viewport.setDisplaySetAppearance(displaySetInstanceUID, props);
+  } else {
+    viewport.setDisplaySetAppearance(props);
+  }
+}
+
+/**
  * The operations on a viewport that the commands use. commandsModule (and any
  * other caller) imports this and calls e.g. `viewportOperations.flipHorizontal(viewport)`,
  * which keeps the interaction logic out of the command bodies. Stateless and
  * dependency-free (each op takes an already-resolved viewport), so it is a plain
- * singleton rather than a registered service.
+ * object rather than a registered service. Each op calls the members of the
+ * Cornerstone3D viewport.
  *
- * Appearance and camera/view-state ops go through the viewport adapter (which
- * encapsulates getViewState/setViewState and
- * getDisplaySetAppearance/setDisplaySetAppearance, including the
- * active-binding default); the remaining ops call the viewport's own
- * members directly.
- *
- * No method calls viewport.render() — the command renders.
+ * No method calls viewport.render(): the command renders, matching its own
+ * render timing (e.g. setViewportColormap renders only when immediate). No
+ * method resolves "which viewport": the command owns that.
  */
-export const viewportOperations: IViewportOperations = {
+export const viewportOperations = {
+  /** Toggle (default) or set horizontal flip. */
   flipHorizontal(viewport: CoreTypes.IViewport, newValue: FlipValue = 'toggle'): void {
-    const adapter = getViewportAdapter(viewport);
-    const flipHorizontal =
-      newValue === 'toggle' ? !adapter.getViewState().flipHorizontal : newValue;
-    adapter.setViewState({ flipHorizontal });
+    const viewState: FlipAndRotation = viewport.getViewState();
+    const flipHorizontal = newValue === 'toggle' ? !viewState.flipHorizontal : newValue;
+    viewport.setViewState({ flipHorizontal });
   },
 
+  /** Toggle (default) or set vertical flip. */
   flipVertical(viewport: CoreTypes.IViewport, newValue: FlipValue = 'toggle'): void {
-    const adapter = getViewportAdapter(viewport);
-    const flipVertical = newValue === 'toggle' ? !adapter.getViewState().flipVertical : newValue;
-    adapter.setViewState({ flipVertical });
+    const viewState: FlipAndRotation = viewport.getViewState();
+    const flipVertical = newValue === 'toggle' ? !viewState.flipVertical : newValue;
+    viewport.setViewState({ flipVertical });
   },
 
+  /** Toggles the invert of the source from the invert it is drawn with. */
   invert(viewport: CoreTypes.IViewport): void {
-    const adapter = getViewportAdapter(viewport);
-    const { invert } = adapter.getEffectiveAppearance();
-    adapter.setAppearance({ invert: !invert });
+    const { invert }: Pick<PlanarDisplaySetAppearance, 'invert'> =
+      viewport.getEffectiveDisplaySetAppearance() ?? {};
+    viewport.setDisplaySetAppearance({ invert: !invert });
   },
 
+  /** Rotate: mode 'apply' = relative, mode 'set' = absolute (with flip-parity correction). */
   rotate(viewport: CoreTypes.IViewport, rotation: number, mode: RotationMode = 'apply'): void {
-    // rotation/flip live in the semantic view state; getViewPresentation is absent.
-    const adapter = getViewportAdapter(viewport);
-    const state = adapter.getViewState();
-    const currentRotation = (state.rotation as number) ?? 0;
+    const state: FlipAndRotation = viewport.getViewState();
+    const currentRotation = state.rotation ?? 0;
     const newRotation =
       mode === 'apply'
         ? (currentRotation + rotation + 360) % 360
@@ -87,44 +115,49 @@ export const viewportOperations: IViewportOperations = {
             const effectiveRotation = flipsParity % 2 === 1 ? -rotation : rotation;
             return (effectiveRotation + 360) % 360;
           })();
-    adapter.setViewState({ rotation: newRotation });
+    viewport.setViewState({ rotation: newRotation });
   },
 
+  /** Reset the appearance and the view state to defaults (the slice is preserved). */
   reset(viewport: CoreTypes.IViewport): void {
-    const vp = viewport as NativePlanarViewport;
-    // Reset the per-display-set presentation (VOI/colormap/invert) to defaults.
-    vp.resetDisplaySetAppearance?.();
-    // A planar viewport has no resetCamera; resetViewState resets pan/zoom/rotation/orientation/flip.
-    vp.resetViewState?.();
+    viewport.resetDisplaySetAppearance();
+    viewport.resetViewState();
   },
 
+  /**
+   * Zoom by direction: >0 in, <0 out, 0 = fit-to-window. The parallel scale
+   * and the zoom are inversely related, so the zoom is divided by the scale
+   * factor of the legacy direction. Fit to window keeps the orientation: the
+   * legacy resetCamera() reset pan, zoom, rotation and flip but never the
+   * viewing orientation, while a full resetViewState() would also snap an
+   * MPR pane back to its requested axis.
+   */
   scaleBy(viewport: CoreTypes.IViewport, direction: number): void {
-    // parallelScale and zoom are inversely related (smaller parallelScale = more
-    // zoomed in = larger zoom), so divide by scaleFactor to match the legacy direction.
     const scaleFactor = direction > 0 ? 0.9 : 1.1;
-    const vp = viewport as unknown as {
-      getZoom?: () => number;
-      setZoom?: (zoom: number) => void;
-      resetViewState?: (options?: { resetOrientation?: boolean }) => void;
-    };
     if (direction) {
-      if (vp.getZoom && vp.setZoom) {
-        vp.setZoom(vp.getZoom() / scaleFactor);
+      if (viewportHasZoom(viewport)) {
+        viewport.setZoom(viewport.getZoom() / scaleFactor);
       }
     } else {
-      // direction === 0 is the fitViewportToWindow command. Legacy resetCamera()
-      // resets pan/zoom/rotation/flip but never the viewing orientation, while a
-      // full native resetViewState() would also snap an MPR back to its requested
-      // axis — so keep the orientation.
-      vp.resetViewState?.({ resetOrientation: false });
+      viewport.resetViewState({ resetOrientation: false });
     }
   },
 
+  /**
+   * Turns the view of a viewport that shows a volume to an orientation. A planar
+   * viewport takes any orientation. A 3D viewport turns its camera to axial, sagittal
+   * or coronal and fits what it shows; for another orientation it stays as it is.
+   * Returns true when the view was turned (the caller renders).
+   */
   setOrientation(viewport: CoreTypes.IViewport, orientation: csEnums.OrientationAxis): boolean {
-    if (viewport.type !== csEnums.ViewportType.VOLUME_3D) {
-      (viewport as PlanarViewport).setOrientation(orientation);
+    if (isPlanarViewport(viewport)) {
+      viewport.setOrientation(orientation);
 
       return true;
+    }
+
+    if (!isVolumeViewport3D(viewport)) {
+      return false;
     }
 
     const vectors = csConstants.MPR_CAMERA_VALUES[orientation];
@@ -135,24 +168,26 @@ export const viewportOperations: IViewportOperations = {
       return false;
     }
 
-    const viewport3D = viewport as VolumeViewport3D;
     const { viewPlaneNormal, viewUp } = vectors;
 
-    viewport3D.setViewState({ viewPlaneNormal, viewUp });
-    viewport3D.resetViewState();
+    viewport.setViewState({ viewPlaneNormal, viewUp });
+    viewport.resetViewState();
 
     return true;
   },
 
-  getViewPlaneNormal(viewport: CoreTypes.IViewport): CoreTypes.Point3 | undefined {
-    return getViewportAdapter(viewport).getViewPlaneNormal();
-  },
-
+  /**
+   * Brings a measurement into view after the caller's setViewReference went to its slice:
+   * pans its centre to the centre of the canvas, and zooms out when it is larger than
+   * what the viewport shows. Returns true when the view changed (the caller renders),
+   * false when the measurement was in view already, on a viewport without data and on
+   * a viewport that is not planar.
+   */
   centerOnMeasurement(
     viewport: CoreTypes.IViewport,
     measurement: Record<string, unknown>
   ): boolean {
-    if (viewport.type !== csEnums.ViewportType.PLANAR) {
+    if (!isPlanarViewport(viewport)) {
       return false;
     }
 
@@ -160,9 +195,8 @@ export const viewportOperations: IViewportOperations = {
       return false;
     }
 
-    const planarViewport = viewport as PlanarViewport;
-    const camera = planarViewport.getResolvedView()?.toICamera();
-    const presentation = viewportProjection.getFraming(planarViewport, {
+    const camera = viewport.getResolvedView()?.toICamera();
+    const presentation = viewportProjection.getFraming(viewport, {
       selector: { zoom: true, pan: true },
     });
 
@@ -172,10 +206,10 @@ export const viewportOperations: IViewportOperations = {
 
     const { zoom = 1, pan = [0, 0] } = presentation;
     const { center, extent } = getCenterExtent(measurement);
-    const [canvasX, canvasY] = planarViewport.worldToCanvas(center);
-    const { clientWidth, clientHeight } = planarViewport.canvas;
+    const [canvasX, canvasY] = viewport.worldToCanvas(center);
+    const { clientWidth, clientHeight } = viewport.canvas;
     const measurementSize = vec3.dist(extent.min, extent.max);
-    const nextViewState = viewportProjection.withFraming(planarViewport, {
+    const nextViewState = viewportProjection.withFraming(viewport, {
       zoom:
         measurementSize > camera.parallelScale
           ? zoom / (measurementSize / camera.parallelScale)
@@ -190,32 +224,34 @@ export const viewportOperations: IViewportOperations = {
       return false;
     }
 
-    planarViewport.setViewState(nextViewState);
+    viewport.setViewState(nextViewState);
 
     return true;
   },
 
+  /**
+   * Applies a window: to the display set named by params.displaySetInstanceUID
+   * (so a PT/CT fusion window lands on the PT overlay), to the source without one.
+   */
   setWindowLevel(viewport: CoreTypes.IViewport, params: WindowLevelParams): void {
     const { lower, upper } = csUtils.windowLevel.toLowHighRange(
       params.windowWidth,
       params.windowCenter
     );
-    // Target the binding for params.displaySetInstanceUID so a PT/CT *fusion* W/L lands
-    // on the intended layer (e.g. the PT overlay) instead of always the source (CT) —
-    // mirroring setColormap. When no id is given (single stack/volume) the adapter falls
-    // back to the source binding.
-    getViewportAdapter(viewport).setAppearance(
+    setAppearanceOfDisplaySetOrSource(
+      viewport,
       { voiRange: { upper, lower } },
       params.displaySetInstanceUID
     );
   },
 
+  /**
+   * Applies a colormap: to the display set named by params.displaySetInstanceUID
+   * (so a PT/CT fusion colormap lands on the PT overlay), to the source without one.
+   */
   setColormap(viewport: CoreTypes.IViewport, params: ColormapParams): void {
-    // Target the binding for params.displaySetInstanceUID, the id of the display set's
-    // binding, so a PT/CT *fusion* colormap lands on the overlay (PT) binding instead of
-    // defaulting to the source (CT). When no id is given (single-volume / plain stack
-    // colormap) the adapter falls back to the source.
-    getViewportAdapter(viewport).setAppearance(
+    setAppearanceOfDisplaySetOrSource(
+      viewport,
       {
         colormap: params.colormap,
         ...(params.opacity !== undefined ? { opacity: params.opacity } : {}),
@@ -224,12 +260,14 @@ export const viewportOperations: IViewportOperations = {
     );
   },
 
+  /** The volume rendering preset of a 3D viewport, set on its appearance. */
   setPreset(viewport: CoreTypes.IViewport, preset: string): void {
-    getViewportAdapter(viewport).setAppearance({ preset });
+    viewport.setDisplaySetAppearance({ preset });
   },
 
+  /** VR sample distance / samples-per-ray quality. */
   setVolumeRenderingQuality(viewport: CoreTypes.IViewport, volumeQuality: number): void {
-    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
+    const actorEntry = getPlanarOr3DViewport(viewport)?.getActors()[0];
     if (!actorEntry) {
       return;
     }
@@ -252,8 +290,9 @@ export const viewportOperations: IViewportOperations = {
     mapper.setSampleDistance(sampleDistance);
   },
 
+  /** Shift scalar-opacity transfer-function points. */
   shiftVolumeOpacityPoints(viewport: CoreTypes.IViewport, shift: number): void {
-    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
+    const actorEntry = getPlanarOr3DViewport(viewport)?.getActors()[0];
     if (!actorEntry) {
       return;
     }
@@ -285,8 +324,9 @@ export const viewportOperations: IViewportOperations = {
     });
   },
 
+  /** VR lighting (shade/ambient/diffuse/specular). */
   setVolumeLighting(viewport: CoreTypes.IViewport, options: VolumeLightingOptions): void {
-    const actorEntry = (viewport as unknown as PlanarViewport).getActors()[0];
+    const actorEntry = getPlanarOr3DViewport(viewport)?.getActors()[0];
     if (!actorEntry) {
       return;
     }

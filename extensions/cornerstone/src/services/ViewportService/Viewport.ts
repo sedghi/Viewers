@@ -6,7 +6,7 @@ import getCornerstoneViewportType from '../../utils/getCornerstoneViewportType';
 import { getViewportDataShape, type ViewportShape } from '../../utils/viewportDataShape';
 import JumpPresets from '../../utils/JumpPresets';
 import { SyncGroup } from '../SyncGroupService/SyncGroupService';
-import type { ViewportAppearance } from './adapter/IViewportAdapter';
+import type { DisplaySetAppearanceOverrides } from '../../types/Presentation';
 
 export type InitialImageOptions = {
   index?: number;
@@ -103,9 +103,9 @@ export type DisplaySetOptions = {
  */
 export function getDisplaySetOptionsAppearance(
   displaySetOptions: DisplaySetOptions | undefined
-): ViewportAppearance {
+): DisplaySetAppearanceOverrides {
   const { voi, voiInverted, colormap, opacity } = displaySetOptions ?? ({} as DisplaySetOptions);
-  const appearance: ViewportAppearance = {};
+  const appearance: DisplaySetAppearanceOverrides = {};
 
   if (voi && (voi.windowWidth || voi.windowCenter)) {
     appearance.voiRange = utilities.windowLevel.toLowHighRange(voi.windowWidth, voi.windowCenter);

@@ -1,6 +1,6 @@
 import { cache, Types } from '@cornerstonejs/core';
 import { utilities } from '@cornerstonejs/tools';
-import { getViewportAdapter } from './services/ViewportService/adapter';
+import { getPlanarOr3DViewport } from './utils/viewportTypeGuards';
 
 /**
  * The volume of a viewport that a cine plays: its dynamic (4D) volume when it
@@ -8,8 +8,7 @@ import { getViewportAdapter } from './services/ViewportService/adapter';
  * volume (a stack, a video).
  */
 function _getVolumeFromViewport(viewport: Types.IViewport) {
-  const volumes = getViewportAdapter(viewport)
-    .getVolumeIds()
+  const volumes = (getPlanarOr3DViewport(viewport)?.getVolumeIds() ?? [])
     .map(id => cache.getVolume(id))
     .filter(Boolean);
   const dynamicVolume = volumes.find(volume => volume.isDynamicVolume());
@@ -51,7 +50,7 @@ function _getSyncedViewports(servicesManager: AppTypes.ServicesManager, srcViewp
       return (
         viewportId !== srcViewportId &&
         !!viewport &&
-        getViewportAdapter(viewport).getVolumeIds().includes(srcVolumeId)
+        !!getPlanarOr3DViewport(viewport)?.getVolumeIds().includes(srcVolumeId)
       );
     })
     .map(({ viewportId }) => ({ viewportId }));

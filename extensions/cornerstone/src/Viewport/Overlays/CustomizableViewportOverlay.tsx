@@ -15,7 +15,6 @@ import type { InstanceMetadata } from '@ohif/core/src/types';
 import { formatDICOMTime, formatNumberPrecision } from './utils';
 import { utils } from '@ohif/core';
 import { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
-import { getViewportAdapter } from '../../services/ViewportService/adapter';
 import { getViewportDataShape } from '../../utils/viewportDataShape';
 
 import './CustomizableViewportOverlay.css';
@@ -347,7 +346,7 @@ function _getInstanceNumberFromVolume(
     return;
   }
 
-  const viewPlaneNormal = getViewportAdapter(cornerstoneViewport).getViewPlaneNormal();
+  const viewPlaneNormal = cornerstoneViewport.getViewReference()?.viewPlaneNormal;
 
   if (!viewPlaneNormal) {
     return;

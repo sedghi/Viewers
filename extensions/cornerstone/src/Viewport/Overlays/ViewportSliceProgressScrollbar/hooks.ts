@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PlanarViewport } from '@cornerstonejs/core';
 import { cache as cornerstoneCache, Enums, eventTarget, utilities } from '@cornerstonejs/core';
 import { useByteArray } from '@ohif/ui-next';
-import { getViewportAdapter } from '../../../services/ViewportService/adapter';
+import { isVolumeViewport3D } from '../../../utils/viewportTypeGuards';
 import { getSliceEventName, getViewportSliceCount } from '../../../utils/viewportDataShape';
 import { getImageIdFromCacheEvent, getImageIndexFromEvent, isProgressFullMode } from './helpers';
 import { ImageSliceData, ViewportData } from './types';
@@ -43,9 +43,7 @@ export function useProgressScrollbarMode({
         viewportId
       ) as PlanarViewport;
       const viewportImageData = viewport?.getImageData?.();
-      const nextViewPlaneNormal = viewport
-        ? getViewportAdapter(viewport).getViewPlaneNormal()
-        : undefined;
+      const nextViewPlaneNormal = viewport?.getViewReference()?.viewPlaneNormal;
       // Do not update the lastViewPlaneNormalRef until we have a valid viewportImageData.
       // Without viewportImageData, the viewport is not fully initialized and the isAcquisitionPlane
       // check will not be accurate.
@@ -60,9 +58,7 @@ export function useProgressScrollbarMode({
 
     const onCameraModified = () => {
       const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-      const nextViewPlaneNormal = viewport
-        ? getViewportAdapter(viewport).getViewPlaneNormal()
-        : undefined;
+      const nextViewPlaneNormal = viewport?.getViewReference()?.viewPlaneNormal;
       const previousViewPlaneNormal = lastViewPlaneNormalRef.current;
 
       // Ignore camera updates that keep the same orientation (pan/zoom/scroll).
@@ -125,7 +121,7 @@ export function useViewportSliceSync({
       const viewport = cornerstoneViewportService.getCornerstoneViewport(
         viewportId
       ) as PlanarViewport;
-      if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
+      if (!viewport || isVolumeViewport3D(viewport)) {
         return;
       }
       try {
@@ -155,7 +151,7 @@ export function useViewportSliceSync({
       const viewport = cornerstoneViewportService.getCornerstoneViewport(
         viewportId
       ) as PlanarViewport;
-      if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
+      if (!viewport || isVolumeViewport3D(viewport)) {
         return;
       }
 

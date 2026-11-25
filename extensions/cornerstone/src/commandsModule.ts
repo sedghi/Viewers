@@ -38,8 +38,12 @@ import { getFirstAnnotationSelected } from './utils/measurementServiceMappings/u
 import { getViewportEnabledElement } from './utils/getViewportEnabledElement';
 import getActiveViewportEnabledElement from './utils/getActiveViewportEnabledElement';
 import toggleVOISliceSync from './utils/toggleVOISliceSync';
-import { viewportOperations as ops } from './services/ViewportService/backends/viewportOperations';
-import { getViewportAdapter } from './services/ViewportService/adapter';
+import { viewportOperations as ops } from './services/ViewportService/viewportOperations';
+import {
+  getPlanarOr3DViewport,
+  isPlanarViewport,
+  isVolumeViewport3D,
+} from './utils/viewportTypeGuards';
 import {
   usePositionPresentationStore,
   useSegmentationPresentationStore,
@@ -369,7 +373,7 @@ function commandsModule({
           // Todo: check if PMAP modality should be handled such as SEG
           displaySet.Modality !== 'SEG'
             ? SegmentationRepresentations.Contour
-            : viewport && getViewportAdapter(viewport).getShape() === 'volume3d'
+            : isVolumeViewport3D(viewport)
               ? SegmentationRepresentations.Surface
               : SegmentationRepresentations.Labelmap;
 
@@ -1158,8 +1162,8 @@ function commandsModule({
         return null;
       }
 
-      const volumeId = getViewportAdapter(viewport)
-        .getVolumeIds()
+      const volumeId = getPlanarOr3DViewport(viewport)
+        ?.getVolumeIds()
         .find(id => id.includes(displaySetInstanceUID));
 
       return volumeId ?? null;
@@ -1397,8 +1401,8 @@ function commandsModule({
         viewport = cornerstoneViewportService.getCornerstoneViewport(gridViewport.id);
       }
 
-      const shape = getViewportAdapter(viewport).getShape();
-      if (shape !== 'stack' && shape !== 'volume') {
+      const mode = isPlanarViewport(viewport) ? viewport.getCurrentMode() : undefined;
+      if (mode !== 'stack' && mode !== 'volume') {
         throw new Error('Unsupported viewport type');
       }
 
@@ -2268,7 +2272,9 @@ function commandsModule({
     setViewportOrientation: ({ viewportId, orientation }) => {
       const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
-      if (!viewport || !getViewportAdapter(viewport).canReorientInPlace()) {
+      const mode = viewport?.getCurrentMode();
+
+      if (mode !== 'volume' && mode !== 'volume3d') {
         console.warn('Orientation can only be set on volume viewports');
         return;
       }

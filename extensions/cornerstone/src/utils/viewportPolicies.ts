@@ -1,9 +1,8 @@
 /**
  * The named home for the BEHAVIORAL POLICIES of the viewport path: appearance
- * defaults and workflow rules that are not API bridging (that's
- * `services/ViewportService/adapter/`) and not mount lifecycle (that's
- * `services/ViewportService/backends/`). Keeping them in one greppable file is
- * the point: a policy that lives inline in a mode or hanging protocol is
+ * defaults and workflow rules that are not the mount lifecycle (that's
+ * `services/ViewportService/`). Keeping them in one greppable file is the
+ * point: a policy that lives inline in a mode or hanging protocol is
  * invisible to the next reader.
  */
 

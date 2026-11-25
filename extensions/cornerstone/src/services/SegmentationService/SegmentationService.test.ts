@@ -179,6 +179,7 @@ describe('SegmentationService', () => {
   const mockCornerstoneVolumeViewport = {
     id: viewportId,
     type: ViewportType.VOLUME_3D,
+    getCurrentMode: () => 'volume',
     getFrameOfReferenceUID: jest.fn(),
     setViewReference: jest.fn(),
     render: jest.fn(),
@@ -642,6 +643,7 @@ describe('SegmentationService', () => {
         element: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
         id: viewportId,
         type: ViewportType.PLANAR,
+        getCurrentMode: () => 'stack',
         setDisplaySets: jest.fn(),
         setDisplaySetAppearance: jest.fn(),
         setViewState: jest.fn(),

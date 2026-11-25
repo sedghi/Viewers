@@ -1,4 +1,4 @@
-import { cache } from '@cornerstonejs/core';
+import { Enums, cache } from '@cornerstonejs/core';
 import initCineService from './initCineService';
 
 jest.mock('@cornerstonejs/tools', () => ({
@@ -13,12 +13,12 @@ const volumes = {
   [STATIC_VOLUME_ID]: { volumeId: STATIC_VOLUME_ID, isDynamicVolume: () => false },
 };
 
-/** A viewport whose actors stand for the ids, and which takes the volume ids among them. */
-function makeViewport(id: string, referencedIds: string[]) {
+/** A planar viewport that shows the volumes of `volumeIds`, the source first. */
+function makeViewport(id: string, volumeIds: string[]) {
   return {
     id,
-    getActors: () => referencedIds.map(referencedId => ({ referencedId })),
-    hasVolumeId: (volumeId: string) => referencedIds.includes(volumeId) && volumeId in volumes,
+    type: Enums.ViewportType.PLANAR,
+    getVolumeIds: () => volumeIds,
   };
 }
 
@@ -75,15 +75,9 @@ describe('initCineService: the viewports that a cine of a dynamic volume takes a
     expect(getSyncedViewports('axial')).toEqual([{ viewportId: 'sagittal' }]);
   });
 
-  it('finds the dynamic volume behind a static one, a labelmap and a surface', () => {
+  it('finds the dynamic volume behind a static one', () => {
     const getSyncedViewports = getSyncedViewportsOf([
-      makeViewport('fusion', [
-        STATIC_VOLUME_ID,
-        DYNAMIC_VOLUME_ID,
-        'labelmap-image-3',
-        'surface-geometry',
-        undefined,
-      ]),
+      makeViewport('fusion', [STATIC_VOLUME_ID, DYNAMIC_VOLUME_ID]),
       makeViewport('pt', [DYNAMIC_VOLUME_ID]),
     ]);
 
@@ -99,9 +93,9 @@ describe('initCineService: the viewports that a cine of a dynamic volume takes a
     expect(getSyncedViewports('ct')).toEqual([]);
   });
 
-  it('gives none for a stack, whose actors stand for images', () => {
+  it('gives none for a stack, which shows no volume', () => {
     const getSyncedViewports = getSyncedViewportsOf(
-      [makeViewport('stack', ['image-0']), makeViewport('pt', [DYNAMIC_VOLUME_ID])],
+      [makeViewport('stack', []), makeViewport('pt', [DYNAMIC_VOLUME_ID])],
       'stack'
     );
 

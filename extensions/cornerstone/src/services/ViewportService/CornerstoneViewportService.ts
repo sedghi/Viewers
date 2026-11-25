@@ -37,14 +37,22 @@ import { usePositionPresentationStore } from '../../stores/usePositionPresentati
 import { useSynchronizersStore } from '../../stores/useSynchronizersStore';
 import { useSegmentationPresentationStore } from '../../stores/useSegmentationPresentationStore';
 import getClosestOrientationFromIOP from '../../utils/isReferenceViewable';
-import { getViewportAdapter } from './adapter';
-import { viewportOperations } from './backends/viewportOperations';
+import {
+  getPlanarOr3DViewport,
+  isECGViewport,
+  isVolumeViewport3D,
+} from '../../utils/viewportTypeGuards';
 import { BlendModes } from '@cornerstonejs/core/enums';
 import { isAutoHydrateViewportType } from '../../utils/autoHydrateViewportTypes';
 import { getViewportDataShape } from '../../utils/viewportDataShape';
-import type { IViewportBackend } from './backends/IViewportBackend';
-import type { IViewportServiceInternals } from './backends/IViewportServiceInternals';
-import { ViewportBackend } from './backends/ViewportBackend';
+import { mountStack, mountVolumes } from './viewportMounts';
+import {
+  WITH_ORIENTATION,
+  getLutPresentation,
+  getPositionPresentation,
+  setLutPresentation,
+  setPositionPresentation,
+} from './viewportPresentations';
 
 const EVENTS = {
   VIEWPORT_DATA_CHANGED: 'event::cornerstoneViewportService:viewportDataChanged',
@@ -54,16 +62,13 @@ const MIN_STACK_VIEWPORTS_TO_ENQUEUE_RESIZE = 12;
 const MIN_VOLUME_VIEWPORTS_TO_ENQUEUE_RESIZE = 6;
 
 export const WITH_NAVIGATION = { withNavigation: true, withOrientation: false };
-export const WITH_ORIENTATION = { withNavigation: true, withOrientation: true };
+export { WITH_ORIENTATION };
 
 /**
  * Handles cornerstone viewport logic including enabling, disabling, and
  * updating the viewport.
  */
-class CornerstoneViewportService
-  extends PubSubService
-  implements IViewportService, IViewportServiceInternals
-{
+class CornerstoneViewportService extends PubSubService implements IViewportService {
   static REGISTRATION = {
     name: 'cornerstoneViewportService',
     altName: 'CornerstoneViewportService',
@@ -88,16 +93,11 @@ class CornerstoneViewportService
   gridResizeDelay = 50;
   gridResizeTimeOut = null;
 
-  // The mount bodies and the presentation capture and restore live in the
-  // backend.
-  private readonly backend: IViewportBackend;
-
   constructor(servicesManager: AppTypes.ServicesManager) {
     super(EVENTS);
     this.renderingEngine = null;
     this.viewportGridResizeObserver = null;
     this.servicesManager = servicesManager;
-    this.backend = new ViewportBackend(this);
   }
   hangingProtocolService: unknown;
   viewportsInfo: unknown;
@@ -232,14 +232,8 @@ class CornerstoneViewportService
    * @param presentations - The presentations to apply to the viewport.
    * @param viewportInfo - Contains a view reference for immediate application
    */
-  // Public so the viewport backends (IViewportServiceInternals) can record which
-  // display sets a viewport shows from their mount bodies.
-  _trackViewportDisplaySets(viewportId: string, displaySetInstanceUIDs: string[]): void {
-    this.viewportsDisplaySets.set(viewportId, displaySetInstanceUIDs);
-  }
-
   public setPresentations(viewportId: string, presentations: Presentations): void {
-    const viewport = this.getCornerstoneViewport(viewportId) as PlanarViewport | PlanarViewport;
+    const viewport = this.getCornerstoneViewport(viewportId);
 
     if (!viewport || !presentations) {
       return;
@@ -252,8 +246,8 @@ class CornerstoneViewportService
     // Todo: i think we should even await this
     this._setSegmentationPresentation(viewport, segmentationPresentation);
 
-    this._setLutPresentation(viewport, lutPresentation);
-    this._setPositionPresentation(viewport, { ...positionPresentation, viewportId });
+    setLutPresentation(viewport, lutPresentation);
+    setPositionPresentation(viewport, { ...positionPresentation, viewportId });
   }
 
   /**
@@ -349,15 +343,9 @@ class CornerstoneViewportService
 
     const viewportInfo = this.viewportsById.get(viewportId);
 
-    return this.backend.getPositionPresentation(csViewport, viewportInfo, viewportId);
+    return getPositionPresentation(csViewport, viewportInfo, viewportId);
   }
 
-  /**
-   * What a user set on the appearance of each display set that the viewport
-   * shows (the overrides of `getDisplaySetAppearance`), by its UID. A window
-   * that comes from the data is not an override, so it is not stored and a
-   * later mount takes the window of the data again.
-   */
   private _getLutPresentation(viewportId: string): LutPresentation {
     const csViewport = this.getCornerstoneViewport(viewportId);
 
@@ -365,19 +353,7 @@ class CornerstoneViewportService
       return;
     }
 
-    const adapter = getViewportAdapter(csViewport);
-    const appearances = Object.fromEntries(
-      csViewport
-        .getDisplaySets()
-        .map(({ displaySetId }) => [displaySetId, adapter.getAppearance(displaySetId)])
-    );
-
-    const viewportInfo = this.viewportsById.get(viewportId);
-
-    return {
-      viewportType: viewportInfo.getViewportType(),
-      appearances,
-    };
+    return getLutPresentation(csViewport, this.viewportsById.get(viewportId));
   }
 
   private _getSegmentationPresentation(viewportId: string): SegmentationPresentation {
@@ -637,7 +613,7 @@ class CornerstoneViewportService
 
     for (const id of this.viewportsById.keys()) {
       const viewport = this.getCornerstoneViewport(id);
-      const viewPlaneNormal = viewportOperations.getViewPlaneNormal(viewport);
+      const viewPlaneNormal = viewport.getViewReference()?.viewPlaneNormal;
 
       if (!viewPlaneNormal) {
         continue;
@@ -806,7 +782,6 @@ class CornerstoneViewportService
   /**
    * Sets the image data for the given viewport.
    */
-  // Public so the viewport backends (IViewportServiceInternals) can dispatch to it.
   async _setEcgViewport(viewport: ECGViewport, viewportData: StackViewportData): Promise<void> {
     const [displaySet] = viewportData.data;
     const imageId = displaySet.imageIds?.[0];
@@ -816,7 +791,8 @@ class CornerstoneViewportService
     }
 
     try {
-      await this.backend.mountEcg(viewport, displaySet);
+      this.viewportsDisplaySets.set(viewport.id, [displaySet.displaySetInstanceUID]);
+      await viewport.setDisplaySets({ displaySetId: displaySet.displaySetInstanceUID });
     } catch (error) {
       // Tell the user, then reject so that setViewportData does not report a successful mount.
       this.servicesManager.services.uiNotificationService?.show({
@@ -828,16 +804,23 @@ class CornerstoneViewportService
     }
   }
 
-  // Public so the viewport backends (IViewportServiceInternals) can dispatch to it.
+  /**
+   * Video and whole slide viewports: mount the display set by its UID. The
+   * video viewport reads the image id of the registered display set (the
+   * image id of its `instance`); the whole slide viewport reads its imageIds
+   * and the DICOMweb client that the SOP class handler registered as the
+   * WADO_WEB_CLIENT metadata of its first image.
+   */
   async _setOtherViewport(
-    viewport: PlanarViewport,
+    viewport: Types.IViewport,
     viewportData: StackViewportData,
     viewportInfo: ViewportInfo,
     _presentations: Presentations = {}
   ): Promise<void> {
     const [displaySet] = viewportData.data;
 
-    await this.backend.mountOther(viewport, displaySet);
+    this.viewportsDisplaySets.set(viewport.id, [displaySet.displaySetInstanceUID]);
+    await viewport.setDisplaySets({ displaySetId: displaySet.displaySetInstanceUID });
 
     const viewReference = viewportInfo.getViewReference();
     if (viewReference) {
@@ -845,9 +828,16 @@ class CornerstoneViewportService
     }
   }
 
-  // Public so the viewport backends (IViewportServiceInternals) can dispatch to it.
+  /**
+   * Mounts a stack: the first image from the position presentation, the view
+   * reference or the hanging protocol, the appearance from the stored LUT
+   * presentation or the display set options. Then it replays the position and
+   * the segmentation presentations: a hydrated overlay (RTSTRUCT contour, SEG
+   * labelmap) is no longer in the display sets of the viewport after the
+   * hydration, so without the replay it would vanish on this re-mount.
+   */
   async _setStackViewport(
-    viewport: PlanarViewport,
+    viewport: Types.IViewport,
     viewportData: StackViewportData,
     viewportInfo: ViewportInfo,
     presentations: Presentations = {}
@@ -890,20 +880,27 @@ class CornerstoneViewportService
       initialImageIndexToUse = this._getInitialImageIndexForViewport(viewportInfo, imageIds) || 0;
     }
 
-    // The mount itself (setDisplaySets with its appearance, setViewState)
-    // lives in the backend.
-    return this.backend.mountStack(viewport, {
-      displaySetInstanceUIDs,
-      imageIds,
+    if (!imageIds?.length) {
+      return;
+    }
+
+    await mountStack(viewport, {
+      displaySetInstanceUID: displaySetInstanceUIDs[0],
       initialImageIndex: initialImageIndexToUse,
-      properties,
+      appearance: properties,
       displayArea,
       rotation,
       flipHorizontal,
-      presentations,
-      viewportInfo,
-      overlayProcessingResults,
     });
+
+    if (presentations?.positionPresentation || presentations?.segmentationPresentation) {
+      this.setPresentations(viewport.id, {
+        positionPresentation: presentations.positionPresentation,
+        segmentationPresentation: presentations.segmentationPresentation,
+      });
+    }
+
+    await this._addOverlayRepresentations(overlayProcessingResults);
   }
 
   private _getInitialImageIndexForViewport(
@@ -964,7 +961,7 @@ class CornerstoneViewportService
   }
 
   async _setVolumeViewport(
-    viewport: PlanarViewport,
+    viewport: Types.IViewport,
     viewportData: VolumeViewportData,
     viewportInfo: ViewportInfo,
     presentations: Presentations = {}
@@ -1086,18 +1083,23 @@ class CornerstoneViewportService
     // For SEG and RT viewports
     const overlayProcessingResults = this._processExtraDisplaySetsForViewport(viewport) || [];
 
-    // The backend mounts the display sets by their UIDs via setDisplaySets with
-    // the per-binding appearances and reports the mount handled. An overlay-only
-    // mount (no base volume) is not handled there: the rest of this method adds
-    // its overlays.
-    const handledByBackend = await this.backend.mountVolumes(viewport, {
-      filteredVolumeInputArray,
-      volumesProperties,
-      viewportInfo,
-      overlayProcessingResults,
-      presentations,
-    });
-    if (handledByBackend) {
+    if (filteredVolumeInputArray.length) {
+      await mountVolumes(viewport, {
+        filteredVolumeInputArray,
+        volumesProperties,
+        orientation: viewportInfo.getOrientation(),
+        lutPresentation: presentations?.lutPresentation,
+      });
+      await this._addOverlayRepresentations(overlayProcessingResults);
+      viewport.render();
+
+      if (presentations?.positionPresentation || presentations?.segmentationPresentation) {
+        this.setPresentations(viewport.id, {
+          positionPresentation: presentations.positionPresentation,
+          segmentationPresentation: presentations.segmentationPresentation,
+        });
+      }
+
       this._jumpToInitialImage(viewport, viewportInfo, presentations);
       return;
     }
@@ -1119,7 +1121,7 @@ class CornerstoneViewportService
             throw new Error('Background display set not found');
           }
 
-          if (getViewportAdapter(viewport).getShape() === 'volume3d') {
+          if (isVolumeViewport3D(viewport)) {
             timeoutViewportCallback(() => {
               viewportGridService.setDisplaySetsForViewport({
                 viewportId: viewport.id,
@@ -1164,7 +1166,7 @@ class CornerstoneViewportService
     }
   }
 
-  private _processExtraDisplaySetsForViewport(viewport: PlanarViewport | PlanarViewport) {
+  private _processExtraDisplaySetsForViewport(viewport: Types.IViewport) {
     const { displaySetService } = this.servicesManager.services;
 
     // load any secondary displaySets
@@ -1220,7 +1222,8 @@ class CornerstoneViewportService
           type: representationType,
           config: {
             blendMode:
-              getViewportAdapter(viewport).getBlendMode() === BlendModes.MAXIMUM_INTENSITY_BLEND
+              getPlanarOr3DViewport(viewport)?.getDisplaySetAppearance()?.blendMode ===
+              BlendModes.MAXIMUM_INTENSITY_BLEND
                 ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND
                 : undefined,
           },
@@ -1329,8 +1332,6 @@ class CornerstoneViewportService
     return applyRepresentation();
   }
 
-  // Public so the viewport backends (IViewportServiceInternals) can run the
-  // pending overlay adds from their mount bodies.
   async _addOverlayRepresentations(
     overlayProcessingResults?: Array<{ addOverlayFn?: () => Promise<void> }>
   ): Promise<void> {
@@ -1349,20 +1350,16 @@ class CornerstoneViewportService
   public updateViewport(viewportId: string, viewportData, keepCamera = false) {
     const viewportInfo = this.getViewportInfo(viewportId);
     const viewport = this.getCornerstoneViewport(viewportId);
+    const viewState = keepCamera ? viewport.getViewState() : undefined;
 
-    // The backend owns the re-mount: it snapshots and restores the view state.
-    const displaySetPromise = this.backend.remount(
-      viewport,
-      viewportData,
-      viewportInfo,
-      keepCamera
+    const displaySetPromise = this._setDisplaySets(viewport, viewportData, viewportInfo).then(
+      () => {
+        if (keepCamera && viewState) {
+          viewport.setViewState(viewState);
+          viewport.render();
+        }
+      }
     );
-
-    // remount() returns undefined for viewport families with no re-mount path;
-    // nothing changed, so skip the event broadcast.
-    if (!displaySetPromise) {
-      return;
-    }
 
     displaySetPromise.then(
       () => {
@@ -1375,16 +1372,51 @@ class CornerstoneViewportService
     );
   }
 
+  /**
+   * Routes a viewport's data to the mount of its family: video, whole slide
+   * and ECG by the viewport type, a stack and a volume by the shape of the
+   * data (the dataShapeType that CornerstoneCacheService stores), because a
+   * planar viewport shows both.
+   */
   _setDisplaySets(
     viewport: Types.IViewport,
     viewportData: StackViewportData | VolumeViewportData,
     viewportInfo: ViewportInfo,
     presentations: Presentations = {}
   ): Promise<void> {
-    // The backend owns the per-family routing: video, whole slide and ECG by the
-    // viewport type, a stack and a volume by the shape of the bound data, because
-    // both are shown by a planar viewport.
-    return this.backend.dispatchMount(viewport, viewportData, viewportInfo, presentations);
+    if (isECGViewport(viewport)) {
+      return this._setEcgViewport(viewport, viewportData as StackViewportData);
+    }
+
+    if (
+      viewport.type === csEnums.ViewportType.VIDEO ||
+      viewport.type === csEnums.ViewportType.WHOLE_SLIDE
+    ) {
+      return this._setOtherViewport(
+        viewport,
+        viewportData as StackViewportData,
+        viewportInfo,
+        presentations
+      );
+    }
+
+    const dataShape = getViewportDataShape(viewportData);
+
+    if (dataShape === 'volume' || dataShape === 'volume3d') {
+      return this._setVolumeViewport(
+        viewport,
+        viewportData as VolumeViewportData,
+        viewportInfo,
+        presentations
+      );
+    }
+
+    return this._setStackViewport(
+      viewport,
+      viewportData as StackViewportData,
+      viewportInfo,
+      presentations
+    );
   }
 
   /**
@@ -1527,22 +1559,8 @@ class CornerstoneViewportService
     }, this.gridResizeDelay);
   }
 
-  private _setLutPresentation(
-    viewport: PlanarViewport | PlanarViewport,
-    lutPresentation: LutPresentation
-  ): void {
-    this.backend.setLutPresentation(viewport, lutPresentation);
-  }
-
-  private _setPositionPresentation(
-    viewport: PlanarViewport | PlanarViewport,
-    positionPresentation: PositionPresentation
-  ): void {
-    this.backend.setPositionPresentation(viewport, positionPresentation);
-  }
-
   private _setSegmentationPresentation(
-    viewport: PlanarViewport | PlanarViewport,
+    viewport: Types.IViewport,
     segmentationPresentation: SegmentationPresentation
   ): void {
     if (!segmentationPresentation) {
@@ -1580,7 +1598,7 @@ class CornerstoneViewportService
       const { segmentationId, type, hydrated } = presentationItem;
 
       const { Labelmap, Surface } = csToolsEnums.SegmentationRepresentations;
-      const isVolume3D = getViewportAdapter(viewport).getShape() === 'volume3d';
+      const isVolume3D = isVolumeViewport3D(viewport);
 
       // The stored type is a hint: it was recorded when the segmentation was
       // hydrated, possibly against a viewport of a different kind than this
@@ -1602,7 +1620,8 @@ class CornerstoneViewportService
           type: representationType,
           config: {
             blendMode:
-              getViewportAdapter(viewport).getBlendMode() === BlendModes.MAXIMUM_INTENSITY_BLEND
+              getPlanarOr3DViewport(viewport)?.getDisplaySetAppearance()?.blendMode ===
+              BlendModes.MAXIMUM_INTENSITY_BLEND
                 ? BlendModes.LABELMAP_EDGE_PROJECTION_BLEND
                 : undefined,
           },

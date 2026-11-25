@@ -1,6 +1,6 @@
 import type { Types } from '@cornerstonejs/core';
 import { ViewportData } from './types';
-import { getViewportAdapter } from '../../../services/ViewportService/adapter';
+import { isPlanarViewport } from '../../../utils/viewportTypeGuards';
 
 /**
  * The index of the slice that a NEW_IMAGE event shows: the index of the image
@@ -25,23 +25,11 @@ export function getViewportImageIds(viewportData: ViewportData): string[] {
   return volumeImageIds || datumImageIds || [];
 }
 
-export function isProgressFullMode(viewportData: ViewportData, viewport): boolean {
-  if (!viewportData || !viewport) {
-    return false;
-  }
-
-  // A stack renders the full progress UI; an acquisition-plane volume is the
-  // volume-mode equivalent. A 3D viewport has neither shape.
-  const adapter = getViewportAdapter(viewport);
-  const shape = adapter.getShape();
-  if (shape === 'stack') {
-    return true;
-  }
-  if (shape === 'volume') {
-    return adapter.isInAcquisitionPlane();
-  }
-
-  return false;
+export function isProgressFullMode(
+  viewportData: ViewportData,
+  viewport: Types.IViewport | null | undefined
+): boolean {
+  return !!viewportData && isPlanarViewport(viewport) && viewport.isInAcquisitionPlane();
 }
 
 export function getImageIdFromCacheEvent(event): string | undefined {

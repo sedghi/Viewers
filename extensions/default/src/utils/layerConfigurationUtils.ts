@@ -1,4 +1,4 @@
-import { getViewportAdapter, OVERLAY_OPACITY } from '@ohif/extension-cornerstone';
+import { OVERLAY_OPACITY } from '@ohif/extension-cornerstone';
 
 export const DERIVED_OVERLAY_MODALITIES = ['SEG', 'RTSTRUCT'];
 export const DEFAULT_COLORMAP = 'hsv';
@@ -74,7 +74,7 @@ export function configureViewportForLayerAddition(params: {
     // 'volume'. Prevents accidentally downgrading a volume viewport to 'stack' when
     // viewportOptions arrives without a viewportType (e.g. from the HP overlay path).
     const csViewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-    if (csViewport && getViewportAdapter(csViewport).getShape() === 'volume') {
+    if (csViewport?.getCurrentMode() === 'volume') {
       viewport.viewportOptions.viewportType = 'volume';
       // Special handling for overlay display sets
     } else if (requestedLayerDisplaySet.isOverlayDisplaySet) {
@@ -155,7 +155,7 @@ export function configureViewportForLayerRemoval(params: {
   }
 
   const csViewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-  const showsVolume = !!csViewport && getViewportAdapter(csViewport).getShape() === 'volume';
+  const showsVolume = csViewport?.getCurrentMode() === 'volume';
   viewport.viewportOptions.viewportType = showsVolume ? 'volume' : 'stack';
 
   // orientation

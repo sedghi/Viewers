@@ -10,7 +10,6 @@ import dicomRTAnnotationExport from './utils/dicomRTAnnotationExport/RTStructure
 
 import { Enums } from '@cornerstonejs/tools';
 import { utils } from '@ohif/core';
-import { getViewportFocalPoint } from '@ohif/extension-cornerstone';
 
 const { SegmentationRepresentations } = Enums;
 const { formatPN } = utils;
@@ -265,7 +264,7 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
       const { viewport } = _getActiveViewportsEnabledElement();
       // A viewport has no getCamera; the slice-center focal point comes from
       // the view reference.
-      const focalPoint = getViewportFocalPoint(viewport);
+      const focalPoint = viewport.getViewReference()?.cameraFocalPoint;
 
       // A viewport may not resolve a focal point; writing undefined into the
       // annotation would invalidate its ROI-threshold coordinates.
@@ -299,8 +298,7 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }: 
 
       const annotation = csTools.annotation.state.getAnnotation(annotationUID);
 
-      // get the current focal point (bridged: native viewports use the view reference)
-      const focalPointToEnd = getViewportFocalPoint(viewport);
+      const focalPointToEnd = viewport.getViewReference()?.cameraFocalPoint;
       if (!focalPointToEnd) {
         return;
       }

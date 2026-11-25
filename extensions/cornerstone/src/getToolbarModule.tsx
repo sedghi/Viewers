@@ -1,6 +1,5 @@
 import { Enums } from '@cornerstonejs/tools';
 import i18n from '@ohif/i18n';
-import { getViewportAdapter, isVolumeRenderingViewport } from './services/ViewportService/adapter';
 import { utils } from '@ohif/ui-next';
 import { ViewportDataOverlayMenuWrapper } from './components/ViewportDataOverlaySettingMenu/ViewportDataOverlayMenuWrapper';
 import { ViewportOrientationMenuWrapper } from './components/ViewportOrientationMenu/ViewportOrientationMenuWrapper';
@@ -313,7 +312,7 @@ export default function getToolbarModule({ servicesManager, extensionManager }: 
         // An MPR or volume viewport is a planar viewport (type PLANAR, not
         // ORTHOGRAPHIC), so this checks volume content via getCurrentMode().
         // Without it the PT threshold control stayed disabled (e.g. TMTV fusion/PT).
-        if (!isVolumeRenderingViewport(viewport)) {
+        if (viewport.getCurrentMode() !== 'volume') {
           return {
             disabled: true,
           };
@@ -336,7 +335,7 @@ export default function getToolbarModule({ servicesManager, extensionManager }: 
       evaluate: ({ viewportId }) => {
         const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
-        if (!viewport || !isVolumeRenderingViewport(viewport)) {
+        if (viewport?.getCurrentMode() !== 'volume') {
           return {
             disabled: true,
           };
@@ -546,11 +545,12 @@ export default function getToolbarModule({ servicesManager, extensionManager }: 
 
         const propId = button.id;
 
-        const adapter = getViewportAdapter(viewport);
-        const properties = adapter.getEffectiveAppearance();
-        const camera = adapter.getViewState();
+        const viewState = viewport.getViewState();
+        const appearance = viewport.getEffectiveDisplaySetAppearance();
 
-        const prop = camera?.[propId] || properties?.[propId];
+        const prop =
+          viewState?.[propId] ||
+          (typeof appearance === 'object' ? appearance?.[propId] : undefined);
 
         if (!prop) {
           return {

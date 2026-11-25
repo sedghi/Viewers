@@ -1,6 +1,21 @@
-import type { PlanarViewFraming, Volume3DProjectionFraming, Types } from '@cornerstonejs/core';
+import type {
+  PlanarDisplaySetAppearance,
+  PlanarViewFraming,
+  Volume3DDisplaySetAppearance,
+  Volume3DProjectionFraming,
+  Types,
+} from '@cornerstonejs/core';
 import { SegmentationRepresentations } from '@cornerstonejs/tools/enums';
-import type { ViewportAppearance } from '../services/ViewportService/adapter/IViewportAdapter';
+
+/**
+ * The appearance of one display set of a planar or a 3D viewport that a mount
+ * gives and a LUT presentation stores: what a user set on it (the overrides
+ * of `getDisplaySetAppearance`), or what the options of a hanging protocol
+ * give its first draw.
+ */
+export type DisplaySetAppearanceOverrides = Partial<
+  PlanarDisplaySetAppearance & Volume3DDisplaySetAppearance
+>;
 
 /**
  * Represents a position presentation in a viewport. This is basically
@@ -37,7 +52,7 @@ export type PositionPresentation = {
  */
 export interface LutPresentation {
   viewportType: string;
-  appearances: Record<string, ViewportAppearance>;
+  appearances: Record<string, DisplaySetAppearanceOverrides>;
 }
 
 /**

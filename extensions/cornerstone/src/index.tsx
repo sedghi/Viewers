@@ -37,11 +37,6 @@ import RectangleROI from './utils/measurementServiceMappings/RectangleROI';
 import type { PublicViewportOptions } from './services/ViewportService/Viewport';
 import ImageOverlayViewerTool from './tools/ImageOverlayViewerTool';
 import getSOPInstanceAttributes from './utils/measurementServiceMappings/utils/getSOPInstanceAttributes';
-import {
-  getViewportAdapter,
-  getViewportFocalPoint,
-  isVolumeRenderingViewport,
-} from './services/ViewportService/adapter';
 import { OVERLAY_OPACITY, getHydrationViewportTypeForModality } from './utils/viewportPolicies';
 import { findNearbyToolData } from './utils/findNearbyToolData';
 import { createFrameViewSynchronizer } from './synchronizers/frameViewSynchronizer';
@@ -311,9 +306,6 @@ export {
   getEnabledElement,
   ImageOverlayViewerTool,
   getSOPInstanceAttributes,
-  getViewportAdapter,
-  getViewportFocalPoint,
-  isVolumeRenderingViewport,
   OVERLAY_OPACITY,
   getHydrationViewportTypeForModality,
   dicomLoaderService,

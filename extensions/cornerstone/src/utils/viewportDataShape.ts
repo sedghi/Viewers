@@ -12,8 +12,8 @@ import { Enums } from '@cornerstonejs/core';
  *
  * The shape of the data of a viewportData (from CornerstoneCacheService) is
  * `getViewportDataShape(viewportData)`. It is known before the viewport has
- * the data, so overlays and scrollbars use it. The shape of what a LIVE
- * viewport shows is `getViewportAdapter(viewport).getShape()`.
+ * the data, so overlays and scrollbars use it. What a LIVE viewport shows is
+ * `viewport.getCurrentMode()` of Cornerstone3D.
  */
 export type ViewportShape = 'stack' | 'volume' | 'volume3d' | 'other';
 

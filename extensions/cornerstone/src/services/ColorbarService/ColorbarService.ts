@@ -1,7 +1,8 @@
 import { PubSubService, Types as OhifTypes } from '@ohif/core';
 import { RENDERING_ENGINE_ID } from '../ViewportService/constants';
 import { getRenderingEngine } from '@cornerstonejs/core';
-import { getViewportAdapter } from '../ViewportService/adapter';
+import { getShownDisplaySetId } from '../../utils/getShownDisplaySetId';
+import { getPlanarOr3DViewport } from '../../utils/viewportTypeGuards';
 import { ColorbarOptions, ChangeTypes } from '../../types/Colorbar';
 
 export default class ColorbarService extends PubSubService {
@@ -60,8 +61,8 @@ export default class ColorbarService extends PubSubService {
       return;
     }
 
-    const adapter = getViewportAdapter(viewport);
-    if (!adapter.hasContent()) {
+    const mode = viewport.getCurrentMode();
+    if (mode === 'empty' || mode === 'unknown') {
       return;
     }
 
@@ -74,8 +75,9 @@ export default class ColorbarService extends PubSubService {
         return;
       }
 
-      const displaySetId = adapter.getShownDisplaySetId(displaySetInstanceUID);
-      const { colormap } = adapter.getEffectiveAppearance(displaySetId);
+      const displaySetId = getShownDisplaySetId(viewport, displaySetInstanceUID);
+      const colormap =
+        getPlanarOr3DViewport(viewport)?.getEffectiveDisplaySetAppearance(displaySetId)?.colormap;
 
       if (activeColormapName && !colormap) {
         this.setViewportColormap(
@@ -224,15 +226,17 @@ export default class ColorbarService extends PubSubService {
     if (!viewport) {
       return;
     }
-    const adapter = getViewportAdapter(viewport);
-    if (!adapter.hasContent()) {
+    const mode = viewport.getCurrentMode();
+    if (mode === 'empty' || mode === 'unknown') {
       return;
     }
 
-    // Address the display set's binding when the viewport shows it, the active
-    // binding otherwise
-    const displaySetId = adapter.getShownDisplaySetId(displaySetInstanceUID);
-    adapter.setAppearance({ colormap }, displaySetId);
+    const displaySetId = getShownDisplaySetId(viewport, displaySetInstanceUID);
+    if (displaySetId) {
+      viewport.setDisplaySetAppearance(displaySetId, { colormap });
+    } else {
+      viewport.setDisplaySetAppearance({ colormap });
+    }
 
     if (immediate) {
       viewport.render();

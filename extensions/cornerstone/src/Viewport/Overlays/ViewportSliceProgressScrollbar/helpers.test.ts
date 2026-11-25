@@ -1,7 +1,5 @@
 import { getImageIndexFromEvent } from './helpers';
 
-jest.mock('../../../services/ViewportService/adapter', () => ({}));
-
 describe('getImageIndexFromEvent', () => {
   it('reads the slice index of a NEW_IMAGE event', () => {
     const event = { detail: { sliceIndex: 7, numberOfSlices: 52, displaySetId: 'ct' } };
