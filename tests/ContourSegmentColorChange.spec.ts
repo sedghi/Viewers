@@ -72,14 +72,9 @@ test('changes the contour color when the user saves the edits', async ({
   await expect(DOMOverlayPageObject.dialog.colorPicker.locator).toBeHidden();
   await expect(segment.rowDataColorHex).toHaveCSS('background-color', NEW_HEX_CSS_RGB);
 
-  //check svg path stroke attribute is updated with new color
-  const svgStrokeAttributeAfterColorChange = await getSvgAttribute({
-    viewportPageObject,
-    svgInnerElement: 'path',
-    attributeName: 'stroke',
-  });
-
-  expect(svgStrokeAttributeAfterColorChange, 'Expected SVG stroke attribute to be updated with new color').toBe(
+  const contourPath = (await viewportPageObject.getById('default')).svg('path').nth(0);
+  await expect(contourPath, 'Expected SVG stroke attribute to be updated with new color').toHaveAttribute(
+    'stroke',
     NEW_HEX_CSS_RGBA
   );
 });

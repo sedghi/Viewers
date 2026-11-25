@@ -19,7 +19,8 @@ const NEXT_VIEW_STATE = { next: true };
 
 /**
  * An axial planar viewport that shows one world unit as `zoom` canvas pixels, with the
- * focal point in the centre of the canvas.
+ * focal point in the centre of the canvas. Drawn on the CPU, its `canvas` is the GPU
+ * canvas, hidden with no size, and `getCanvas()` gives the canvas that shows.
  */
 function makeViewport({
   focalPoint = [0, 0, 0],
@@ -28,6 +29,7 @@ function makeViewport({
   pan = [10, -20],
   type = Enums.ViewportType.PLANAR,
   hasView = true,
+  cpu = false,
 }: {
   focalPoint?: number[];
   parallelScale?: number;
@@ -35,13 +37,16 @@ function makeViewport({
   pan?: number[];
   type?: string;
   hasView?: boolean;
+  cpu?: boolean;
 } = {}) {
   getPresentation.mockReturnValue(hasView ? { zoom, pan } : undefined);
   withPresentation.mockReturnValue(hasView ? NEXT_VIEW_STATE : undefined);
+  const shownCanvas = { clientWidth: CANVAS_WIDTH, clientHeight: CANVAS_HEIGHT };
 
   return {
     type,
-    canvas: { clientWidth: CANVAS_WIDTH, clientHeight: CANVAS_HEIGHT },
+    canvas: cpu ? { clientWidth: 0, clientHeight: 0 } : shownCanvas,
+    getCanvas: () => shownCanvas,
     getResolvedView: () =>
       hasView ? { toICamera: () => ({ focalPoint, parallelScale }) } : undefined,
     worldToCanvas: (world: number[]) => [
@@ -90,6 +95,22 @@ describe('centerOnMeasurement', () => {
     expect(patch.pan[0]).toBeCloseTo(10 - 110);
     expect(patch.pan[1]).toBeCloseTo(-20 - 70);
     expect(viewport.setViewState).toHaveBeenCalledWith(NEXT_VIEW_STATE);
+  });
+
+  it('pans to the centre of the canvas that shows the picture when the CPU draws it', () => {
+    const viewport = makeViewport({ cpu: true });
+    const measurement = {
+      points: [
+        [100, 60, 0],
+        [120, 80, 0],
+      ],
+    };
+
+    expect(center(viewport, measurement)).toBe(true);
+
+    const [, patch] = withPresentation.mock.calls[0];
+    expect(patch.pan[0]).toBeCloseTo(10 - 110);
+    expect(patch.pan[1]).toBeCloseTo(-20 - 70);
   });
 
   it('zooms out for a measurement that is larger than the viewport shows', () => {

@@ -8,37 +8,29 @@ compatibility layer.
 
 ## What is done
 
-| Commit | What |
-|---|---|
-| `refactor(cornerstone): run the Cornerstone3D 6.0 codemod` | The seven codemod steps and prettier: 25 files, 157 sites rewritten. 138 sites reported for manual work, 23 for review, not changed. |
-| `chore(deps): @cornerstonejs 6.0.0-beta.1` | The nine `@cornerstonejs` packages from 5.18.3 to 6.0.0-beta.1, with the lockfile. |
+Every step but the run in CI (step 9), Safari on an iPhone (step 10) and the release
+(step 12): see [Progress](#progress). The branch has 16 commits on `master` and the
+uncommitted work of task O9. The record of each problem is
+`CORNERSTONE3D_6_MIGRATION_LOG.md`, with a summary table at its top.
 
 ## How it goes: the numbers
 
-Measured on this Mac. "Before" is `master` on 5.18.3; "after" is this branch.
+Measured on this Mac. "Before" is `master` on 5.18.3, "first" the branch after the
+codemod (21 November), "now" the branch with task O9 on the Cornerstone3D link at
+`735fc811e` (25 November).
 
-| Check | Before | After |
-|---|---|---|
-| jest | 153 suites, 1,853 tests, all pass | 148 suites pass, 5 fail; 1,834 tests pass, 19 fail (see the note) |
-| build (`pnpm run build`) | passes | fails: 2 removed functions in 3 files |
-| type check (`tsc`, not part of OHIF's build) | 8,452 errors | 8,568: 96 new kinds, 22 gone |
-| Playwright (101 specs) | not run | not run |
-
-- **Note on jest.** With 6.0.0-beta.1 as published, 33 suites do not run at all: OHIF's
-  babel stops on one expression in `@cornerstonejs/core` (an `await` inside `??`). That
-  is fixed in cornerstone (`7eecbab52`, not in a published beta yet). The "after" numbers
-  are with that one line changed in the local `node_modules`.
-- **The build** fails on `utilities.getImageSliceDataForVolumeViewport` (2 files) and
-  `utilities.viewportSupportsVolumeCompatibility` (1 file). Both are in the manual list.
-- **The 96 new type errors:** 22 are in the legacy path that goes; 22 are
-  `ViewportType.STACK` or `ORTHOGRAPHIC`; the rest are removed members (`getCamera`,
-  `setProperties`, `getViewPresentation`, `getBlendMode` and others), all in the manual
-  list.
-- **The 19 failing tests:** 16 pin the legacy type mapping
-  (`getCornerstoneViewportType.test.ts`); 2 pin the cornerstone major of the runtime
-  plugins (`@cornerstonejs/core@5`); the others are mocks of legacy viewports.
+| Check | Before (`master`) | First (21 November) | Now (25 November) |
+|---|---|---|---|
+| jest | 153 suites, 1,853 tests, all pass | 148 suites pass, 5 fail; 1,834 tests pass, 19 fail | 171 suites, 1,988 tests, all pass |
+| build (`pnpm run build`) | passes | fails: 2 removed functions in 3 files | passes |
+| type check (`tsc`, not part of OHIF's build) | 8,452 errors | 8,568: 96 new kinds, 22 gone | 8,788 lines in OHIF files (`master` 8,333 by the same count): no new kind of error against `master` but 3 reprints of existing errors and the test-runner globals (`it`, `expect`, `jest`) of the 19 new test files; 21 kinds gone |
+| lint of CI (`pnpm run lint:compiler:ci`) | 94 errors, 94 warnings (the budget) | not run | 94 errors, 94 warnings: the budget, passes |
+| Playwright (101 specs, 247 tests) | 243 passed, 4 skipped | not run | 243 passed, 0 failed, 4 skipped, twice (7.4 min each); no baseline changed |
 
 ## Progress
+
+Brought to 25 November (task O9). The Cornerstone3D that the branch is checked on is
+the linked checkout at `735fc811e`, the last commit of the unified API plan.
 
 | Step | State | Commit |
 |---|---|---|
@@ -46,14 +38,32 @@ Measured on this Mac. "Before" is `master` on 5.18.3; "after" is this branch.
 | 2. Delete the legacy path | done | `fbdd648d97` |
 | 3. OHIF's own data shape | done | `fbdd648d97` |
 | 4. The build passes | done | `fbdd648d97` |
-| 5. The other manual sites | done: the codemod reports 0 | package U2 |
-| 6. The review sites | done: 23 of 23 read | package U2 |
-| 7. The packages the codemod does not cover | done: no new type error is left | package U3 |
-| 8. jest | done: 158 suites, 1,907 tests pass | package U2 |
-| 9. Playwright on 6.0 | on this Mac all pass: 243, 4 skipped, on cornerstone `1b3b2247e` (1 failed after package U6, 4 after U4, 15 after U3, 28 after step 8, 37 after step 4); four baselines are new (M36); the run in CI open | packages U3, U4, U6 and U7 |
-| 10. By hand, on devices | the desktop part done (package U6): each of the seven modes once on the GPU and on the CPU against 5.18.3 (legacy path); M38 to M50 of the log; M42 (a stack of a series shown as a volume elsewhere) and M45 (the PET ramp of the TMTV fusion) fixed in package U7, with M51 and M52 for cornerstone; Safari on an iPhone open | packages U6 and U7 |
-| 11. Clean names and docs | done: the four `Next*` classes and the two `next*` files have plain names, the two `NEXT_*` exports too; the interfaces stay (open point 1); the migration guide and the configuration docs name the gone settings; M18 closed | package U5 |
-| 12. Release | open | |
+| 5. The other manual sites | done: the codemod reports 0 | `8f7232418c` (package U2) |
+| 6. The review sites | done: 23 of 23 read | `8f7232418c` (package U2) |
+| 7. The packages the codemod does not cover | done: no new type error is left | `1653f6df00` (package U3) |
+| 8. jest | done: 171 suites, 1,988 tests pass | packages U2 to U7, tasks O1 to O9 |
+| 9. Playwright on 6.0 | on this Mac all pass on the link at `735fc811e`: 243 passed, 0 failed, 4 skipped, twice (7.4 min each); the run in CI open (open point 2) | packages U3, U4, U6, U7; tasks O1 to O9 |
+| 10. By hand, on devices | the desktop part done twice: package U6 (22 November, old names) and task O9 (25 November, final names): each mode on the GPU and on the CPU against `master`; Safari on an iPhone open | packages U6, U7; task O9 |
+| 11. Clean names and docs | done; the interfaces with one implementation were kept on 21 November (open point 1) and deleted in task O8 by the owner's decision of 24 November | `15b843a50a`; `e4f9451c6e` |
+| 12. Release | open: a Cornerstone3D 6.0 beta with the commits of the unified API plan, then the pull request | |
+
+### The unified API plan (tasks O1 to O9)
+
+The owner's decisions of 24 November (one display set registry, the appearance and the
+framing of a display set, one event for each change, no adapter) were built in
+Cornerstone3D and then taken into OHIF by nine tasks. The record of each is in the log.
+
+| Task | What | State | Commit | Log |
+|---|---|---|---|---|
+| O1 | On the new Cornerstone3D build; the codemod of the final names on the branch | done | `309cc169f3` | M53 |
+| O2 | Display sets registered once and mounted by their UID; no data id registry, no `::stack` and `::volume` | done | `309cc169f3` | M54, closes M42, M51 |
+| O3 | The appearance of a display set: one event, two getters, no `isComputedVOI`; one opacity, `opacityMapping` in the protocols | done | `8659924b25` | M56, M57, closes M45, M52 |
+| O4 | The position presentation is the view reference and the framing; no native view presentation keys | done | `8659924b25` | M58, closes M33 |
+| O5 | `DISPLAY_SETS_CHANGED` and `sliceIndex` in OHIF; no `VIEWPORT_VOLUMES_CHANGED` | done | `67ab3444fd` | M60 |
+| O6 | The window level rows, the range of the threshold menu and the capture ask the viewport | done | `67ab3444fd` | M61, closes M17 |
+| O7 | The viewport adapter is deleted: OHIF calls the viewports of Cornerstone3D | done | `e4f9451c6e` | M68 |
+| O8 | The interfaces with one implementation are deleted | done | `e4f9451c6e` | M69 |
+| O9 | OHIF as a whole on the final Cornerstone3D: the gaps of M62 to M67 checked, the flaky spec, every check, each mode by hand, the log, this table and the migration guide | done (not committed yet) | | M49, M62 to M67 closed; M70, M71 |
 
 ## What OHIF has that makes this smaller
 
@@ -242,12 +252,14 @@ points at this branch; `@cornerstonejs` moves to 6.0.0 when it is out.
 
 ## Open points for the owner
 
-1. Step 11: fold the one-implementation interfaces, or keep them for a future backend
-   (a server-side renderer was named as a later goal). **Decided: they stay**
-   (`IViewportAdapter`, `IViewportBackend`, `IViewportOperations`,
-   `ISegmentationBackend`). A server-side renderer is named as a later goal and would be a
-   second implementation, and the contract test of the adapter
-   (`IViewportAdapter.contract.test.ts`) is written against the interface and stays.
+1. Step 11: fold the one-implementation interfaces, or keep them for a future backend.
+   Decided on 21 November that they stay; **decided again by the owner on 24 November
+   (the unified API plan, area 5): they are deleted**, with the adapter, in tasks O7 and
+   O8 (`e4f9451c6e`). A renderer on a server is a render backend or a viewport type of
+   Cornerstone3D, or an extension that implements `IViewportService`
+   (`services/ViewportService/README.md`).
 2. Step 9: how the CI baselines are updated (from CI artefacts, or another way).
 3. A 6.0.0-beta.2 for the babel fix, or work on the linked checkout until more fixes
-   are in.
+   are in. The babel fix is in `v6.0.0-beta.2`; the branch is checked on the linked
+   checkout at `735fc811e`, which has the commits of the unified API plan after it. A
+   beta with them is needed before the pull request (step 12).

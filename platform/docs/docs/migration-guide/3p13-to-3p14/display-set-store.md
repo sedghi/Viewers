@@ -77,8 +77,12 @@ it is deleted. A Cornerstone3D viewport mounts a display set by its
 | Video and ECG | the `imageId` of its `instance` |
 | Whole slide | `imageIds`, and the DICOMweb client registered as the `WADO_WEB_CLIENT` metadata of its first image |
 
-A mount copies what it reads, so a display set that grows (`addInstances`,
-`extendInstances`) shows its new images at its next mount.
+A stack mount reads the image ids of the display set again, so a display set
+that grows (`addInstances`, `extendInstances`) shows its new images at its next
+stack mount. A volume is made once for a display set and kept in the cache: a
+volume viewport that shows the display set when its metadata is invalidated
+makes the volume again, but a volume viewport that mounts it later shows the
+volume as it was first made.
 
 **Before (the next viewports of 3.13)**, an extension registered a display set
 for a viewport, under its UID or an id of its own:

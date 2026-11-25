@@ -207,7 +207,7 @@ export const viewportOperations = {
     const { zoom = 1, pan = [0, 0] } = presentation;
     const { center, extent } = getCenterExtent(measurement);
     const [canvasX, canvasY] = viewport.worldToCanvas(center);
-    const { clientWidth, clientHeight } = viewport.canvas;
+    const { clientWidth, clientHeight } = viewport.getCanvas();
     const measurementSize = vec3.dist(extent.min, extent.max);
     const nextViewState = viewportProjection.withFraming(viewport, {
       zoom:

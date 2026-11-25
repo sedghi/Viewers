@@ -14,6 +14,104 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
+## Summary (25 November, task O9)
+
+The state of every entry today, on the branch at `e4f9451c6e` plus the work of task O9
+(not committed yet), with the Cornerstone3D link at `735fc811e`. "Whose" says where the
+problem was: in OHIF, in Cornerstone3D (the library, its codemod or its guide), in a test
+of OHIF, or "work" for an entry that records a planned task and not a defect.
+
+| Entry | The problem, in one line | Whose | State today |
+|---|---|---|---|
+| M1 | OHIF's jest could not load core 6.0.0-beta.1 (`await` inside `??`) | Cornerstone | fixed in cornerstone `7eecbab52`, in 6.0.0-beta.2 |
+| M2 | The build failed on two functions that 6.0 removed | OHIF | fixed `fbdd648d97` |
+| M3 | `getCornerstoneViewportType` gave `PLANAR` for a stack and a volume | OHIF | fixed `fbdd648d97`; the Cornerstone guide names the case (step by step) |
+| M4 | 16 jest tests pinned the legacy type mapping | OHIF test | fixed `fbdd648d97` |
+| M5 | The runtime plugins pinned the cornerstone major to 5 | OHIF | fixed `8f7232418c` |
+| M6 | No type check told OHIF about a removed name | OHIF | fixed `1653f6df00`; O9: no new error kind against `master` |
+| M7 | Only 1 of 101 Playwright specs ran on the next viewports | OHIF test | fixed: all run on 6.0 (M14) |
+| M8 | OHIF's tests of the legacy type were always false on the next path | OHIF | fixed `fbdd648d97` |
+| M9 | A test of a legacy 3D type is true for every 3D viewport after the codemod | OHIF | fixed `fbdd648d97`; the Cornerstone guide names it (api map) |
+| M10 | The guide's slice count does not type-check on `Types.IViewport` | OHIF + Cornerstone guide | OHIF fixed `fbdd648d97`; open for cornerstone: the guide row does not say the members are on `PlanarViewport` (small) |
+| M11 | A labelmap asked for on a 3D viewport was not made a surface | OHIF + Cornerstone | fixed `e5881fc1a7` and in cornerstone (C5, its row 127) |
+| M12 | The initial image of a protocol was not applied to a volume | OHIF | fixed `8f7232418c` |
+| M13 | The type comparison counted paths of the linked checkout as errors | OHIF method + Cornerstone | fixed: the comparison; the declaration paths in cornerstone (C2, row 114); O9: no such error on the link |
+| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`); the run in CI open, waits for the owner (open point 2 of the plan) |
+| M15 | An optional call of a legacy member failed without a sign | OHIF | fixed `8f7232418c`; the Cornerstone guide names it (step by step) |
+| M16 | Three places did the same thing twice after the codemod | OHIF + Cornerstone codemod | OHIF fixed `8f7232418c`; open for cornerstone: a report of a rewrite that duplicates a line (small) |
+| M17 | The window level panel had no rows | OHIF | fixed `67ab3444fd` (M61) |
+| M18 | The 3D pictures of the Playwright tests were twice as large | Cornerstone | fixed in cornerstone `62cf392da`; OHIF as on `master` in `15b843a50a` |
+| M19 | The error text of the slice loading indicator never showed (5.x too) | OHIF | decided: left as on 5.x |
+| M20 | A jump to a measurement did not bring it into view | OHIF | fixed `1653f6df00`; the Cornerstone guide has the recipe |
+| M21 | The reference of a hydrated SCOORD3D named a display set as its volume | OHIF | fixed `1653f6df00`; Cornerstone judges a reference by its image or plane (DS4) |
+| M22 | A stack with an RTSTRUCT or a SEG over it was mounted as a volume | OHIF | fixed `1653f6df00` |
+| M23 | `worldToCanvas` was stale after a resize that met a scheduled frame | Cornerstone | fixed in cornerstone `3098597aa` |
+| M24 | A hydrated annotation referenced the image on display | Cornerstone | fixed in cornerstone `3098597aa` |
+| M25 | Every image of a stack showed the window of its first image | OHIF | fixed `1653f6df00` |
+| M26 | No `VOI_MODIFIED` when a stack scrolled to an image with another window | Cornerstone | fixed in cornerstone `3098597aa` |
+| M27 | The orientation command threw on a 3D viewport | OHIF + Cornerstone guide | OHIF fixed `1653f6df00`; open for cornerstone: the guide does not say what an axis name does on a 3D viewport (small) |
+| M28 | A labelmap on a stack set the window text to W: 2 L: 0 | Cornerstone | fixed in cornerstone `3098597aa` |
+| M29 | A labelmap of another series did not reach a stack | OHIF | fixed `e5881fc1a7` |
+| M30 | A volume viewport took a reference that names only an image | Cornerstone | fixed in cornerstone (C5) |
+| M31 | A contour set got the plane of the pane that drew it first | Cornerstone | fixed in cornerstone `1b3b2247e` |
+| M32 | A resize kept the parallel scale of a 3D viewport | Cornerstone | fixed in cornerstone `1b3b2247e` |
+| M33 | The zoom and the pan of a 3D viewport were not stored | OHIF | fixed `8659924b25` (M58) |
+| M34 | A page object of the tests read the type of the viewport | OHIF test | fixed `e5881fc1a7` |
+| M35 | The picture of a failed clipped screenshot was of the whole page | OHIF test | fixed `e5881fc1a7` |
+| M36 | Two baselines for the fill of a labelmap in an MPR | OHIF test | fixed `e5881fc1a7` (the Cornerstone guide names the fill) |
+| M37 | Two traps of the renames of step 11 | OHIF | fixed `15b843a50a` |
+| M38 | A window level drag in an MPR changed the window twice as much | Cornerstone | fixed in cornerstone (C6), checked in O3 |
+| M39 | On the CPU a planar viewport missed a resize back to its first size | Cornerstone | fixed in cornerstone (C6, its row 129); O9: on the CPU a 2x2 layout and back is the GPU picture; its jump effect was M72 |
+| M40 | A resize kept the pan of a planar viewport as a share of the canvas | Cornerstone | fixed in cornerstone (C5), checked in O4 |
+| M41 | A console warning of Chrome on the CPU path (`willReadFrequently`) | Cornerstone | open, waits for cornerstone (a warning only) |
+| M42 | A stack of a series shown as a volume elsewhere was drawn as a volume slice | OHIF + Cornerstone | fixed `309cc169f3` with cornerstone DS3 |
+| M43 | A jump to an empty segment put every pane on slice NaN | OHIF + Cornerstone | fixed `2f4718f986` and in cornerstone (C6, row 133) |
+| M44 | An SR, SEG or RTSTRUCT viewport showed no window text | OHIF | fixed `2f4718f986` |
+| M45 | The PET of a TMTV fusion tinted the whole pane red | OHIF | fixed `8659924b25` (M57) |
+| M46 | The ultrasound pleura and B-line tool threw before the first image | Cornerstone | open, waits for cornerstone (seen again in O9; `master` has no error) |
+| M47 | A reference that names the PET of a fusion made the PET the source | Cornerstone | fixed in cornerstone (C6 row 131, DS4 row 150) |
+| M48 | A whole slide viewport never reported that it had rendered | Cornerstone | open, waits for cornerstone (`preRender` in O9, GPU and CPU; `master` `rendered`) |
+| M49 | The cine of a stack with a labelmap played at 15 to 17 a second | Cornerstone | fixed in cornerstone `735fc811e` (FX4), checked in O9: as `master` |
+| M50 | The TMTV CSV export did nothing on the CPU | not found | closed by measurement in O9: on the CPU the statistics of the GPU and the CSV file |
+| M51 | A planar viewport took a reference only while its data was registered | Cornerstone | fixed in cornerstone (DS3, DS4); the OHIF registry deleted in `309cc169f3` |
+| M52 | A list in `colormap.opacity` replaced the overall opacity | Cornerstone | fixed in cornerstone (one opacity), closed in `8659924b25` |
+| M53 | The codemod on this branch; it left the keys of a module mock | Cornerstone codemod | the run done in `309cc169f3`; the defect fixed in cornerstone (FX2, row 206) |
+| M54 | One store of display sets (task O2) | work | done `309cc169f3` |
+| M55 | A video that does not load left its mount waiting for ever | Cornerstone | fixed in cornerstone `99867e2c5` (FX2); OHIF decided in O7 |
+| M56 | The appearance of a display set (task O3) | work | done `8659924b25` |
+| M57 | One opacity, and the TMTV fusion with the look of `master` (task O3) | work | done `8659924b25` |
+| M58 | The position presentation is the view reference and the framing (task O4) | work | done `8659924b25` |
+| M59 | The pan of a 3D viewport was lost on a layout change | Cornerstone | fixed in cornerstone `3f3c6ff7a` (FX3), checked in O7 |
+| M60 | The display set event, the slice index and the scroll in OHIF (task O5) | work | done `67ab3444fd` |
+| M61 | The window level rows, the threshold range and the capture (task O6) | work | done `67ab3444fd` |
+| M62 | A 3D viewport did not give the volume of its mounts | Cornerstone | fixed in cornerstone `735fc811e` (FX4), checked in O9 |
+| M63 | The stack prefetch added a listener at each enable | Cornerstone | fixed in cornerstone `735fc811e` (FX4), checked in O9; the rest is M71 |
+| M64 | A synchronizer added an `ELEMENT_DISABLED` listener at each change | Cornerstone | fixed in cornerstone `735fc811e` (FX4), checked in O9 |
+| M65 | A volume of 12-bit images kept 8 bits when its first image fit in 8 | Cornerstone | fixed in cornerstone `735fc811e` (FX4), checked in O9 |
+| M66 | The labelmap of a stack was mounted again for every image | Cornerstone | fixed in cornerstone `735fc811e` (FX4), checked in O9 |
+| M67 | A 3D pane that went to a pane of another size came back with half its pan | Cornerstone | fixed in cornerstone `869981396` (FX5), checked in O9 |
+| M68 | The viewport adapter is deleted (task O7) | work | done `e4f9451c6e` |
+| M69 | The interfaces with one implementation are deleted (task O8) | work | done `e4f9451c6e` |
+| M70 | A spec of the contour colour read the stroke before the next draw | OHIF test | fixed in O9 (not committed yet) |
+| M71 | A destroyed stack viewport keeps its prefetch listener | Cornerstone | open, waits for cornerstone |
+| M72 | On the CPU a jump to a measurement pushed the image out of the pane | OHIF | fixed in O9 (not committed yet) |
+| M73 | The PET axial pane of TMTV showed its slice without the instance number | OHIF | fixed in O9 (not committed yet) |
+| M74 | A volume of a display set that grew while no viewport showed it keeps its first images | OHIF | open, OHIF; the same on `master` |
+
+**The count.** 74 entries; 8 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69), so the upgrade met **66 problems**:
+
+| Whose | Problems | Fixed | Open | Decided |
+|---|---|---|---|---|
+| Cornerstone3D (the library, its codemod or its guide) | 29 | 25, all in Cornerstone3D | 4: M41, M46, M48, M71, each waits for cornerstone | |
+| OHIF (22 in its code, 6 in its tests) | 28 | 26 in OHIF (M70, M72 and M73 in task O9, not committed yet) | 1: M74, OHIF's, the same on `master` | 1: M19 |
+| Both | 8 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
+| Cause not found | 1 (M50) | closed by measurement in task O9 | | |
+
+Open today: **M14** (waits for the owner: the Playwright run in CI), **M41, M46, M48,
+M71** (wait for cornerstone), **M74** (OHIF), and three small asks of Cornerstone3D in
+M10, M16 and M27 whose OHIF part is done.
+
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
 
 - **Seen:** 33 of the 153 jest suites did not run:
@@ -30,6 +128,7 @@ failed first, a build, or a run that is named).
   checkout that has it (`node_modules/@cornerstonejs` are links, not committed).
 - **State:** fixed in cornerstone; not in a published beta yet (6.0.0-beta.1 has the
   defect).
+- **State today (task O9):** fixed in cornerstone `7eecbab52`, which is in the tag `v6.0.0-beta.2`; the link at `735fc811e` has it.
 
 ## M2. The build fails on two functions that 6.0 removed
 
@@ -71,6 +170,7 @@ failed first, a build, or a run that is named).
   `CornerstoneCacheService.test.ts` (each word of a hanging protocol gives its 6.0 type,
   its shape and its mount); `git grep -E "ViewportType\.(STACK|ORTHOGRAPHIC)"` finds
   nothing. The cornerstone part is open.
+- **State today (task O9):** closed: the OHIF part in `fbdd648d97`; the Cornerstone guide names the case (`4-upgrade-step-by-step.md`: an application that stores `ViewportType.STACK` or `ORTHOGRAPHIC` as its own marker of the data gives itself its own values).
 
 ## M4. 16 jest tests pin the legacy type mapping
 
@@ -105,7 +205,7 @@ failed first, a build, or a run that is named).
   passed before: the checkout's `package.json` says 5.19.4 (CI writes the version at
   release), so the test reads `@cornerstonejs/core@5`. It is the one failing jest test
   of this branch while `node_modules/@cornerstonejs` are links.
-- **State:** fixed in package U2 (not committed yet). Check: the same test file, run
+- **State:** fixed in package U2 (committed in `8f7232418c`). Check: the same test file, run
   on a copy of its folders with a `node_modules/@cornerstonejs/core/package.json` and
   `tools/package.json` that say `6.0.0-beta.1` (what the published beta says), passes
   7 of 7; with `5.18.3` there it fails with `Expected: "@cornerstonejs/core@6"`. The
@@ -124,7 +224,7 @@ failed first, a build, or a run that is named).
 - **Note:** with the linked cornerstone checkout the comparison needs one more step,
   see M13.
 - **State:** the 96 are gone (43 were left after package U1, 23 after package U2, none
-  after package U3; not committed yet). The 23 were members of a viewport class read
+  after package U3; committed in `1653f6df00`). The 23 were members of a viewport class read
   from a `Types.IViewport`: the sites type the viewport with its class
   (`PlanarViewport`, `VolumeViewport3D`), and the adapter and the backend give
   `Types.IViewport` its view state and presentation types. Two of them were real
@@ -146,6 +246,7 @@ failed first, a build, or a run that is named).
 - **Fix, in OHIF:** step 1 measures the next path on 5.18.3 first, so that a difference
   on 6.0 can be told from a difference of the path; step 9 runs all of them on 6.0.
 - **State:** step 1 is done, its numbers are in M14; step 9 is open.
+- **State today (task O9):** done: every spec runs on the one path (M14).
 
 ## M8. On the next path, OHIF's tests of the legacy viewport type were always false
 
@@ -204,6 +305,7 @@ failed first, a build, or a run that is named).
 - **State:** the OHIF part is fixed in package U1 (`fbdd648d97`). Check: the type
   comparison no longer has `Property 'getProperties' does not exist on type
   'PlanarViewport'` in `CornerstoneViewportService.ts`. The cornerstone part is open.
+- **State today (task O9):** closed: the OHIF part in `fbdd648d97`; the Cornerstone guide names it (the paragraph before the rows of the `_NEXT` names in `3-api-map.md`).
 
 ## M10. The guide's replacement for the slice count does not type-check on `Types.IViewport`
 
@@ -224,6 +326,7 @@ failed first, a build, or a run that is named).
 - **State:** the OHIF part is fixed in package U1 (`fbdd648d97`). Check: no new
   type error for `getNumberOfSlices` in the files of the package. The cornerstone part
   is open.
+- **State today (task O9):** the OHIF part closed in `fbdd648d97`; the Cornerstone part (the row should say that the members are on `PlanarViewport` and that an empty viewport gives 0) is open, a small guide note.
 
 ## M11. A labelmap asked for on a 3D viewport is no longer made a surface
 
@@ -255,11 +358,12 @@ failed first, a build, or a run that is named).
   with the id of a 3D viewport throws on 6.0. The legacy 3D viewport had
   `getCurrentImageId` (read in the code of 5.18.3, not run). To do: answer undefined
   for a viewport without image slices.
-- **State:** the OHIF part is fixed in package U4 (not committed yet). Check:
+- **State:** the OHIF part is fixed in package U4 (committed in `e5881fc1a7`). Check:
   `SegmentationService.test.ts`, "adds a labelmap that is asked for on a 3D viewport as
   a surface" (the test of `master` again; it failed first), and in the viewer the call
   above returns and the viewport has a `Surface` representation. The cornerstone part is
   open.
+- **State today (task O9):** closed: the OHIF part in `e5881fc1a7`; the Cornerstone part fixed by package C5 (its open issue 127: undefined for a viewport without an image on display).
 
 ## M12. The initial image of a hanging protocol is not applied to a volume viewport
 
@@ -281,7 +385,7 @@ failed first, a build, or a run that is named).
   `MPR.spec.ts`, `mpr2.spec.ts` and `AxialPrimary.spec.ts` failed before the change
   (pictures differ by 0.07, 0.10 and 0.21) and pass after it, run alone before and
   after.
-- **State:** fixed in package U2 (not committed yet). Check:
+- **State:** fixed in package U2 (committed in `8f7232418c`). Check:
   `CornerstoneViewportService.test.ts`, "a volume mount jumps to the initial image of
   the preset" and "of the index" (both failed first), with "a volume mount with a
   position presentation keeps its position"; and the three Playwright specs above.
@@ -307,6 +411,7 @@ failed first, a build, or a run that is named).
   not checked. To do: check, and fix if so.
 - **State:** fixed for the comparison (packages U1 and U2 used it); the cornerstone
   question is open.
+- **State today (task O9):** closed: the comparison leaves the paths out; the declaration paths are fixed in cornerstone by package C2 (its open issue 114); the type check of task O9 on the link at `735fc811e` has no `Cannot find module 'packages/...'` error (`master` on 5.18.3 has 27).
 
 ## M14. 52 Playwright tests fail on the next path of 5.18.3, and 37 on 6.0
 
@@ -475,6 +580,7 @@ failed first, a build, or a run that is named).
 | `SegAcrossViewportTypes.spec.ts` | keeps the labelmap drawn from a stack through MPR and back to one viewport | timeout | timeout | timeout | timeout |
 | `SegAcrossViewportTypes.spec.ts` | keeps the selected segment selected across viewport types | passes (M22) | timeout | timeout | timeout |
 | `ZoomIn.spec.ts` | should render the magnified region with the same horizontal flip as the source viewport | passes (M25) | picture differs (0.94) | picture differs (0.94) | throws: Unsupported viewport type |
+- **State today (task O9):** on this Mac every spec passes on the link at `735fc811e` (task O9); the run in CI is open, waits for the owner (open point 2 of the plan).
 
 ## M15. An optional call of a legacy member fails without a sign
 
@@ -505,13 +611,14 @@ failed first, a build, or a run that is named).
   an optional call of a removed member (`viewport.getAllVolumeIds?.()`) compiles in
   JavaScript, and in TypeScript on an untyped viewport, and gives `undefined` for every
   viewport. To do.
-- **State:** the OHIF part is fixed in package U2 (not committed yet). Checks:
+- **State:** the OHIF part is fixed in package U2 (committed in `8f7232418c`). Checks:
   `initCineService.test.ts` (new; 2 of its 4 tests fail with the old guard),
   `IViewportAdapter.contract.test.ts` ("getVolumeIds keeps the ids that the viewport
   takes as volume ids", "getBlendMode reads the blend mode of the presentation"). The
   cine of a 4D volume and the labelmap on a MIP were not seen on a screen: no Playwright
   spec opens the preclinical 4D mode, and the TMTV specs pass as before. Step 10. The
   cornerstone part is open.
+- **State today (task O9):** closed: the OHIF part in `8f7232418c`; the Cornerstone guide names it (`4-upgrade-step-by-step.md`: an optional call of a removed member does not fail either).
 
 ## M16. After the codemod, three places do the same thing twice
 
@@ -532,9 +639,10 @@ failed first, a build, or a run that is named).
   takes `cpu`, `gpu`, `auto` and a registered backend, after `init()`.
 - **Fix, in cornerstone:** the codemod could report a rewrite that makes a line equal
   to its neighbour, or an array with the same member twice (with M9). To do.
-- **State:** the OHIF part is fixed in package U2 (not committed yet). Check: jest in
+- **State:** the OHIF part is fixed in package U2 (committed in `8f7232418c`). Check: jest in
   full and `pnpm run build`; `WindowLevelTool.test.ts` for the list. The cornerstone
   part is open.
+- **State today (task O9):** the OHIF part closed in `8f7232418c`; the Cornerstone part (a report of a rewrite that makes a line equal to its neighbour) is open, small.
 
 ## M17. The Window Level panel had no rows on the one path
 
@@ -555,7 +663,7 @@ failed first, a build, or a run that is named).
   volume (`getDataIdForVolumeId`, new in the adapter). The three helpers that read the
   opacity from the transfer function of the actor are gone: the next presentation
   update would write the look of the actor again.
-- **State:** fixed in the code in package U2 (not committed yet), **not seen on a
+- **State:** fixed in the code in package U2 (committed in `8f7232418c`), **not seen on a
   screen**: no Playwright spec opens the preclinical 4D mode and the test data has no
   4D study. Check so far: `IViewportAdapter.contract.test.ts` (the volume ids and the
   binding of a volume), the build and the type comparison (no `setProperties` is left).
@@ -614,7 +722,7 @@ failed first, a build, or a run that is named).
     before.
 - **State:** fixed: the helper in package U2, `attemptAction` and the overlay in package
   U3, the overlay and the helper as on `master` in package U5 on cornerstone
-  `62cf392da` (not committed yet). Checks: the four specs pass, three times each
+  `62cf392da` (committed in `15b843a50a`). Checks: the four specs pass, three times each
   (`--repeat-each=3`), and the two of `SEGHydrationFrom3DFourUp` fail as before with
   the same ratios (0.10 and 0.12, M30 and M32). In the viewer, the four 3D layouts with
   the helper of U2 and with the helper of `master` give the same zoom (0.5) and the
@@ -646,6 +754,7 @@ failed first, a build, or a run that is named).
   `NEW_IMAGE` ends it, as before.
 - **State:** decided for now (left as on 5.x). The scroll part is fixed in package U2;
   it has no unit test, and the Playwright tests do not wait for the text.
+- **State today (task O9):** decided, left as on 5.x (the owner's call to make the error text work).
 
 ## M20. A jump to a measurement did not bring it into view
 
@@ -666,9 +775,10 @@ failed first, a build, or a run that is named).
   slice only, and give the recipe for "bring this world point to the centre of the
   canvas", which `setCamera({ focalPoint })` did: `worldToCanvas(point)`, then a `pan`
   that is larger by the distance to the centre of the canvas divided by the zoom. To do.
-- **State:** the OHIF part is fixed in package U3 (not committed yet). Check:
+- **State:** the OHIF part is fixed in package U3 (committed in `1653f6df00`). Check:
   `NextViewportOperations.test.ts` (new; 2 of its 5 centring tests fail without the
   change) and the two Playwright specs. The cornerstone part is open.
+- **State today (task O9):** closed: the OHIF part in `1653f6df00`; the Cornerstone guide gives the recipe (the pan that brings a point to the centre of the canvas, in the section of the camera synchronizer of `2-rendering-changes.md`).
 
 ## M21. The view reference of a hydrated SCOORD3D measurement named a display set as its volume
 
@@ -695,12 +805,13 @@ failed first, a build, or a run that is named).
   is true on 5.18.3 (a legacy volume viewport) and false on 6.0, where it is true
   with `volumeId: 'scheme:A'`. Measured in the viewer, with the metadata of the
   SCOORD3D probe of the test. To do.
-- **State:** the OHIF part is fixed in package U3 (not committed yet). Checks:
+- **State:** the OHIF part is fixed in package U3 (committed in `1653f6df00`). Checks:
   `hydrateStructuredReport.test.ts` (new; both tests fail with the old line),
   `CornerstoneViewportService.test.ts` ("a viewport that could show a measurement as a
   volume", 2 tests, both failed first), and the three Playwright tests, which fail
   again when the line of `hydrateStructuredReport` is put back (run once). The
   cornerstone part is open.
+- **State today (task O9):** closed: the OHIF part in `1653f6df00`; Cornerstone judges a reference by its image or its plane (DS4), so a `volumeId` that is no volume of the viewport no longer decides it.
 
 ## M22. A stack with an RTSTRUCT or a SEG over it was mounted as a volume
 
@@ -732,7 +843,7 @@ failed first, a build, or a run that is named).
   `SEGNoHydrationThenMPR.spec.ts` and `SegAcrossViewportTypes.spec.ts` ("keeps the
   selected segment selected across viewport types") pass with the change and fail
   again with the old rule (run once). They show a SEG over a stack.
-- **State:** fixed in package U3 (not committed yet). Check:
+- **State:** fixed in package U3 (committed in `1653f6df00`). Check:
   `CornerstoneCacheService.test.ts` ("a stack with a reconstructable RTSTRUCT over it
   stays a stack", and the same for SEG; both failed first) and the seven Playwright
   tests.
@@ -798,7 +909,7 @@ failed first, a build, or a run that is named).
   of this series has its own window (95/35 for the first, 737/343 for image 62).
 - **Fix, in OHIF:** the seed is gone. A stack mount sets a window only when the
   hanging protocol or a stored presentation gives one.
-- **State:** fixed in package U3 (not committed yet). Check:
+- **State:** fixed in package U3 (committed in `1653f6df00`). Check:
   `NextViewportBackend.test.ts` (new; "sets no window when none is given" failed
   first) and `ZoomIn.spec.ts`. What is left is M26.
 
@@ -844,11 +955,12 @@ failed first, a build, or a run that is named).
 - **Fix, in cornerstone:** the row gives the call for two vectors. It should say what
   an axis name, the acquisition plane and a reformat name become on a 3D viewport,
   which the legacy `setOrientation` took. To do.
-- **State:** the OHIF part is fixed in package U3 (not committed yet). Check:
+- **State:** the OHIF part is fixed in package U3 (committed in `1653f6df00`). Check:
   `NextViewportOperations.test.ts` ("setOrientation", 5 tests, all failed first), and
   the command in the viewer: the view plane normal goes from `[0, -1, 0]` to
   `[1, 0, 0]`. No Playwright spec opens the orientation menu on a 3D viewport. The
   cornerstone part is open.
+- **State today (task O9):** the OHIF part closed in `1653f6df00`; the Cornerstone part (what an axis name, the acquisition plane and a reformat name become on a 3D viewport) is open, a small guide note.
 
 ## M28. A labelmap on a stack sets the window text of the viewport to W: 2 L: 0
 
@@ -931,7 +1043,7 @@ failed first, a build, or a run that is named).
 - **Not done:** a labelmap that is a volume (`volumeId` in its data) asked for on a
   stack. The legacy backend always made that viewport a volume. No test shows what 6.0
   does there.
-- **State:** fixed in package U4 (not committed yet). Check:
+- **State:** fixed in package U4 (committed in `e5881fc1a7`). Check:
   `SegmentationService.test.ts`, "a labelmap that the resolver cannot map onto a stack"
   (4 tests; "shows the stack as a volume ..." and "mounts the volume once ..." failed
   first), and the two Playwright tests.
@@ -1074,12 +1186,12 @@ failed first, a build, or a run that is named).
   (`viewportProjection.getPresentation`) and writes them back against the fit of the
   viewport as it is then (`withPresentation`, `setViewState`). The camera direction is
   not stored, as before.
-- **State:** fixed in package U4 (not committed yet). Check:
+- **State:** fixed in package U4 (committed in `e5881fc1a7`). Check:
   `NextViewportBackend.test.ts`, "the position presentation of a 3D viewport" (3 tests,
   2 failed first), and in the viewer: the zoom after the round trip is 0.5 with the
   change and 1 without it (`laneU4/probes-6-newbuild.log`,
   `laneU4/fit3d-back-6-without-newbuild.log`). It does not make the test of M32 pass.
-- **Closed by M58 (task O4, not committed yet):** the position presentation of a 3D
+- **Closed by M58 (task O4, committed in `8659924b25`):** the position presentation of a 3D
   viewport is its framing, `viewport.getViewFraming()`, with the camera: the direction
   comes back too, with the zoom and the pan against the fit (the pan only while M59 is
   open). `viewportProjection` and `_set3DViewPresentation` are gone from the backend.
@@ -1096,7 +1208,7 @@ failed first, a build, or a run that is named).
   (`getCurrentMode()`: `stack` or `volume`) and the type of any other viewport
   (`volume3d`). The spec is not changed. A pane of an MPR now reads `volume` where the
   legacy type was `orthographic`; no spec compares with that word.
-- **State:** fixed in package U4 (not committed yet). Check: the test passes.
+- **State:** fixed in package U4 (committed in `e5881fc1a7`). Check: the test passes.
 
 ## M35. The picture of a failed clipped screenshot was of the whole page
 
@@ -1108,7 +1220,7 @@ failed first, a build, or a run that is named).
   bounding box was the one of the page. Only a test that fails its first attempt gets
   there, so the size and the ratio of the failure were wrong, not its verdict.
 - **Fix, in OHIF:** the locator stays, each attempt reads its bounding box again.
-- **State:** fixed in package U4 (not committed yet). Check: the same spec, which still
+- **State:** fixed in package U4 (committed in `e5881fc1a7`). Check: the same spec, which still
   fails for M31, now reports a picture of the size of the baseline and a ratio of 0.03
   (the full run after package U4). `DicomTagBrowser.spec.ts`, the other user of the
   clip, passes.
@@ -1148,7 +1260,7 @@ failed first, a build, or a run that is named).
   OHIF's CI runner (step 9 of the plan).
 - **Pictures:** `laneU4/baselines/`: the two side by side pictures, the old baselines
   (`before/`), the same view with the fill at 0.32, and an enlarged border.
-- **State:** done in package U4 (not committed yet). Check: both specs pass.
+- **State:** done in package U4 (committed in `e5881fc1a7`). Check: both specs pass.
 - **Two more pictures (package U6), once M30 was fixed:** `SEGHydrationFrom3DFourUp.spec.ts`,
   "should properly hydrate SEG from 3D four up layout", `threeDFourUpAfterSEG.png` (0.03)
   and the picture after it, `threeDFourUpAfterSegHydrated.png`, which the test had not
@@ -1180,7 +1292,7 @@ failed first, a build, or a run that is named).
   its plain name is that of the alias.
 - **For the commit:** `git grep` sees the renamed files once they are committed; until
   then the check of a rename needs the untracked files too.
-- **State:** fixed in package U5 (not committed yet). Check: the search over tracked and
+- **State:** fixed in package U5 (committed in `15b843a50a`). Check: the search over tracked and
   untracked files finds no `Next(Viewport|Segmentation)`, no `nextViewports` and no
   `_NEXT` name in `extensions`, `modes`, `tests` and `platform` (the hits left are listed
   in the report of the package), and jest passes with `viewportOperations.test.ts`.
@@ -1254,6 +1366,13 @@ failed first, a build, or a run that is named).
   viewport draws at (the CPU canvas on the CPU path).
 - **Fix, in OHIF:** none (rule 3).
 - **State:** open, waits for cornerstone.
+- **Closed (task O9, link at `735fc811e`):** fixed in cornerstone (package C6, its open
+  issue 129: the context pool engine compares with the size it draws each viewport at).
+  In the viewer on the CPU (lane O9 `specs/modes.spec.ts`, basic viewer): the CT stack
+  through a 2x2 layout and back is the same picture as on the GPU (0.0% of the pixels
+  differ by more than 16), and the stack, MPR and capture steps differ from the GPU by at
+  most 0.17%. The second effect, the jump to a measurement on the CPU, had another cause:
+  M72.
 
 ## M40. A resize keeps the pan of a planar viewport as a share of the canvas
 
@@ -1296,7 +1415,8 @@ failed first, a build, or a run that is named).
 - **Fix, in cornerstone:** to do: `getContext('2d', { willReadFrequently: true })` for the
   canvases that are read back on each draw.
 - **Fix, in OHIF:** none (rule 3).
-- **State:** open, waits for cornerstone. A warning, nothing else is seen.
+- **State:** open, waits for cornerstone. A warning, nothing else is seen. Task O9: no
+  2D context of `core` or `tools` at `735fc811e` is made with `willReadFrequently`.
 
 ## M42. A stack of a series that another pane shows as a volume is drawn as a volume slice
 
@@ -1386,7 +1506,7 @@ failed first, a build, or a run that is named).
   viewport and as a volume in another under its UID (M42)") and, in the viewer, an axial CT
   as a stack beside its axial volume (M54). The Playwright run of M54 is the run of
   `SEGHydrationFrom3DFourUp.spec.ts`.
-- **State:** closed by task O2 (not committed yet); the workaround of package U7 is
+- **State:** closed by task O2 (committed in `309cc169f3`); the workaround of package U7 is
   deleted. The checks of package U7 below are history:
   - jest: `utils/displaySetDataId.test.ts` (5 tests), `backends/dataIdRegistry.test.ts` (10
     tests: a stack mount after a volume one, a volume mount after a stack one, the same
@@ -1433,12 +1553,13 @@ failed first, a build, or a run that is named).
 - **Note:** the "Run" of the rectangle threshold tool throws
   `getVolume: volumeId must not be undefined` on 5.18.3 and on 6.0 alike (the same
   steps), so the segment stays empty on both: not a difference of the upgrade.
-- **State:** the OHIF part is fixed in package U6 (not committed yet). Check:
+- **State:** the OHIF part is fixed in package U6 (committed in `2f4718f986`). Check:
   `SegmentationService.test.ts`, "does not move the viewport when the centre of the
   segment is not a point" (it failed first, `laneU6/jest-before-fix.log`), with "moves the
   viewport to the centre of the segment"; in the TMTV mode the same steps now warn
   `No center found` and the panes stay on slice 52, as on 5.18.3
   (`laneU6/runs/tmtv/v6-gpu-fix/`). The cornerstone part is open.
+- **State today (task O9):** closed: the OHIF part in `2f4718f986`; the Cornerstone part fixed by package C6 (its open issue 133: a reference with a value that is not finite is not viewable and moves nothing).
 
 ## M44. An SR, SEG or RTSTRUCT viewport showed no window text
 
@@ -1459,7 +1580,7 @@ failed first, a build, or a run that is named).
   a call without a data id reads the source. A viewport that shows the display set, or
   that shows nothing yet, gets the UID as before. The colour bar service already took an
   undefined data id as "the active binding".
-- **State:** fixed in package U6 (not committed yet). Checks:
+- **State:** fixed in package U6 (committed in `2f4718f986`). Checks:
   `IViewportAdapter.contract.test.ts`, "getDataIdForDisplaySet gives undefined for a
   display set that the viewport does not show" (it failed first), with "gives the UID of
   a display set that the viewport shows"; in the viewer the SR viewport shows
@@ -1517,7 +1638,7 @@ failed first, a build, or a run that is named).
   in the air (0.02 SUV) shows a faint red. The guide's `petColorMapPresentation()` gives
   weaker points for the legacy look; not used here, as the package asked for the ramp of
   `master`. The owner can choose them.
-- **State:** fixed in package U7 (not committed yet). Checks:
+- **State:** fixed in package U7 (committed in `78432e76cb`). Checks:
   - jest: `IViewportAdapter.contract.test.ts` "setLayerOpacity scales a ramp that a hanging
     protocol gives as a list in opacity" (failed first) and "keeps the opacity mapping that
     it scaled before"; `utils/resolveOpacityScalar.test.ts` (3 tests, 2 failed first;
@@ -1540,7 +1661,7 @@ failed first, a build, or a run that is named).
   - Playwright: the TMTV specs that run pass (`TMTVCSVReport`, `TMTVSUV`); the other four
     are `test.skip` in their sources, as on `master`, and the suite has no TMTV picture, so
     no baseline changes (`laneU7/pw/tmtv.json`).
-- **Closed by M57 (task O3, not committed yet):** the ramp is `colormap.opacityMapping`,
+- **Closed by M57 (task O3, committed in `8659924b25`):** the ramp is `colormap.opacityMapping`,
   the slider sets `opacity` alone, `resolveOpacityScalar` and the colormap juggling of
   `setLayerOpacity` are gone, and the PET of the fusion gets the ramp of `master` in the
   look that 5.18.3 drew it with, so the fusion panes look as on `master`.
@@ -1564,6 +1685,10 @@ failed first, a build, or a run that is named).
   image id, no fan geometry) instead of asking the cache for `undefined`.
 - **Fix, in OHIF:** none (rule 3).
 - **State:** open, waits for cornerstone. One error at the opening, nothing else seen.
+  Seen again in task O9 (link at `735fc811e`, lane O9 `cases/m46/`): the US annotation
+  mode on that study (`1.2.840.113663.1500.1.248223208.1.1.20110323.105903.687`) gives
+  `getImage: imageId must not be undefined` at the opening; `master` gives none.
+  `deriveFanGeometryFromViewport` is as it was.
 
 ## M47. A view reference that names the PET of a fusion makes the PET the source
 
@@ -1594,6 +1719,7 @@ failed first, a build, or a run that is named).
   viewport that shows that data as an overlay.
 - **Fix, in OHIF:** none (rule 3).
 - **State:** open, waits for cornerstone.
+- **State today (task O9):** closed: fixed in cornerstone by package C6 (its open issue 131) and lane DS4 (150): no view reference changes the source.
 
 ## M48. A whole slide viewport never reports that it has rendered
 
@@ -1614,6 +1740,9 @@ failed first, a build, or a run that is named).
 - **Fix, in cornerstone:** to do: the viewport sets `RENDERED` when the map has drawn, or
   the guide names the difference.
 - **Fix, in OHIF:** none (rule 3).
+- **Seen again (task O9, link at `735fc811e`, lane O9 `cases/modes/*/microscopy/`):** the
+  slide in the basic viewer, 10 s after the mount: `preRender` on this branch, GPU and
+  CPU; `rendered` on `master`. `WSIViewport.setRendered()` is still a no-op.
 - **Also measured:** three wheel ticks over the slide add 0.88 to the zoom of 6.0, three
   times alike; 5.18.3 adds between 0.90 and 1.08 from run to run (the map's animated wheel
   zoom). Not counted as a difference.
@@ -1638,6 +1767,13 @@ failed first, a build, or a run that is named).
   costs).
 - **Fix, in OHIF:** none (rule 3).
 - **State:** open, waits for cornerstone.
+- **Closed (task O9, 25 November, link at `735fc811e`):** the labelmap of a stack is one
+  display set per labelmap layer whose image follows the slice, styled at once (FX4, M66);
+  FX4 measured the cine of its karma case at 24.3 images a second where it was 20. In the
+  viewer (lane O9 `specs/gaps.spec.ts`, `cases/m66/`): the CT stack of the SEG study of the
+  segmentation mode, cine at 24 a second for 5 s, `NEW_IMAGE` (or `STACK_NEW_IMAGE`)
+  counted on the element: without a labelmap 24.2 a second on both sides; with one brushed
+  labelmap 21.0 and 21.4 on this branch, 21.2 and 21.4 on `master`. The same as `master`.
 
 ## M50. The TMTV CSV export does nothing on the CPU
 
@@ -1656,6 +1792,15 @@ failed first, a build, or a run that is named).
   that gives nothing with the CPU backend; then decide where it belongs. The export could
   also say so when a segment has no statistics (the same code on `master`).
 - **State:** open, cause not found.
+- **Closed by measurement (task O9, link at `735fc811e`; lane O9 `specs/notshown.spec.ts`,
+  `cases/m50/`):** the steps of `TMTVCSVReport.spec.ts` (the uniformity phantom of the TMTV
+  specs, a segmentation, one brush click in the middle of the CT axial pane, then CSV) on
+  the CPU: the segment has its statistics (291 voxels, mean 1.065 SUV, lesion glycolysis
+  6871), the same as on the GPU, and `202009231_tmtv.csv` is downloaded; `master` on the GPU
+  gives the same numbers within the brush footprint (288 voxels). Which commit of
+  Cornerstone3D changed it was not looked for. "LUNG DELAYS", the study of the first
+  report, was not repeated: a brush click there painted no voxel on either side in this
+  task's probe.
 
 ## M51. A planar viewport takes a reference of other data only while that data is registered
 
@@ -1710,7 +1855,7 @@ failed first, a build, or a run that is named).
   each, then the pane of the other shape removed: a jump to the length of the volume puts
   the stack, which stays a stack, on image 30; a jump to the length of the stack puts the
   volume on slice 40. The same jumps with both panes land on 30 and 40.
-- **State:** closed by task O2 and cornerstone (not committed yet).
+- **State:** closed by task O2 and cornerstone (committed in `309cc169f3`).
 
 ## M52. A list of opacities in `colormap.opacity` takes the place of the overall opacity
 
@@ -1750,7 +1895,7 @@ failed first, a build, or a run that is named).
   `opacity`): it should then read an `opacityMapping` without `opacity` as 1.
 - **State:** open, waits for cornerstone. What a user sees: after a change of the colour
   map of the PET of a fusion, the opacity slider is back at 100%.
-- **Closed by M57 (task O3, not committed yet):** fixed in cornerstone by one opacity:
+- **Closed by M57 (task O3, committed in `8659924b25`):** fixed in cornerstone by one opacity:
   `colormap.opacity` is gone, a list is `colormap.opacityMapping` and a number is the
   `opacity` of the appearance, two keys that cannot replace each other; a colormap
   update keeps the stored mapping and threshold. `setViewportColormap` sets the colormap
@@ -1831,8 +1976,9 @@ failed first, a build, or a run that is named).
   `genericViewports`, and the counts of the test-runner globals (`it`, `expect`, which the
   root `tsc` does not type) grow with the new tests.
 - **Build:** `pnpm run build` passes.
-- **State:** done in task O1 (not committed yet). The defect of the step is open, waits
+- **State:** done in task O1 (committed in `309cc169f3`). The defect of the step is open, waits
   for cornerstone.
+- **State today (task O9):** closed: the run in `309cc169f3`; the defect of the step (the keys of a module mock) is fixed in cornerstone by lane FX2 (its open issue 206), and the measure counts the errors off the changed lines (207).
 
 ## M54. One store of display sets: each display set is registered once, a mount says what it wants (task O2)
 
@@ -1939,7 +2085,7 @@ failed first, a build, or a run that is named).
     keep distinct freehand contours drawn into the same segment separate", `FreehandROI`
     "rectangle and freehand at identical coordinates should yield comparable area"); the
     five specs run again alone, 2 workers: 26 of 26 pass. No baseline was changed.
-- **State:** fixed in task O2 (not committed yet). M42 and M51 are closed by it.
+- **State:** fixed in task O2 (committed in `309cc169f3`). M42 and M51 are closed by it.
 
 ## M55. A video that does not load leaves its mount waiting for ever
 
@@ -2059,7 +2205,7 @@ failed first, a build, or a run that is named).
     the root has no new error kind outside the test-runner globals of the new tests, and
     one kind less. `pnpm run build` passes. The Playwright suite once, 6 workers,
     `TEST_ENV=true` (7.1 minutes): 243 passed, 0 failed, 4 skipped; no baseline changed.
-- **State:** fixed in task O3 (not committed yet).
+- **State:** fixed in task O3 (committed in `8659924b25`).
 
 ## M57. One opacity: the hanging protocols, the slider, and the TMTV fusion with the look of `master` (task O3)
 
@@ -2109,7 +2255,7 @@ failed first, a build, or a run that is named).
   - jest: `Viewport.test.ts` (new: the error for `colormap.opacity`, the opacity of the
     options), the hook test (one key per control), the backend test (the opacity of the
     options on the mount).
-- **State:** fixed in task O3 (not committed yet). Closes M45 and M52.
+- **State:** fixed in task O3 (committed in `8659924b25`). Closes M45 and M52.
 
 ## M58. The position presentation is the view reference and the framing (task O4)
 
@@ -2140,7 +2286,7 @@ failed first, a build, or a run that is named).
   layout differs: `master` keeps the display area under a zoom, a planar viewport of 6.0
   drops it, which the guide names); a 3D viewport keeps its preset, direction and zoom
   through MPR and back (`master` loses the direction and the preset), not its pan (M59).
-- **State:** fixed in task O4 (not committed yet). Closes M33; M38 and M40 are closed by the
+- **State:** fixed in task O4 (committed in `8659924b25`). Closes M33; M38 and M40 are closed by the
   checks above.
 
 ## M59. The pan of a 3D viewport is lost on a layout change
@@ -2263,7 +2409,7 @@ failed first, a build, or a run that is named).
   of its error `'exports' does not exist on type 'unknown'`); `pnpm run build` passes;
   the Playwright suite once, 6 workers, `TEST_ENV=true` (7.0 minutes): 243 passed, 0
   failed, 4 skipped; no baseline changed.
-- **State:** fixed in task O5 (not committed yet).
+- **State:** fixed in task O5 (committed in `67ab3444fd`).
 
 ## M61. The window level rows, the range of the threshold menu and the capture ask the viewport (task O6)
 
@@ -2334,7 +2480,7 @@ failed first, a build, or a run that is named).
     labelmap, drawn at a fixed width in pixels) of the pixels; 3D 14% (a 3D remount is
     not pixel deterministic, M58; the camera is the same). No volume is loaded again,
     except for 3D (M62).
-- **State:** fixed in task O6 (not committed yet). Closes M17.
+- **State:** fixed in task O6 (committed in `67ab3444fd`). Closes M17.
 
 ## M62. A 3D viewport does not give the volume of its mounts
 
@@ -2350,10 +2496,23 @@ failed first, a build, or a run that is named).
   then `viewport.getDisplaySets()` gives `[{ displaySetId: 'ct', options: { role: 'source' } }]`;
   `otherViewport3D.setDisplaySets(...viewport.getDisplaySets())` creates and loads a
   volume with the default id.
-- **Fix, in cornerstone:** to do: `getDisplaySets()` of a 3D viewport gives the options of
-  each mount (`volumeId`, `role`), as the planar viewport does.
-- **Fix, in OHIF:** none (rule 3). The capture mounts what `getDisplaySets()` gives.
-- **State:** open, waits for cornerstone.
+- **Fix, in cornerstone:** `getDisplaySets()` of every viewport family gives the resolved
+  options of each mount; a 3D viewport gives `{ role, volumeId }` (cornerstone3D
+  `735fc811e`, FX4).
+- **Fix, in OHIF:** none (rule 3). The capture mounted what `getDisplaySets()` gives
+  already (M61); nothing in it existed for this gap, so nothing is removed. The cast
+  `options as Record<string, unknown>` stays: `Types.IViewport` types the options of a
+  mount as `unknown`, and the capture adds `appearance` to them.
+- **Checked (task O9, link at `735fc811e`):** the smallest case in the page of the viewer
+  (lane O9 `specs/gaps.spec.ts`, `cases/gaps-small/`): the 3D pane of "3D only" gives
+  `{ role: 'source', volumeId: 'cornerstoneStreamingImageVolume:<uid>' }`, and a second 3D
+  viewport given `...getDisplaySets()` shows the same entry and loads no volume. The OHIF
+  case (`specs/capture.spec.ts`, `cases/capture/`): the capture of a CT stack, a sagittal
+  MPR pane, a 3D pane and the TMTV fusion with a labelmap, each at 1.25 times its pane and
+  at 500 by 500: no volume is made in any of the four (the 3D capture made
+  `cornerstoneStreamingImageVolume:volume-u3nwmr` before), and the layers, overrides,
+  framing, reference and world point at the centre are those of the pane.
+- **State:** closed (fixed in cornerstone `735fc811e`, checked in task O9).
 
 ## M63. The stack prefetch adds a listener at each enable that its disable cannot remove
 
@@ -2368,10 +2527,18 @@ failed first, a build, or a run that is named).
   `utilities.stackContextPrefetch.enable(element)` three times, then `disable(element)`:
   `eventTarget.listeners[Events.IMAGE_CACHE_IMAGE_REMOVED]` holds three more functions
   than before.
-- **Fix, in cornerstone:** to do: one handler per element (kept in the prefetch state).
+- **Fix, in cornerstone:** one handler per element, used by `enable` and `disable` of
+  both prefetches (cornerstone3D `735fc811e`, FX4).
 - **Fix, in OHIF:** none (rule 3). The backend enables the prefetch once per stack mount;
   the per-mount listener of OHIF that enabled it again is gone (M60).
-- **State:** open, waits for cornerstone.
+- **Checked (task O9, link at `735fc811e`; lane O9 `cases/gaps-small/`):** the smallest
+  case: three `enable` add no listener, `disable` removes the one there is; the same for
+  `stackPrefetch`. The five rounds of layout changes of M60 (`specs/listeners.spec.ts`,
+  `cases/listeners/`) still add one `IMAGE_CACHE_IMAGE_REMOVED` listener per round (2 to
+  8): each is the handler of a stack viewport that a layout change destroyed, which no
+  one disables. That is another defect: M71.
+- **State:** closed (fixed in cornerstone `735fc811e`, checked in task O9); what is left
+  is M71.
 
 ## M64. A synchronizer adds an `ELEMENT_DISABLED` listener each time its viewports change
 
@@ -2385,9 +2552,17 @@ failed first, a build, or a run that is named).
 - **Smallest case**, Cornerstone3D calls only: a synchronizer with two viewports (event
   source `element`), `synchronizer.add` of a third viewport: the element of the first
   viewport has three `ELEMENT_DISABLED` listeners where it had two.
-- **Fix, in cornerstone:** to do: one bound handler per synchronizer.
+- **Fix, in cornerstone:** one handler per synchronizer, on `eventTarget`, which removes
+  a disabled viewport by its rendering engine and viewport ids (cornerstone3D `735fc811e`,
+  FX4).
 - **Fix, in OHIF:** none (rule 3).
-- **State:** open, waits for cornerstone.
+- **Checked (task O9, link at `735fc811e`):** the smallest case (lane O9
+  `cases/gaps-small/`): a synchronizer of two MPR panes adds one `ELEMENT_DISABLED`
+  listener to `eventTarget` and none to an element; a third viewport adds none; destroying
+  the synchronizer removes it. The five rounds of M60 (`cases/listeners/`):
+  `ELEMENT_DISABLED` on `eventTarget` 4 after the first load, 5 after round 1, and 5 after
+  each later round; 0 on the element of the pane.
+- **State:** closed (fixed in cornerstone `735fc811e`, checked in task O9).
 
 ## M65. A volume of 12-bit images keeps 8 bits when its first image fits in 8 bits
 
@@ -2404,10 +2579,31 @@ failed first, a build, or a run that is named).
   `volume.voxelManager.getCompleteScalarDataArray()` is a `Uint8Array` with largest value
   255, and `(await imageLoader.loadAndCacheImage(imageIds[64])).voxelManager.getScalarData()`
   is a `Uint16Array` with largest value 637.
-- **Fix, in cornerstone:** to do: the volume takes a type that holds the range of every
-  image (Bits Stored, or the range that the metadata gives).
+- **Fix, in cornerstone:** the array type of a volume comes from the metadata of its
+  series (Bits Allocated, Pixel Representation, the modality LUT and scaling), not from the
+  array of a cached image (cornerstone3D `735fc811e`, FX4; the guide: "The array type of a
+  volume").
 - **Fix, in OHIF:** none (rule 3).
-- **State:** open, waits for cornerstone.
+- **Checked (task O9, link at `735fc811e`; lane O9 `specs/gaps.spec.ts`,
+  `specs/m65ohif.spec.ts`, `specs/wlRows.spec.ts`, `cases/m65/`, `cases/m65-ohif/`,
+  `cases/wl/`):**
+  - The volume of the MR in an MPR is a `Uint16Array`, largest value 943, which is its
+    range and `getScalarRange()`. As a stack each image keeps the array that fits its own
+    values (image 0 a `Uint8Array` up to 135, image 64 a `Uint16Array` up to 637), and the
+    stack gives the range of the image on display: no value is cut there. `master` holds a
+    `Uint8Array` with largest value 255.
+  - The window level row of the MR MPR spans 0 to 943 (`master` 0 to 255) and bins the
+    true values. A stack has no row, on both sides.
+  - Other places that showed values of the cut data on `master`: the statistics of the
+    segments of the SEG over this MR in the segmentation mode (the tooltip and the CSV of a
+    segment read `cachedStats.namedStats` from `getStatistics`). Cerebral white matter:
+    mean 358.5, largest 656 on this branch; mean 107.7, largest 255 on `master`; the same
+    count of voxels (175,929); cerebral grey matter 230.7 against 159.9. The values of
+    `master` were the true values modulo 256. The picture of the MPR is right on both
+    sides (the texture is filled from each image).
+- **State:** closed (fixed in cornerstone `735fc811e`, checked in task O9). A user sees
+  other segment statistics than on `master` for a series with values above 255 whose
+  first image fits in 8 bits; the Cornerstone guide names the change of the array type.
 
 ## M66. The labelmap of a stack is mounted again for every image
 
@@ -2420,10 +2616,20 @@ failed first, a build, or a run that is named).
   stack. The window level panel compares the volume ids before it recomputes, so it does
   nothing then (M60). The cost of the two mounts at each image may be part of M49 (the
   cine of a stack with a labelmap plays slower); not measured.
-- **Fix, in cornerstone:** a question: one labelmap layer per stack that changes its
-  image, or one event per scroll, or the guide says it under the display set event.
-- **Fix, in OHIF:** none needed.
-- **State:** open, a question for cornerstone.
+- **Fix, in cornerstone:** the labelmap of a stack is one display set per labelmap layer
+  whose image follows the slice: `addImages` with the id of a mounted image replaces its
+  image and fires nothing (cornerstone3D `735fc811e`, FX4).
+- **Fix, in OHIF:** none needed. The filter of the window level panel (recompute when the
+  source changed or `getVolumeIds()` differs from the rows) stays: the rows are made from
+  `getVolumeIds()`, and an overlay that is no row (a labelmap shown on an MPR fires the
+  event with `sourceChanged` false and the same volumes) needs no new histogram. It was
+  not only a guard against this churn. The sentence of OHIF's migration page about two
+  events per image is gone.
+- **Checked (task O9, link at `735fc811e`; lane O9 `specs/gaps.spec.ts`, `cases/m66/`):**
+  cine at 24 a second for 5 s of the CT stack of the SEG study with a brushed labelmap: 0
+  `DISPLAY_SETS_CHANGED` on the element (146 in about 7 s before), in two runs; the
+  images a second are those of `master` (M49).
+- **State:** closed (fixed in cornerstone `735fc811e`, checked in task O9).
 
 ## M67. A 3D pane that goes to a pane of another size and back comes back with half its pan
 
@@ -2446,11 +2652,25 @@ failed first, a build, or a run that is named).
   `resetViewState()`, `setViewFraming(framing)`: `getPan()` gives `[30, 15]` and the focal
   point is another world point. A resize keeps the camera of a 3D viewport, so the world
   point (guide, "Smaller changes"); not measured alone.
-- **Fix, in cornerstone:** a question: which of the two is the rule for a 3D view that
-  goes to a canvas of another size (the planar framing keeps the fit, the 3D resize keeps
-  the camera). Not looked into further: outside tasks O7 and O8.
-- **Fix, in OHIF:** none (rule 3).
-- **State:** open, a question for cornerstone.
+- **Fix, in cornerstone:** a framing has `worldPan` beside `pan`, the shift of the fit
+  centre in world units; `setViewFraming` takes `worldPan` in place of `pan`, so a framing
+  written to a pane of another size shows the same world point at the centre, as a resize
+  does (cornerstone3D `869981396`, FX5; the guide: "A framing carried to another size
+  keeps the world point at the centre").
+- **Fix, in OHIF:** none (rule 3). The service stores `getViewFraming()` and gives it to
+  `setViewFraming` as it is, so the stored framing carries `worldPan`.
+- **Checked (task O9, link at `735fc811e`; lane O9 `specs/m67.spec.ts`, `cases/m67/`,
+  `cases/m67-small/`):** 3D only of the LIVER CT, the same mouse pan and zoom as above:
+  pan `[58.34, 29.24]`, `worldPan` `[20.03, 10.04]`, zoom 0.731; 2x1 and back, MPR and
+  back, 3D four up and back: each time pan, zoom and focal point as after the edit. In
+  the four up pane (638 by 470) the pan reads `[29.19, 14.63]` with the same `worldPan`
+  and focal point: the same world point at the centre. `master` keeps the pan in pixels
+  there, at another world point (lane O7). The smallest case: the framing of the four up
+  pane after `setPan([30, 15])` written to the 3D pane of 3D only gives the same
+  `worldPan` and focal point, `getPan()` `[59.95, 29.98]`.
+- **State:** closed (fixed in cornerstone `869981396`, checked in task O9). What a user
+  sees against `master`: a panned 3D view keeps its world point at the centre in a pane of
+  another size, where `master` keeps the pan in pixels; the Cornerstone guide names it.
 
 ## M68. The viewport adapter is deleted: OHIF calls the viewports of Cornerstone3D (task O7)
 
@@ -2506,7 +2726,7 @@ failed first, a build, or a run that is named).
   of actors; two mocks of `SegmentationService.test.ts` get `getCurrentMode` and one of
   `CornerstoneViewportService.test.ts` a `type` (the adapter called them optionally).
   The rest of the checks are in M69.
-- **State:** fixed in task O7 (not committed yet).
+- **State:** fixed in task O7 (committed in `e4f9451c6e`).
 
 ## M69. The interfaces with one implementation are deleted (task O8)
 
@@ -2569,7 +2789,7 @@ failed first, a build, or a run that is named).
     skipped in 7.0 min (lane O7 `pw-base.json`, `pw-after.json`). The failure is
     `ContourSegmentColorChange.spec.ts` "changes the contour color when the user saves the
     edits", a flaky spec that fails as often on the base: M70. No baseline picture changed.
-- **State:** fixed in task O8 (not committed yet).
+- **State:** fixed in task O8 (committed in `e4f9451c6e`).
 
 ## M70. A spec of the contour colour reads the stroke before the next draw
 
@@ -2585,4 +2805,113 @@ failed first, a build, or a run that is named).
 - **Fix, in OHIF:** to do, in the test: wait for the stroke (`expect.poll` or
   `toHaveAttribute` on the path) instead of reading it once. Not done here: a test that
   these tasks do not touch.
-- **State:** open, a flaky test, the same on the base.
+- **Measured (task O9):** not a delay of the product. `segmentationService.setSegmentColor`
+  (the call of the colour dialog) on the RTSTRUCT of the spec, five colours, counted with
+  a `MutationObserver` and animation frames (lane O9 `specs/m70timing.spec.ts`,
+  `cases/m70-timing/`): the row of the panel takes the colour in frame 0 or 1, the stroke
+  of the path in frame 3, on this branch and on `master` alike. A test that reads the
+  stroke once when the row shows the colour can read the old stroke on both. The original
+  spec, alone, ten runs, one worker: 6 of 10 pass on this branch, 0 of 10 on `master`
+  (its own copy of the spec against `master` served with its committed `e2e.js`).
+- **Fix, in OHIF (task O9):** `tests/ContourSegmentColorChange.spec.ts` waits for the
+  stroke with `toHaveAttribute('stroke', ...)` on the path (Playwright retries it), no
+  fixed sleep. Checks: 20 of 20 on this branch (`--repeat-each=20 --workers=1`, lane O9
+  `m70-branch-20.json`), and the same test against `master`, 10 of 10
+  (`m70-master-fixed-10.json`).
+- **State:** fixed in task O9 (not committed yet).
+
+## M71. A stack viewport that is destroyed keeps its prefetch listener
+
+- **Seen (task O9, link at `735fc811e`):** five rounds of layout changes (2x2, 1x1, MPR,
+  1x1, another series), the listeners of M60 counted again: `IMAGE_CACHE_IMAGE_REMOVED` on
+  `eventTarget` grows by one a round (2 to 8). Each new one is the handler that
+  `stackContextPrefetch.enable(element)` made for the element of a stack viewport, and it
+  stays when that viewport is destroyed; it holds the element. M63 (one listener per
+  `enable`) is fixed: a pane enabled again adds none.
+- **Why (read in the code):** the prefetch keeps a handler per element on `eventTarget`
+  until `disable(element)`. Nothing calls `disable` when the rendering engine disables the
+  element: OHIF enables the prefetch at each stack mount (`mountStack` in
+  `viewportMounts.ts`) and calls no `disable`, on `master` too, and the prefetch does not
+  listen to `ELEMENT_DISABLED`, as the synchronizer and the tool groups do since FX4. Its
+  state by element (`getToolState`) stays as well (row 217 of Cornerstone3D's open issues).
+- **Smallest case**, Cornerstone3D calls only (lane O9 `specs/m63disabled.spec.ts`,
+  `cases/m63-disabled/`): a planar viewport on a new element, `setDisplaySets` of a stack,
+  `utilities.stackContextPrefetch.enable(element)`, then `renderingEngine.disableElement`
+  of that viewport: `eventTarget.listeners[IMAGE_CACHE_IMAGE_REMOVED]` holds one more
+  function after each of three rounds (2, 3, 4, 5).
+- **Fix, in cornerstone:** to do: the prefetch removes its handler and state when the
+  element is disabled (`ELEMENT_DISABLED`), as the synchronizer does.
+- **Fix, in OHIF:** none (rule 3). A call of `disable` in `disableElement` would work too;
+  it is not added, as the library keeps this state per element and can drop it itself.
+- **State:** open, waits for cornerstone. A leak of one listener and one detached element
+  per destroyed stack viewport, on `master` as well.
+
+## M72. On the CPU a jump to a measurement pushed the image out of the pane
+
+- **Seen (task O9, each mode by hand on the CPU):** longitudinal mode on the CPU
+  (`?viewportRendering=cpu`), the SR of the test study of `SRHydration.spec.ts`
+  (`1.3.6.1.4.1.14519.5.2.1.7695.4007.324475281161490036195179843543`) hydrated, the stack
+  moved to image 1, then a click on the second measurement of the panel: the stack goes to
+  image 59 and the image moves to the top left corner of the pane, its centre near the
+  corner (50% of the pixels of the grid differ from the GPU). On the GPU the measurement
+  is centred. `master` on the CPU centres it too. This is the second effect of M39, which
+  stayed after the fix of the resize.
+- **Why (measured, lane O9 `specs/cpujump.spec.ts`, `cases/cpujump/`):** a planar viewport
+  drawn on the CPU draws into a CPU canvas; `viewport.canvas` is the GPU canvas, hidden,
+  with a CSS size of 0 by 0 (its buffer keeps its first size, 1275 by 942).
+  `viewportOperations.centerOnMeasurement` read `viewport.canvas.clientWidth` and
+  `clientHeight`, so it panned the centre of the measurement to the canvas point (0, 0):
+  pan `[-450.3, -484.8]` on the CPU against `[63.7, -13.8]` on the GPU. The Cornerstone
+  guide names it (the row of `getCanvas()` in `3-api-map.md`: "`viewport.canvas` is the
+  GPU canvas in both; `viewport.getCanvas()` gives the canvas that shows").
+- **Fix, in OHIF:** `centerOnMeasurement` measures `viewport.getCanvas()`. No other OHIF
+  code reads the size of `viewport.canvas`.
+- **Fix, in cornerstone:** none.
+- **Checks:** `viewportOperations.test.ts`, "pans to the centre of the canvas that shows
+  the picture when the CPU draws it" (failed first, lane O9 `jest-cpujump-failfirst.log`;
+  16 of 16 after). In the viewer on the CPU: pan `[63.7, -13.8]` after the jump, as on
+  the GPU.
+- **State:** fixed in task O9 (not committed yet).
+
+## M73. The PET axial pane of TMTV showed its slice without the instance number
+
+- **Seen (task O9, TMTV against `master`):** at the opening of the TMTV mode the PET
+  axial pane reads `1/135` where the CT and fusion axial panes and `master` read
+  `I:135 (1/135)`; after the first change of slice it reads `I:102 (34/135)` as on
+  `master`.
+- **Why (measured, lane O9 `specs/ptoverlay.spec.ts`, `cases/ptoverlay/`):** the overlay
+  computed the instance number of a volume slice once for each slice index (`useMemo` on
+  the viewport data and the index), and it needs the view plane normal of the viewport. The
+  overlay of the PET pane rendered while its viewport existed with no display set (`1/0`,
+  no view reference); the mount came 0.4 s later, with the same slice index, so the number
+  was never read again. On `master` the legacy viewport had a camera before its mount.
+- **Fix, in OHIF:** `CustomizableViewportOverlay` renders again when its viewport fires
+  `DISPLAY_SETS_CHANGED` (a state counter) and reads the instance number at each render
+  (it was a memo of the slice index; a counter in the memo's dependencies is an
+  "unnecessary dependency" to the hook rule and would break the lint budget of CI).
+- **Checks:** `CustomizableViewportOverlay.test.ts` (new; it failed first, lane O9
+  `jest-overlay-failfirst.log`). In the viewer: the PET axial pane reads `I:135 (1/135)`
+  from the mount.
+- **State:** fixed in task O9 (not committed yet).
+
+## M74. A volume of a display set that grew while no viewport showed it keeps its first images
+
+- **Seen (task O9, lane O9 `specs/notshown.spec.ts`, `cases/notshown-grow/`):** the CT of
+  the DFCI study (120 images) cut to 100 images before its first mount, shown as an MPR,
+  then the pane given another series, then the display set given its 120 images back and
+  its metadata invalidated (`setDisplaySetMetadataInvalidated`): shown as a stack it has
+  120 images on this branch (100 on `master`); shown as an MPR again its volume has 100
+  slices on this branch and on `master`.
+- **Why (read in the code):** `CornerstoneCacheService` keeps the image ids of the volume of
+  each display set (`volumeImageIds`) and uses the cached volume again while both exist.
+  The invalidation of a display set's metadata makes the volume again only for a viewport
+  that shows it then; a stack mount reads the image ids of the data source again (task O2)
+  and does not forget the kept volume.
+- **Fix, in OHIF:** to do: at a volume mount, make the volume again when the image ids of
+  the data source differ from the kept ones. Not done in task O9: the rule touches the
+  volumes of a dynamic display set, a computed display set made in the client and a volume
+  that another viewport still shows, and the case is on `master` too. OHIF's page of the
+  display set store said that a grown display set shows its new images at its next mount;
+  it now says so of a stack mount only.
+- **Fix, in cornerstone:** none.
+- **State:** open, OHIF, the same on `master`.

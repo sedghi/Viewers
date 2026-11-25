@@ -16,12 +16,18 @@ This guide covers changes when upgrading from OHIF version 3.13 to version 3.14.
   `DisplaySetService.getDisplaySetCache()` is deprecated and returns a
   read-only snapshot.
 - **[Cornerstone3D 6](./cornerstone3d-6.md)** — the viewer moves to
-  `@cornerstonejs` 6 and has one viewport path. The settings
-  `useGenericViewport`, `genericViewports.enabled` and `?useNextViewports` are
-  gone, `genericViewports.viewportRendering` is `viewportRendering`, `isNextViewportsEnabled`, `isNextViewport` and `NEXT_FUSION_PT_OPACITY`
-  are removed, and `NEXT_OVERLAY_OPACITY` is `OVERLAY_OPACITY`. A runtime plugin
-  that imports `@cornerstonejs/core` or
-  `@cornerstonejs/tools` must be rebuilt against Cornerstone3D 6.
+  `@cornerstonejs` 6, has one viewport path and calls the viewports of
+  Cornerstone3D directly. The settings `useGenericViewport`,
+  `genericViewports.enabled` and `?useNextViewports` are gone, and
+  `genericViewports.viewportRendering` is `viewportRendering`. A hanging
+  protocol gives `colormap.opacityMapping` and `opacity` where it gave
+  `colormap.opacity`. `getViewportAdapter`, `isVolumeRenderingViewport`,
+  `getViewportFocalPoint`, `isNextViewportsEnabled`, `isNextViewport`,
+  `NEXT_FUSION_PT_OPACITY` and the event `VIEWPORT_VOLUMES_CHANGED` are
+  removed, `NEXT_OVERLAY_OPACITY` is `OVERLAY_OPACITY`, and the LUT and position
+  presentation stores hold `appearances` and `viewFraming`. A runtime plugin
+  that imports `@cornerstonejs/core` or `@cornerstonejs/tools` must be rebuilt
+  against Cornerstone3D 6.
 - **[React 19](./react-19.md)** — the monorepo moves to **React 19.2.7**.
   `@ohif/ui-next` now declares react/react-dom as `peerDependencies`, so
   consuming applications must supply React 19, and extensions and modes require

@@ -76,6 +76,7 @@ function CustomizableViewportOverlay({
     servicesManager.services;
   const [scale, setScale] = useState(1);
   const [annotationState, setAnnotationState] = useState(0);
+  const [, setDisplaySetsMounts] = useState(0);
   const { isViewportBackgroundLight: isLight, windowLevel: voi } = useViewportRendering(viewportId);
   const { imageIndex } = imageSliceData;
 
@@ -92,13 +93,19 @@ function CustomizableViewportOverlay({
     'viewportOverlay.bottomRight'
   );
 
-  const instanceNumber = useMemo(
-    () =>
-      viewportData
-        ? getInstanceNumber(viewportData, viewportId, imageIndex, cornerstoneViewportService)
-        : null,
-    [viewportData, viewportId, imageIndex, cornerstoneViewportService]
-  );
+  useEffect(() => {
+    const onDisplaySetsChanged = () => setDisplaySetsMounts(count => count + 1);
+
+    element.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, onDisplaySetsChanged);
+
+    return () => {
+      element.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, onDisplaySetsChanged);
+    };
+  }, [element]);
+
+  const instanceNumber = viewportData
+    ? getInstanceNumber(viewportData, viewportId, imageIndex, cornerstoneViewportService)
+    : null;
 
   const displaySetProps = useMemo(() => {
     const displaySets = getDisplaySets(viewportData, displaySetService);
