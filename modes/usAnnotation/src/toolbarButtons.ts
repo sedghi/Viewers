@@ -1,6 +1,5 @@
 import type { Button } from '@ohif/core/types';
 
-import { EVENTS } from '@cornerstonejs/core';
 import { ViewportGridService } from '@ohif/core';
 import i18n from 'i18next';
 
@@ -235,12 +234,6 @@ const toolbarButtons: Button[] = [
         commandName: 'toggleSynchronizer',
         commandOptions: {
           type: 'imageSlice',
-        },
-      },
-      listeners: {
-        [EVENTS.DISPLAY_SETS_CHANGED]: {
-          commandName: 'toggleImageSliceSync',
-          commandOptions: { toggledState: true },
         },
       },
       evaluate: [

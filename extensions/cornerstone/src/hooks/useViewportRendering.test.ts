@@ -149,6 +149,41 @@ describe('useViewportRendering on a fusion', () => {
   });
 });
 
+describe('the range of the values of the display set of the controls', () => {
+  it('is the scalar range that the viewport gives for the PT', () => {
+    const viewport = {
+      ...makeFusionViewport({ ct: {}, pt: {} }),
+      getScalarRange: jest.fn((displaySetId: string) =>
+        displaySetId === 'pt' ? [0, 23.4] : [-1024, 3071]
+      ),
+    };
+    setServices(viewport);
+    mockServices.displaySetService = {
+      getDisplaySetByUID: (uid: string) => ({ displaySetInstanceUID: uid, imageIds: ['image-0'] }),
+    };
+
+    const { result } = renderHook(() => useViewportRendering('fusion'));
+
+    expect(viewport.getScalarRange).toHaveBeenCalledWith('pt');
+    expect(result.current.pixelValueRange).toEqual({ min: 0, max: 23.4 });
+  });
+
+  it('keeps its default while the viewport gives no range', () => {
+    const viewport = {
+      ...makeFusionViewport({ ct: {}, pt: {} }),
+      getScalarRange: jest.fn(() => undefined),
+    };
+    setServices(viewport);
+    mockServices.displaySetService = {
+      getDisplaySetByUID: (uid: string) => ({ displaySetInstanceUID: uid, imageIds: ['image-0'] }),
+    };
+
+    const { result } = renderHook(() => useViewportRendering('fusion'));
+
+    expect(result.current.pixelValueRange).toEqual({ min: 0, max: 255 });
+  });
+});
+
 describe('useViewportRendering on a viewport that shows the images an SR references', () => {
   it('reads and follows the source of the viewport', () => {
     const viewport = {

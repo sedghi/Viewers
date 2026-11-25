@@ -10,6 +10,7 @@ import { utilities as csUtils } from '@cornerstonejs/core';
 import { ImageScrollbar } from '@ohif/ui-next';
 import { getViewportAdapter } from '../../services/ViewportService/adapter';
 import { getSliceEventName, getViewportSliceCount } from '../../utils/viewportDataShape';
+import { getImageIndexFromEvent } from './ViewportSliceProgressScrollbar/helpers';
 
 function CornerstoneImageScrollbar({
   viewportData,
@@ -80,11 +81,13 @@ function CornerstoneImageScrollbar({
       if (!viewport || getViewportAdapter(viewport).getShape() === 'volume3d') {
         return;
       }
-      const { imageIdIndex } = event.detail;
-      const numberOfSlices = viewport.getNumberOfSlices();
+      const imageIndex = getImageIndexFromEvent(event);
+      if (imageIndex === undefined) {
+        return;
+      }
       setImageSliceData({
-        imageIndex: imageIdIndex,
-        numberOfSlices,
+        imageIndex,
+        numberOfSlices: viewport.getNumberOfSlices(),
       });
     };
 

@@ -1,4 +1,5 @@
 import { getWebWorkerManager } from '@cornerstonejs/core';
+import type { Types } from '@cornerstonejs/core';
 
 const workerManager = getWebWorkerManager();
 
@@ -20,53 +21,34 @@ const workerFn = () => {
 // Register worker once at module load time
 workerManager.registerWorker('histogram-worker', workerFn, WorkerOptions);
 
-const getViewportVolumeHistogram = async (viewport, volume, options?) => {
-  const volumeImageData = viewport.getImageData(volume.volumeId);
-
-  if (!volumeImageData) {
-    return undefined;
-  }
-
-  let scalarData = volume.scalarData;
-
-  if (volume.numTimePoints > 1) {
-    scalarData = volume.voxelManager.getDimensionGroupScalarData(volume.numTimePoints);
-  } else {
-    scalarData = volume.voxelManager.getCompleteScalarDataArray();
-  }
+/**
+ * The histogram of the values of a volume in 256 bins, from the range of its
+ * values that its viewport gives (`getScalarRange`), clipped to the `min` and
+ * `max` of the options. A dynamic volume gives the values of its time point on
+ * display, as its range does.
+ */
+const getViewportVolumeHistogram = async (
+  volume: Types.IImageVolume,
+  range: [number, number],
+  options?: { min?: number; max?: number }
+) => {
+  const scalarData = volume.voxelManager.getCompleteScalarDataArray();
 
   if (!scalarData?.length) {
     return undefined;
   }
 
-  const { dimensions, origin, direction, spacing } = volume;
-
-  const range = await workerManager.executeTask('histogram-worker', 'getRange', {
-    dimensions,
-    origin,
-    direction,
-    spacing,
-    scalarData,
-  });
-
-  const { minimum: min, maximum: max } = range;
-
-  if (min === Infinity || max === -Infinity) {
-    return undefined;
-  }
-
+  const [min, max] = range;
   const calcHistOptions = {
     numBins: 256,
     min: Math.max(min, options?.min ?? min),
     max: Math.min(max, options?.max ?? max),
   };
 
-  const histogram = await workerManager.executeTask('histogram-worker', 'calcHistogram', {
+  return workerManager.executeTask('histogram-worker', 'calcHistogram', {
     data: scalarData,
     options: calcHistOptions,
   });
-
-  return histogram;
 };
 
 export { getViewportVolumeHistogram };

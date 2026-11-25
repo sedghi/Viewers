@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useCine } from '@ohif/ui-next';
 import { Enums, eventTarget, cache } from '@cornerstonejs/core';
+import type { Types } from '@cornerstonejs/core';
 import { useAppConfig } from '@state';
 
 function WrappedCinePlayer({
@@ -70,7 +71,7 @@ function WrappedCinePlayer({
     if (isPlaying) {
       cineService.setIsCineEnabled(isPlaying);
     }
-    cineService.setCine({ id: viewportId, isPlaying, frameRate });
+    cineService.setCine({ id: viewportId, isPlaying: isPlaying || undefined, frameRate });
     setNewStackFrameRate(frameRate);
   }, [displaySetService, viewportId, viewportGridService, cines, isCineEnabled, enabledVPElement]);
 
@@ -100,15 +101,20 @@ function WrappedCinePlayer({
       return;
     }
 
-    enabledVPElement.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
-    // this doesn't makes sense that we are listening to this event on viewport element
-    enabledVPElement.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
+    const onDisplaySetsChanged = (evt: Types.EventTypes.DisplaySetsChangedEvent) => {
+      if (!evt.detail.sourceChanged) {
+        return;
+      }
+
+      newDisplaySetHandler();
+    };
+
+    enabledVPElement.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, onDisplaySetsChanged);
 
     return () => {
       cineService.setCine({ id: viewportId, isPlaying: false });
 
-      enabledVPElement.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
-      enabledVPElement.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, newDisplaySetHandler);
+      enabledVPElement.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, onDisplaySetsChanged);
     };
   }, [enabledVPElement, newDisplaySetHandler, viewportId]);
 

@@ -6,6 +6,7 @@ import { OHIFCornerstoneViewport } from '@ohif/extension-cornerstone';
 import { annotation } from '@cornerstonejs/tools';
 import { useTrackedMeasurements } from './../getContextModule';
 import { Enums } from '@cornerstonejs/core';
+import type { Types } from '@cornerstonejs/core';
 import { useSystem } from '@ohif/core';
 
 function TrackedCornerstoneViewport(
@@ -42,19 +43,37 @@ function TrackedCornerstoneViewport(
   const onElementEnabled = useCallback(
     evt => {
       if (evt.detail.element !== viewportElem) {
-        // The VOLUME_VIEWPORT_NEW_VOLUME event allows updateIsTracked to reliably fetch the image id for a volume viewport.
-        evt.detail.element?.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, updateIsTracked);
         setViewportElem(evt.detail.element);
       }
     },
-    [updateIsTracked, viewportElem]
+    [viewportElem]
   );
 
   const onElementDisabled = useCallback(() => {
-    viewportElem?.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, updateIsTracked);
-  }, [updateIsTracked, viewportElem]);
+    setViewportElem(null);
+  }, []);
 
   useEffect(updateIsTracked, [updateIsTracked]);
+
+  useEffect(() => {
+    if (!viewportElem) {
+      return;
+    }
+
+    const onDisplaySetsChanged = (evt: Types.EventTypes.DisplaySetsChangedEvent) => {
+      if (!evt.detail.sourceChanged) {
+        return;
+      }
+
+      updateIsTracked();
+    };
+
+    viewportElem.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, onDisplaySetsChanged);
+
+    return () => {
+      viewportElem.removeEventListener(Enums.Events.DISPLAY_SETS_CHANGED, onDisplaySetsChanged);
+    };
+  }, [viewportElem, updateIsTracked]);
 
   useEffect(() => {
     const { unsubscribe } = cornerstoneViewportService.subscribe(

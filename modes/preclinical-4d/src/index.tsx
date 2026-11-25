@@ -39,7 +39,6 @@ function modeFactory({ modeConfiguration }) {
         measurementService,
         toolbarService,
         cineService,
-        cornerstoneViewportService,
         toolGroupService,
         customizationService,
         viewportGridService,
@@ -107,22 +106,26 @@ function modeFactory({ modeConfiguration }) {
       });
 
       // Auto play the clip initially when the volumes are loaded
-      const { unsubscribe } = cornerstoneViewportService.subscribe(
-        cornerstoneViewportService.EVENTS.VIEWPORT_VOLUMES_CHANGED,
-        () => {
-          const viewportId = viewportGridService.getActiveViewportId();
+      const { Enums: coreEnums } = extensionManager.getModuleEntry(
+        '@ohif/extension-cornerstone.utilityModule.core'
+      ).exports;
+      const displaySetsChanged = coreEnums.Events.DISPLAY_SETS_CHANGED;
 
-          if (!viewportId) {
-            return;
-          }
+      const onDisplaySetsChanged = evt => {
+        const viewportId = viewportGridService.getActiveViewportId();
 
-          const frameRate = 24;
-          cineService.setIsCineEnabled(true);
-          cineService.setCine({ id: viewportId, isPlaying: true, frameRate });
-
-          unsubscribe();
+        if (!evt.detail.sourceChanged || !viewportId) {
+          return;
         }
-      );
+
+        const frameRate = 24;
+        cineService.setIsCineEnabled(true);
+        cineService.setCine({ id: viewportId, isPlaying: true, frameRate });
+
+        document.removeEventListener(displaySetsChanged, onDisplaySetsChanged, true);
+      };
+
+      document.addEventListener(displaySetsChanged, onDisplaySetsChanged, true);
     },
     onSetupRouteComplete: ({ servicesManager }: withAppTypes) => {
       // This needs to run after hanging protocol matching process because

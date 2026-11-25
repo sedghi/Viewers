@@ -1,16 +1,14 @@
-import { utils } from '@ohif/core';
-import React, { useEffect, useState } from 'react';
+import { useSystem, utils } from '@ohif/core';
+import React, { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { getEnabledElement } from '@cornerstonejs/core';
+import { displaySetRegistry, getEnabledElement } from '@cornerstonejs/core';
+import type { Types } from '@cornerstonejs/core';
 import { ToolGroupManager, segmentation, Enums } from '@cornerstonejs/tools';
 import { getEnabledElement as OHIFgetEnabledElement } from '../state';
-import { getViewportAdapter } from '../services/ViewportService/adapter';
-import { useSystem } from '@ohif/core/src';
 
 const { downloadUrl } = utils;
 
 const DEFAULT_SIZE = 512;
-const MAX_TEXTURE_SIZE = 10000;
 const VIEWPORT_ID = 'cornerstone-viewport-download-form';
 
 const FILE_TYPE_OPTIONS = [
@@ -29,66 +27,99 @@ type ViewportDownloadFormProps = {
   activeViewportId: string;
 };
 
+type SegmentationRepresentations = ReturnType<
+  typeof segmentation.state.getViewportSegmentationRepresentations
+>;
+
 /**
- * Mounts the source viewport's displayed content onto the capture viewport and
- * re-applies its segmentation overlays, returning the clamped capture size.
+ * Whether a display set that a viewport shows is the labelmap of a
+ * segmentation: the tools register it with a reference of kind
+ * 'segmentation'. The capture shows a segmentation through its
+ * representation, not through this layer.
+ */
+function isSegmentationLayer(displaySetId: string): boolean {
+  const reference = displaySetRegistry.get(displaySetId)?.reference as
+    | { kind?: string }
+    | undefined;
+
+  return reference?.kind === 'segmentation';
+}
+
+/**
+ * Shows on the capture viewport the view of the source viewport: its view
+ * reference, then its framing. The framing is relative to the fit, so a
+ * capture of another size shows the same part of the image.
+ */
+function showSourceView(viewport: Types.IViewport, downloadViewport: Types.IViewport): void {
+  downloadViewport.setViewReference(viewport.getViewReference());
+
+  const framing = viewport.getViewFraming();
+  if (framing) {
+    downloadViewport.setViewFraming(framing);
+  }
+
+  downloadViewport.render();
+}
+
+/**
+ * Mounts on the capture viewport every display set of the source viewport
+ * that is not the labelmap of a segmentation, each with the options of its
+ * mount (mode, volume, role) and the appearance that a user set on it, shows
+ * the view of the source, and adds the segmentation representations of the
+ * source once.
  *
  * Module scope on purpose: the optional chaining inside this try/catch is a
  * React Compiler limitation ("value blocks within a try/catch") that bails the
  * whole component when inlined. Plain functions are never compiled.
  */
 async function mountCaptureViewport(
-  viewport: any,
-  downloadViewport: any,
-  segmentationRepresentations: any[] | undefined,
-  width: number,
-  height: number
-): Promise<{ width: number; height: number } | undefined> {
+  viewport: Types.IViewport,
+  downloadViewport: Types.IViewport,
+  segmentationRepresentations: SegmentationRepresentations | undefined
+): Promise<void> {
   try {
-    // Capture current viewport state. The download (capture) viewport is created
-    // with the SAME type as the source (see handleEnableViewport), so source and
-    // capture are both legacy or both native, and the source's adapter can mount
-    // its displayed content (data + appearance + view state) onto the capture
-    // viewport directly.
-    await getViewportAdapter(viewport).copyDisplayedContentTo(downloadViewport);
+    const layers = viewport
+      .getDisplaySets()
+      .filter(({ displaySetId }) => !isSegmentationLayer(displaySetId))
+      .map(({ displaySetId, options }) => ({
+        displaySetId,
+        options: {
+          ...(options as Record<string, unknown>),
+          appearance: viewport.getDisplaySetAppearance(displaySetId) ?? {},
+        },
+      }));
 
-    downloadViewport.render();
+    await downloadViewport.setDisplaySets(...layers);
 
-    // Re-apply segmentation overlays to the download viewport
-    if (segmentationRepresentations?.length) {
-      segmentationRepresentations.forEach(segRepresentation => {
-        const { segmentationId, colorLUTIndex, type } = segRepresentation;
+    showSourceView(viewport, downloadViewport);
 
-        if (type === Enums.SegmentationRepresentations.Labelmap) {
-          segmentation.addLabelmapRepresentationToViewportMap({
-            [downloadViewport.id]: [
-              {
-                segmentationId,
-                type: Enums.SegmentationRepresentations.Labelmap,
-                config: { colorLUTOrIndex: colorLUTIndex },
-              },
-            ],
-          });
-        }
+    segmentationRepresentations?.forEach(segRepresentation => {
+      const { segmentationId, colorLUTIndex, type } = segRepresentation;
 
-        if (type === Enums.SegmentationRepresentations.Contour) {
-          segmentation.addContourRepresentationToViewportMap({
-            [downloadViewport.id]: [
-              {
-                segmentationId,
-                type: Enums.SegmentationRepresentations.Contour,
-                config: { colorLUTOrIndex: colorLUTIndex },
-              },
-            ],
-          });
-        }
-      });
-    }
+      if (type === Enums.SegmentationRepresentations.Labelmap) {
+        segmentation.addLabelmapRepresentationToViewportMap({
+          [downloadViewport.id]: [
+            {
+              segmentationId,
+              type: Enums.SegmentationRepresentations.Labelmap,
+              config: { colorLUTOrIndex: colorLUTIndex },
+            },
+          ],
+        });
+      }
 
-    return {
-      width: Math.min(width || DEFAULT_SIZE, MAX_TEXTURE_SIZE),
-      height: Math.min(height || DEFAULT_SIZE, MAX_TEXTURE_SIZE),
-    };
+      if (type === Enums.SegmentationRepresentations.Contour) {
+        segmentation.addContourRepresentationToViewportMap({
+          [downloadViewport.id]: [
+            {
+              segmentationId,
+              type: Enums.SegmentationRepresentations.Contour,
+              config: { colorLUTOrIndex: colorLUTIndex },
+            },
+          ],
+        });
+      }
+    });
   } catch (error) {
     console.error('Error loading image:', error);
   }
@@ -118,6 +149,7 @@ const CornerstoneViewportDownloadForm = ({
 
   const renderingEngine = cornerstoneViewportService.getRenderingEngine();
   const toolGroup = ToolGroupManager.getToolGroupForViewport(activeViewportId, renderingEngineId);
+  const captureMount = useRef<{ viewport: Types.IViewport; mounted: Promise<void> } | null>(null);
 
   useEffect(() => {
     const toolModeAndBindings = Object.keys(toolGroup.toolOptions).reduce((acc, toolName) => {
@@ -167,29 +199,32 @@ const CornerstoneViewportDownloadForm = ({
     renderingEngine.disableElement(VIEWPORT_ID);
   };
 
-  const handleLoadImage = async (width: number, height: number) => {
+  const handleLoadImage = async () => {
     if (!activeViewportElement) {
       return;
     }
 
     const activeViewportEnabledElement = getEnabledElement(activeViewportElement);
-    if (!activeViewportEnabledElement) {
+    const downloadViewport = renderingEngine.getViewport(VIEWPORT_ID);
+    if (!activeViewportEnabledElement || !downloadViewport) {
+      return;
+    }
+
+    const { viewport } = activeViewportEnabledElement;
+
+    if (captureMount.current?.viewport === downloadViewport) {
+      await captureMount.current.mounted;
+      showSourceView(viewport, downloadViewport);
       return;
     }
 
     const segmentationRepresentations =
       segmentation.state.getViewportSegmentationRepresentations(activeViewportId);
+    const mounted = mountCaptureViewport(viewport, downloadViewport, segmentationRepresentations);
 
-    const { viewport } = activeViewportEnabledElement;
-    const downloadViewport = renderingEngine.getViewport(VIEWPORT_ID);
+    captureMount.current = { viewport: downloadViewport, mounted };
 
-    return mountCaptureViewport(
-      viewport,
-      downloadViewport,
-      segmentationRepresentations,
-      width,
-      height
-    );
+    return mounted;
   };
 
   const handleToggleAnnotations = (show: boolean) => {
@@ -226,11 +261,11 @@ const CornerstoneViewportDownloadForm = ({
   useEffect(() => {
     if (viewportDimensions.width && viewportDimensions.height) {
       setTimeout(() => {
-        handleLoadImage(viewportDimensions.width, viewportDimensions.height);
         handleToggleAnnotations(showAnnotations);
         // we need a resize here to make suer annotations world to canvas
         // are properly calculated
         renderingEngine.resize();
+        handleLoadImage();
         renderingEngine.render();
       }, 100);
     }
@@ -316,4 +351,5 @@ const CornerstoneViewportDownloadForm = ({
   );
 };
 
+export { mountCaptureViewport, showSourceView };
 export default CornerstoneViewportDownloadForm;

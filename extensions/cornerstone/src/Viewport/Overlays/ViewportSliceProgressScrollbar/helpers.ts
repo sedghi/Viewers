@@ -1,12 +1,16 @@
+import type { Types } from '@cornerstonejs/core';
 import { ViewportData } from './types';
 import { getViewportAdapter } from '../../../services/ViewportService/adapter';
 
 /**
  * The index of the slice that a NEW_IMAGE event shows: the index of the image
- * of a stack, the slice index of the view of a volume.
+ * of a stack, the slice index of the view of a volume. Undefined for an event
+ * that names no slice, such as IMAGE_RENDERED.
  */
-export function getImageIndexFromEvent(event): number | undefined {
-  return event.detail.imageIdIndex;
+export function getImageIndexFromEvent(event: {
+  detail?: Partial<Types.EventTypes.NewImageEventDetail>;
+}): number | undefined {
+  return event.detail?.sliceIndex;
 }
 
 export function getViewportImageIds(viewportData: ViewportData): string[] {

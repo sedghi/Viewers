@@ -3,6 +3,7 @@ import { useSystem } from '@ohif/core';
 import { useViewportDisplaySets } from './useViewportDisplaySets';
 import { Types, utilities, Enums } from '@cornerstonejs/core';
 import { getViewportAdapter } from '../services/ViewportService/adapter';
+import { getPlanarOr3DViewport } from '../utils/getPlanarOr3DViewport';
 import { WindowLevelPreset } from '../types/WindowLevel';
 import { ColorbarPositionType, ColorbarOptions, ColorbarProperties } from '../types/Colorbar';
 import { VolumeRenderingConfig } from '../types/VolumeRenderingConfig';
@@ -282,15 +283,11 @@ export function useViewportRendering(
       return;
     }
 
-    const voxelManager = getViewportAdapter(viewport).getVoxelManagerForDisplaySet(
-      activeDisplaySetInstanceUID
-    );
+    const range = getPlanarOr3DViewport(viewport)?.getScalarRange(activeDisplaySetInstanceUID);
 
-    if (!voxelManager?.getRange) {
+    if (!range) {
       return;
     }
-
-    const range = voxelManager.getRange();
 
     setPixelValueRange({ min: range[0], max: range[1] });
   }, [activeDisplaySetInstanceUID, displaySetService, viewport]);

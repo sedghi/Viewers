@@ -1,33 +1,10 @@
 import { expose } from 'comlink';
-import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
-import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
 
 /**
  * This object simulates a heavy task by implementing a sleep function and a recursive Fibonacci function.
  * It's used for testing or demonstrating purposes where a heavy or time-consuming task is needed.
  */
 const obj = {
-  getRange: ({ dimensions, origin, direction, spacing, scalarData }) => {
-    const imageData = vtkImageData.newInstance();
-    imageData.setDimensions(dimensions);
-    imageData.setOrigin(origin);
-    imageData.setDirection(direction);
-    imageData.setSpacing(spacing);
-
-    const scalarArray = vtkDataArray.newInstance({
-      name: 'Pixels',
-      numberOfComponents: 1,
-      values: scalarData,
-    });
-
-    imageData.getPointData().setScalars(scalarArray);
-
-    imageData.modified();
-
-    const range = imageData.computeHistogram(imageData.getBounds());
-
-    return range;
-  },
   calcHistogram: ({ data, options }) => {
     if (options === undefined) {
       options = {};

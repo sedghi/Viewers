@@ -443,6 +443,32 @@ describe('CornerstoneViewportService and the shape of the data', () => {
     });
   });
 
+  describe('the events of a mount', () => {
+    it('a stack mount adds no listener to the element of its viewport, however often it mounts', async () => {
+      const { service, viewportInfo, viewportData } = makeServiceWithViewport('stack');
+      (service as unknown as { backend: { mountStack: jest.Mock } }).backend.mountStack = jest
+        .fn()
+        .mockResolvedValue(undefined);
+      const addEventListener = jest.fn();
+      const viewport = {
+        id: 'viewport-1',
+        element: { addEventListener },
+      } as unknown as PlanarViewport;
+
+      for (let mount = 0; mount < 5; mount++) {
+        await service._setStackViewport(viewport, viewportData as StackViewportData, viewportInfo);
+      }
+
+      expect(addEventListener).not.toHaveBeenCalled();
+    });
+
+    it('has no event of its own for the volumes of a viewport: DISPLAY_SETS_CHANGED says it', () => {
+      const service = new CornerstoneViewportService(makeServicesManager());
+
+      expect(Object.keys(service.EVENTS)).toEqual(['VIEWPORT_DATA_CHANGED']);
+    });
+  });
+
   describe('a layout change', () => {
     it('keeps a display set in the store when the viewports that showed it are released', async () => {
       jest.spyOn(csToolsUtils.stackContextPrefetch, 'enable').mockImplementation(() => undefined);

@@ -146,24 +146,4 @@ export interface IViewportAdapter {
    * for a stack and for a viewport without actors (video, whole slide, ECG).
    */
   getVolumeIds(): string[];
-
-  /**
-   * The display set id of the binding that shows a volume, to address its
-   * presentation. Undefined when the viewport does not show the volume.
-   */
-  getDataIdForVolumeId(volumeId: string): string | undefined;
-
-  /** Voxel data access (getRange etc.) for a display set's volume, when available. */
-  getVoxelManagerForDisplaySet(
-    displaySetInstanceUID: string
-  ): { getRange?: () => [number, number]; [key: string]: unknown } | undefined;
-
-  // ---- capture ----
-
-  /**
-   * Mount this viewport's currently-displayed data onto another viewport and
-   * copy its appearance + view state. Used by the download/capture form; the
-   * caller renders the target afterwards.
-   */
-  copyDisplayedContentTo(target: CoreTypes.IViewport): Promise<void>;
 }

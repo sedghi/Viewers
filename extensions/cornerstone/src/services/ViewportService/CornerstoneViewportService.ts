@@ -48,7 +48,6 @@ import { ViewportBackend } from './backends/ViewportBackend';
 
 const EVENTS = {
   VIEWPORT_DATA_CHANGED: 'event::cornerstoneViewportService:viewportDataChanged',
-  VIEWPORT_VOLUMES_CHANGED: 'event::cornerstoneViewportService:viewportVolumesChanged',
 };
 
 const MIN_STACK_VIEWPORTS_TO_ENQUEUE_RESIZE = 12;
@@ -876,19 +875,6 @@ class CornerstoneViewportService
       presentations.lutPresentation?.appearances?.[displaySetInstanceUIDs[0]] ??
       getDisplaySetOptionsAppearance(displaySetOptions[0]);
 
-    viewport.element.addEventListener(
-      csEnums.Events.DISPLAY_SETS_CHANGED,
-      (evt: Types.EventTypes.DisplaySetsChangedEvent) => {
-        const { element } = evt.detail;
-
-        if (element !== viewport.element) {
-          return;
-        }
-
-        csToolsUtils.stackContextPrefetch.enable(element);
-      }
-    );
-
     const overlayProcessingResults = this._processExtraDisplaySetsForViewport(viewport);
 
     const referencedImageId = presentations?.positionPresentation?.viewReference?.referencedImageId;
@@ -1113,7 +1099,6 @@ class CornerstoneViewportService
     });
     if (handledByBackend) {
       this._jumpToInitialImage(viewport, viewportInfo, presentations);
-      this._broadcastEvent(this.EVENTS.VIEWPORT_VOLUMES_CHANGED, { viewportInfo });
       return;
     }
 
@@ -1153,10 +1138,6 @@ class CornerstoneViewportService
     viewport.render();
 
     this._jumpToInitialImage(viewport, viewportInfo, presentations);
-
-    this._broadcastEvent(this.EVENTS.VIEWPORT_VOLUMES_CHANGED, {
-      viewportInfo,
-    });
   }
 
   /**

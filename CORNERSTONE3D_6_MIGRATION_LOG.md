@@ -560,6 +560,11 @@ failed first, a build, or a run that is named).
   4D study. Check so far: `IViewportAdapter.contract.test.ts` (the volume ids and the
   binding of a volume), the build and the type comparison (no `setProperties` is left).
   Step 10 opens the mode by hand.
+- **Closed by M61 (task O6):** the rows ask the viewport (`getVolumeIds()`,
+  `getDisplaySetIdForVolumeId`, `getScalarRange`, `getEffectiveDisplaySetAppearance`) in
+  place of the actors of the adapter, and were seen on a screen on both sides: the panel
+  added to the left panel of the viewer and of TMTV, and in the preclinical 4D mode with
+  the 4D study of the test data.
 
 ## M18. The 3D pictures of the Playwright tests were twice as large
 
@@ -2135,3 +2140,255 @@ failed first, a build, or a run that is named).
   its camera (the last size the viewport had, or the pan left out, so the camera decides).
 - **Fix, in OHIF:** none (rule 3). The backend stores `getViewFraming()` as it is.
 - **State:** open, waits for cornerstone.
+
+## M60. The display set event, the slice index and the scroll events in OHIF (task O5)
+
+- **Seen (read in the code, then shown by tests that fail on `8659924b25`):**
+  - The codemod renamed ten listeners of `VIEWPORT_NEW_IMAGE_SET` and
+    `VOLUME_VIEWPORT_NEW_VOLUME` to `Events.DISPLAY_SETS_CHANGED` (M53). The event of
+    Cornerstone3D 6 fires also when an overlay comes or goes (`detail.sourceChanged`
+    false), where the two old events fired only for a new source.
+  - `CinePlayer.tsx` added the same handler twice and took every event as a new
+    series: an overlay set the frame rate back to 24 (or the frame rate of the series).
+  - `CornerstoneViewportService._setStackViewport` added an anonymous listener to the
+    element at every stack mount and never removed it; the N-th mount of a pane
+    enabled the stack prefetch N more times. The stack mount of the backend already
+    enables it once, after `setDisplaySets`.
+  - `TrackedCornerstoneViewport.tsx` added its listener with the callback of one
+    render and removed it with the callback of a later one.
+  - The three toolbar entries `listeners: { [EVENTS.DISPLAY_SETS_CHANGED]: { commandName:
+    'toggleImageSliceSync' } }` (the Image Slice Sync button of the cornerstone
+    customization, of `basic-test-mode` and of `usAnnotation`) never ran: the default
+    extension subscribes the `listeners` of a button to `ACTIVE_VIEWPORT_ID_CHANGED` and
+    `VIEWPORTS_READY` of the viewport grid only, and no command is named
+    `toggleImageSliceSync` (the button runs `toggleSynchronizer` with `type: 'imageSlice'`).
+  - `NEW_IMAGE` gives `detail.sliceIndex`; `ViewportImageScrollbar.tsx` and
+    `ViewportSliceProgressScrollbar/helpers.ts` read `detail.imageIdIndex` (undefined).
+    The legacy scrollbar (`viewportScrollbar.variant: 'legacy'`) put its thumb on 0 at
+    every scroll; the progress scrollbar ignored the event and was saved by its
+    `CAMERA_MODIFIED` listener.
+  - OHIF's own `VIEWPORT_VOLUMES_CHANGED` of `CornerstoneViewportService` told the window
+    level panel and the preclinical 4D mode that the volumes of a viewport changed,
+    which `DISPLAY_SETS_CHANGED` says now.
+- **What each listener cares for:**
+
+  | Listener | Cares for | Now |
+  |---|---|---|
+  | `CinePlayer` (frame rate, auto play of a series) | the source | `if (!detail.sourceChanged) return`; one listener, removed with the same function |
+  | `TrackedCornerstoneViewport` (is the series tracked) | the source | an effect on the element, `if (!detail.sourceChanged) return` |
+  | stack prefetch of `CornerstoneViewportService` | the source | deleted: the backend enables the prefetch once per stack mount |
+  | Image Slice Sync button (three toolbar definitions) | never ran | entries deleted |
+  | window level panel (rows per volume) | every layer | a capture listener on `document` for its viewport; it recomputes when the source changed or `getVolumeIds()` differs from its rows |
+  | preclinical 4D auto play | the source | a capture listener on `document`, once |
+  | `SegmentationService`, dynamic volume, TMTV, parametric map | no listener on the branch (the `convertStackToVolumeViewport` listener of `master` went with M22) | nothing |
+
+- **Scroll:** no OHIF code listens to `STACK_VIEWPORT_SCROLL` or to an out of bounds
+  event. The loading indicator starts on `CAMERA_MODIFIED` when the index asked for is
+  not the one shown, and ends on `NEW_IMAGE` (M19); the frame view synchronizer syncs on
+  `CAMERA_MODIFIED` with `NEW_IMAGE` as an auxiliary event and reads no detail. OHIF has
+  no "next series when the scroll passes the end" behaviour, on `master` either (no
+  listener of `STACK_SCROLL_OUT_OF_BOUNDS` or `VOLUME_VIEWPORT_SCROLL_OUT_OF_BOUNDS` in
+  `master`); none was added.
+- **Found while doing it:** the preclinical listener runs in the capture phase on
+  `document`, before the listener of `CinePlayer` on the element of the same pane. The
+  cine handler then read the cine state before React had applied the play of the
+  preclinical listener, and wrote `isPlaying: false` back: the 4D cine did not start in
+  3 of 3 runs before the fix. `CinePlayer` now passes `isPlaying` only when it turns the cine on
+  (`undefined` keeps the state), so it never writes a stale value.
+- **Fix, in OHIF:** as in the table. `VIEWPORT_VOLUMES_CHANGED` is gone from the events
+  of `CornerstoneViewportService` (a row in the OHIF migration guide). The two scrollbars
+  read `sliceIndex`.
+- **Checks:**
+  - jest: `CinePlayer.test.ts` (new, 4: one listener removed with the same function; a
+    labelmap leaves the cine alone; a stale state is not written back; a new source
+    takes the frame rate again), `ViewportImageScrollbar.test.ts` (new),
+    `ViewportSliceProgressScrollbar/helpers.test.ts` (new),
+    `CornerstoneViewportService.test.ts` (a stack mount adds no element listener, five
+    mounts; no `VIEWPORT_VOLUMES_CHANGED`). On an export of `8659924b25` (lane O5,
+    `jest-failfirst.log`) 8 of these fail.
+  - In the viewer, the same steps on this branch and on `master` (legacy path), lane O5
+    `specs/` and `events/`, `scroll/`, `loading/`, `listeners/`, `preclinical/`:
+    - cine at 24 per second on a CT stack: a new labelmap (Add segmentation) keeps it
+      playing on both; a SEG from the data overlay menu, another series dropped into
+      the pane and a SEG hydration stop it on both (OHIF mounts or replaces the
+      viewport), and the frame rate goes back to 24 after the series change on both;
+    - a PET layer added to a CT pane from the data overlay menu and removed: the menu
+      lists it, the opacity and threshold menus are enabled, and back, the same on both;
+    - the progress and the legacy scrollbar, the overlay text and "Loading..." after a
+      wheel scroll, a jump and cine, in a stack of 20 images, a sagittal MPR pane and an
+      oblique plane: the scrollbar value is the index of the viewport at every step, on
+      both; with a throttled network a jump to an image that is not loaded shows
+      "Loading..." for about 0.5 s on both, and no step leaves it on;
+    - the preclinical 4D mode (`2.25.232704420736447710317909004159492840763`): the
+      cine plays from 5 or 10 s in 4 of 4 runs after the fix; `master` played in 1 of 2 runs;
+    - five rounds of 2x2, 1x1, MPR, 1x1 and a series change: the listeners that OHIF
+      adds stay the same in number on the element of the pane, on `document` and on
+      `eventTarget`. Two Cornerstone listeners grow, on `master` too: M63 and M64.
+- **Checks of tasks O5 and O6 together:** jest (all) 169 suites, 2,004 tests pass
+  (`8659924b25`: 163, 1,977); the type check of the root has no new error kind outside
+  the test-runner globals of the new tests (the error of `enableElement` in the download
+  form is printed with `Types.RGB` for `RGB`, and the preclinical mode has one more line
+  of its error `'exports' does not exist on type 'unknown'`); `pnpm run build` passes;
+  the Playwright suite once, 6 workers, `TEST_ENV=true` (7.0 minutes): 243 passed, 0
+  failed, 4 skipped; no baseline changed.
+- **State:** fixed in task O5 (not committed yet).
+
+## M61. The window level rows, the range of the threshold menu and the capture ask the viewport (task O6)
+
+- **Seen (read in the code, then in the viewer):**
+  - The rows of the window level panel came from the actors of the viewport
+    (`getViewportAdapter(viewport).getVolumeIds()`, `getActors()` and `hasVolumeId`),
+    the range of each row from a worker that computed it again from the voxels, the
+    window of an overlay row (the PET of a fusion) from the display set options of the
+    hanging protocol, not from what is drawn.
+  - The range of the threshold menu (`useViewportRendering`, `pixelValueRange`) came from
+    a scan of the cache for a volume whose id ends with the UID of the display set
+    (`getVoxelManagerForDisplaySet` of the adapter).
+  - The capture of the download dialog (`copyDisplayedContentTo` of the adapter)
+    mounted the source only, without its `volumeId`, then copied the view state: a fusion
+    lost its PET, the capture loaded a second copy of the CT volume under a new id
+    (`cornerstoneStreamingImageVolume:volume-1rtppm9` beside the volume of the pane), the
+    pan and zoom were copied in the units of the pane, and the capture viewport was
+    mounted again at each change of its size.
+- **Fix, in OHIF:**
+  - Rows: `getVolumeIds()` of the planar or 3D viewport (no labelmap of a
+    segmentation), the display set of each volume from `getDisplaySetIdForVolumeId`, its
+    range from `getScalarRange(displaySetId)`, its window, colormap and opacity from
+    `getEffectiveDisplaySetAppearance(displaySetId)`. The histogram bins the values of
+    the volume (of the time point on display for a dynamic volume) between that range;
+    the `getRange` task of the worker is gone. A volume whose values on display have not
+    arrived keeps its last row. The handlers set the window and the opacity on the
+    display set of the row. `utils/getPlanarOr3DViewport.ts` types a viewport as planar
+    or 3D by its `type`.
+  - The threshold range: `getScalarRange(displaySetInstanceUID)`.
+  - Capture: every display set of `source.getDisplaySets()` that is not the labelmap of a
+    segmentation (its registration has `reference.kind === 'segmentation'`), each with
+    the options of its mount and the overrides of its appearance
+    (`getDisplaySetAppearance`) as the mount option `appearance`; then the view reference
+    and `getViewFraming()` of the source; then the segmentation representations of the
+    source, once. The capture viewport is mounted once; a change of its size resizes it
+    and shows the view of the source again. The orchestration stays in the download form.
+  - `getDataIdForVolumeId`, `getVoxelManagerForDisplaySet` and `copyDisplayedContentTo`
+    of the adapter are deleted (no caller left).
+- **Checks:**
+  - jest: `ViewportWindowLevel/utils.test.ts` (new: a stack has no row, an MPR one, a
+    fusion two, a fusion with a labelmap two, 3D one, a volume without values none yet,
+    a video none; the kept rows), `getViewportVolumeHistogram.test.ts` (new),
+    `CornerstoneViewportDownloadForm.test.ts` (new: the layers of a fusion without the
+    labelmap, with their options and overrides; the reference then the framing; one
+    representation of each segmentation; a size change does not mount again),
+    `useViewportRendering.test.ts` (2 new). On the export of `8659924b25` 17 of them
+    fail (the capture suite after its `@ohif/core/src` import is changed in the copy:
+    that import cannot be mapped in jest, and the form now imports `useSystem` from
+    `@ohif/core`).
+  - The window level panel in the viewer (added to the left panel with `panelService`),
+    on both sides (lane O5 `wl/`): a stack no row on both; an MPR pane one; 3D one; an MR
+    MPR one, and after a SEG hydration one on this branch, two on `master` (a row for
+    the labelmap); the TMTV fusion two, and two with a labelmap, on both. The PET row
+    shows the window that is drawn (0 to 4, as `getProperties` of `master` gives it);
+    `master` showed the protocol's 0 to 5. The MR row has the range 0 to 943 that
+    Cornerstone gives; `master` showed 0 to 255, the values that its volume holds (M65).
+    In the preclinical 4D mode the row comes when the time point on display has arrived
+    (about 30 s) and stays; `master` shows the histogram of the last time point from
+    about 10 s.
+  - The capture in the viewer (lane O5 `capture/`), at 1.25 times the size of the pane
+    and then at 500 by 500: a CT stack zoomed, turned and with a length, a sagittal MPR
+    pane zoomed and turned, 3D, and the TMTV fusion with a PET opacity of 0.7 and a
+    brushed labelmap. The capture shows the layers of the pane (the fusion: CT, PET with
+    its colormap, ramp, window and opacity, and the labelmap once, with one
+    representation), the slice, the framing and the same world point at the centre of
+    the canvas at both sizes. Its canvas, scaled to the pane, differs from the pane by
+    more than 16 in 0.09% (stack), 0.16% (MPR) and 1.04% (fusion: the outline of the
+    labelmap, drawn at a fixed width in pixels) of the pixels; 3D 14% (a 3D remount is
+    not pixel deterministic, M58; the camera is the same). No volume is loaded again,
+    except for 3D (M62).
+- **State:** fixed in task O6 (not committed yet). Closes M17.
+
+## M62. A 3D viewport does not give the volume of its mounts
+
+- **Seen (task O6):** the capture of a 3D pane loads a second copy of its volume
+  (`cornerstoneStreamingImageVolume:volume-u3nwmr` beside
+  `cornerstoneStreamingImageVolume:<uid>`).
+- **Why:** `VolumeViewport3D.getDisplaySets()` is the method of `BaseViewport`: each entry
+  is `{ displaySetId, options: { role } }`, without the `volumeId` of the mount. A mount
+  copied from it loads `utilities.getDefaultVolumeId(imageIds)`. The planar viewport gives
+  the options of each mount (DS3).
+- **Smallest case**, Cornerstone3D calls only: a `VolumeViewport3D`,
+  `await viewport.setDisplaySets({ displaySetId: 'ct', options: { volumeId: 'myVolume' } })`,
+  then `viewport.getDisplaySets()` gives `[{ displaySetId: 'ct', options: { role: 'source' } }]`;
+  `otherViewport3D.setDisplaySets(...viewport.getDisplaySets())` creates and loads a
+  volume with the default id.
+- **Fix, in cornerstone:** to do: `getDisplaySets()` of a 3D viewport gives the options of
+  each mount (`volumeId`, `role`), as the planar viewport does.
+- **Fix, in OHIF:** none (rule 3). The capture mounts what `getDisplaySets()` gives.
+- **State:** open, waits for cornerstone.
+
+## M63. The stack prefetch adds a listener at each enable that its disable cannot remove
+
+- **Seen (task O5, counting listeners):** `eventTarget` has one more
+  `IMAGE_CACHE_IMAGE_REMOVED` listener after each stack mount (1 to 7 in five rounds of
+  layout changes), on `master` (5.18.3) too.
+- **Why:** `stackContextPrefetch.enable(element)` and `disable(element)` of the tools each
+  call `getPromiseRemovedHandler(element)`, which makes a new function; `enable` adds it
+  to `eventTarget`, `removeEventListener` of the same new function removes nothing, and
+  `disable` cannot reach the one that was added. Each listener keeps its element.
+- **Smallest case**, Cornerstone3D calls only: a planar viewport with a stack,
+  `utilities.stackContextPrefetch.enable(element)` three times, then `disable(element)`:
+  `eventTarget.listeners[Events.IMAGE_CACHE_IMAGE_REMOVED]` holds three more functions
+  than before.
+- **Fix, in cornerstone:** to do: one handler per element (kept in the prefetch state).
+- **Fix, in OHIF:** none (rule 3). The backend enables the prefetch once per stack mount;
+  the per-mount listener of OHIF that enabled it again is gone (M60).
+- **State:** open, waits for cornerstone.
+
+## M64. A synchronizer adds an `ELEMENT_DISABLED` listener each time its viewports change
+
+- **Seen (task O5, counting listeners):** five rounds of 2x2, 1x1, MPR and 1x1: the
+  `ELEMENT_DISABLED` listeners of `eventTarget` grow from 2 to 85 and those of the element
+  of a pane from 0 to 58, all of them the `disableHandler` of `Synchronizer`; the same on
+  `master`.
+- **Why:** `Synchronizer._updateDisableHandlers` makes a new `disableHandler` at each call,
+  so its `removeEventListener` removes nothing and its `addEventListener` adds one more,
+  on each viewport of the synchronizer, at each `add` and `remove`.
+- **Smallest case**, Cornerstone3D calls only: a synchronizer with two viewports (event
+  source `element`), `synchronizer.add` of a third viewport: the element of the first
+  viewport has three `ELEMENT_DISABLED` listeners where it had two.
+- **Fix, in cornerstone:** to do: one bound handler per synchronizer.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone.
+
+## M65. A volume of 12-bit images keeps 8 bits when its first image fits in 8 bits
+
+- **Seen (task O6, the window level row of an MR):** the MR of
+  `1.3.12.2.1107.5.2.32.35162.30000015050317233592200000046` (Bits Stored 12): its volume
+  holds a `Uint8Array` whose largest value is 255, while `voxelManager.getRange()` and
+  `getScalarRange()` give `[0, 943]`; the same volume on `master`.
+- **Why (seen, not read in the loader):** the image loader gives each image the smallest
+  array that holds its values: image 0 a `Uint8Array` (largest value 135), image 64 a
+  `Uint16Array` (637). The volume takes the type of the first image, so values above 255
+  are cut.
+- **Smallest case**, Cornerstone3D calls only: `volumeLoader.createAndCacheVolume(id, {
+  imageIds })` of that series, `volume.load()`; then
+  `volume.voxelManager.getCompleteScalarDataArray()` is a `Uint8Array` with largest value
+  255, and `(await imageLoader.loadAndCacheImage(imageIds[64])).voxelManager.getScalarData()`
+  is a `Uint16Array` with largest value 637.
+- **Fix, in cornerstone:** to do: the volume takes a type that holds the range of every
+  image (Bits Stored, or the range that the metadata gives).
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone.
+
+## M66. The labelmap of a stack is mounted again for every image
+
+- **Seen (task O5):** cine of a CT stack with a labelmap: the element of the pane gets two
+  `DISPLAY_SETS_CHANGED` for each image (146 in about 7 s at 24 per second), each with
+  `sourceChanged: false`: the labelmap image of the last image is removed and the one of
+  the next image is added (`syncStackLabelmapActors` mounts each labelmap image as a
+  display set through `addImages`).
+- **Why it matters:** a listener for every layer runs twice at each scroll of such a
+  stack. The window level panel compares the volume ids before it recomputes, so it does
+  nothing then (M60). The cost of the two mounts at each image may be part of M49 (the
+  cine of a stack with a labelmap plays slower); not measured.
+- **Fix, in cornerstone:** a question: one labelmap layer per stack that changes its
+  image, or one event per scroll, or the guide says it under the display set event.
+- **Fix, in OHIF:** none needed.
+- **State:** open, a question for cornerstone.

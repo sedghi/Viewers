@@ -1,11 +1,11 @@
-import React, { useEffect, useCallback, useState, ReactElement, useMemo } from 'react';
+import React, { useEffect, useCallback, useState, ReactElement, useMemo, useRef } from 'react';
 import debounce from 'lodash.debounce';
 import { PanelSection, WindowLevel } from '@ohif/ui-next';
 import { Enums, eventTarget, cache, utilities as csUtils } from '@cornerstonejs/core';
 import type { Types } from '@cornerstonejs/core';
 import { useActiveViewportDisplaySets } from '@ohif/core';
-import { getWindowLevelsData } from './utils';
-import { getViewportAdapter } from '../../services/ViewportService/adapter';
+import { getWindowLevelsData, keepRowsWithoutRange } from './utils';
+import { getPlanarOr3DViewport } from '../../utils/getPlanarOr3DViewport';
 
 const { Events } = Enums;
 
@@ -18,12 +18,8 @@ const { Events } = Enums;
  * the panel. Asking the cache directly avoids depending on an announcement
  * that may already have happened.
  */
-const areViewportVolumesLoaded = (viewport): boolean => {
-  if (!viewport) {
-    return false;
-  }
-
-  const volumeIds = getViewportAdapter(viewport).getVolumeIds();
+const areViewportVolumesLoaded = (viewport: Types.IViewport | null): boolean => {
+  const volumeIds = getPlanarOr3DViewport(viewport)?.getVolumeIds() ?? [];
   if (!volumeIds.length) {
     return false;
   }
@@ -48,6 +44,7 @@ const ViewportWindowLevel = ({
     () => !areViewportVolumesLoaded(cornerstoneViewportService.getCornerstoneViewport(viewportId))
   );
   const displaySets = useActiveViewportDisplaySets();
+  const rowVolumeIds = useRef<string[]>([]);
 
   const getViewportsWithVolumeIds = (volumeIds: string[]) => {
     const renderingEngine = cornerstoneViewportService.getRenderingEngine();
@@ -58,7 +55,7 @@ const ViewportWindowLevel = ({
       .filter(viewport => csUtils.viewportIsInVolumeMode(viewport));
 
     return viewports.filter(vp => {
-      const viewportVolumeIds = getViewportAdapter(vp).getVolumeIds();
+      const viewportVolumeIds = getPlanarOr3DViewport(vp)?.getVolumeIds() ?? [];
       return (
         volumeIds.length === viewportVolumeIds.length &&
         volumeIds.every(volumeId => viewportVolumeIds.includes(volumeId))
@@ -68,10 +65,11 @@ const ViewportWindowLevel = ({
 
   const updateViewportHistograms = useCallback(() => {
     const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-    const viewportInfo = cornerstoneViewportService.getViewportInfo(viewportId);
+    const volumeIds = getPlanarOr3DViewport(viewport)?.getVolumeIds() ?? [];
+    rowVolumeIds.current = volumeIds;
 
-    getWindowLevelsData(viewport, viewportInfo).then(data => {
-      setWindowLevels(data);
+    getWindowLevelsData(viewport).then(data => {
+      setWindowLevels(previous => keepRowsWithoutRange(volumeIds, data, previous));
     });
   }, [cornerstoneViewportService, viewportId]);
 
@@ -115,7 +113,7 @@ const ViewportWindowLevel = ({
     [handleCornerstoneVOIModified]
   );
 
-  const handleVOIChange = (volumeId, voi) => {
+  const handleVOIChange = (displaySetId: string, voi) => {
     const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
     const newRange = {
@@ -123,9 +121,7 @@ const ViewportWindowLevel = ({
       upper: voi.windowCenter + voi.windowWidth / 2,
     };
 
-    const adapter = getViewportAdapter(viewport);
-
-    adapter.setAppearance({ voiRange: newRange }, adapter.getDataIdForVolumeId(volumeId));
+    viewport.setDisplaySetAppearance(displaySetId, { voiRange: newRange });
     viewport.render();
   };
 
@@ -136,15 +132,14 @@ const ViewportWindowLevel = ({
       return;
     }
 
-    const viewportVolumeIds = getViewportAdapter(viewport).getVolumeIds();
+    const viewportVolumeIds = getPlanarOr3DViewport(viewport)?.getVolumeIds() ?? [];
     const viewports = getViewportsWithVolumeIds(viewportVolumeIds);
 
     viewports.forEach(vp => {
-      const adapter = getViewportAdapter(vp);
-      const displaySetId = adapter.getDataIdForVolumeId(volumeId);
+      const displaySetId = getPlanarOr3DViewport(vp)?.getDisplaySetIdForVolumeId(volumeId);
 
       if (displaySetId) {
-        adapter.setAppearance({ opacity }, displaySetId);
+        vp.setDisplaySetAppearance(displaySetId, { opacity });
         vp.render();
       }
     });
@@ -194,14 +189,22 @@ const ViewportWindowLevel = ({
   const displaySetIds = displaySets?.map(ds => ds.displaySetInstanceUID).sort() || [];
 
   useEffect(() => {
-    const { unsubscribe } = cornerstoneViewportService.subscribe(
-      cornerstoneViewportService.EVENTS.VIEWPORT_VOLUMES_CHANGED,
-      ({ viewportInfo }) => {
-        if (viewportInfo.viewportId === viewportId) {
-          updateViewportHistograms();
-        }
+    const handleDisplaySetsChanged = (evt: Types.EventTypes.DisplaySetsChangedEvent) => {
+      if (evt.detail.viewportId !== viewportId) {
+        return;
       }
-    );
+
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+      const volumeIds = getPlanarOr3DViewport(viewport)?.getVolumeIds() ?? [];
+
+      if (!evt.detail.sourceChanged && volumeIds.join() === rowVolumeIds.current.join()) {
+        return;
+      }
+
+      updateViewportHistograms();
+    };
+
+    document.addEventListener(Events.DISPLAY_SETS_CHANGED, handleDisplaySetsChanged, true);
 
     // Only update if displaySets actually changed and are loaded
     if (displaySetIds.length && !isLoading) {
@@ -209,7 +212,7 @@ const ViewportWindowLevel = ({
     }
 
     return () => {
-      unsubscribe();
+      document.removeEventListener(Events.DISPLAY_SETS_CHANGED, handleDisplaySetsChanged, true);
     };
   }, [viewportId, cornerstoneViewportService, updateViewportHistograms, displaySetIds, isLoading]);
 
@@ -230,7 +233,7 @@ const ViewportWindowLevel = ({
               step={windowLevel.step}
               showOpacitySlider={windowLevel.showOpacitySlider}
               colormap={windowLevel.colormap}
-              onVOIChange={voi => handleVOIChange(windowLevel.volumeId, voi)}
+              onVOIChange={voi => handleVOIChange(windowLevel.displaySetId, voi)}
               opacity={windowLevel.opacity}
               onOpacityChange={opacity =>
                 handleOpacityChange(windowLevel.viewportId, i, windowLevel.volumeId, opacity)

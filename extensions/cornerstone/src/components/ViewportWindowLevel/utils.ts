@@ -3,42 +3,32 @@ import type { Types } from '@cornerstonejs/core';
 import vtkColorMaps from '@kitware/vtk.js/Rendering/Core/ColorTransferFunction/ColorMaps';
 import { utilities as csUtils } from '@cornerstonejs/core';
 import { getViewportVolumeHistogram } from './getViewportVolumeHistogram';
-import { getViewportAdapter } from '../../services/ViewportService/adapter';
+import { getPlanarOr3DViewport } from '../../utils/getPlanarOr3DViewport';
 
 /**
  * Gets window levels data for a viewport: one row for each volume that the
- * viewport shows, the source first. A stack shows no volume and has no rows.
- * The window of the source and the opacity of each volume are those that they
- * are drawn with.
+ * viewport shows (`getVolumeIds()`), the source first. A stack shows no volume
+ * and has no rows, and the labelmap of a segmentation is not a row. Each row
+ * names the display set of its volume, and reads what the viewport gives for
+ * it: the range of its values (`getScalarRange`), and the window, the colormap
+ * and the opacity that it is drawn with (`getEffectiveDisplaySetAppearance`).
  */
-export const getWindowLevelsData = async (viewport: Types.IViewport, viewportInfo: any) => {
-  if (!viewport) {
+export const getWindowLevelsData = async (viewport: Types.IViewport) => {
+  const volumeViewport = getPlanarOr3DViewport(viewport);
+  if (!volumeViewport) {
     return [];
   }
-
-  const adapter = getViewportAdapter(viewport);
-  const volumeIds = adapter.getVolumeIds();
-  if (!volumeIds.length) {
-    return [];
-  }
-
-  const { voiRange } = adapter.getEffectiveAppearance();
-  const viewportVoi = voiRange
-    ? {
-        windowWidth: voiRange.upper - voiRange.lower,
-        windowCenter: voiRange.lower + (voiRange.upper - voiRange.lower) / 2,
-      }
-    : undefined;
 
   const windowLevels = await Promise.all(
-    volumeIds.map(async (volumeId, volumeIndex) => {
+    volumeViewport.getVolumeIds().map(async (volumeId, volumeIndex) => {
       const volume = cs3DCache.getVolume(volumeId);
+      const displaySetId = volumeViewport.getDisplaySetIdForVolumeId(volumeId);
+      const range = volumeViewport.getScalarRange(displaySetId);
 
-      if (!volume) {
+      if (!volume || !displaySetId || !range) {
         return null;
       }
 
-      const { opacity } = adapter.getEffectiveAppearance(adapter.getDataIdForVolumeId(volumeId));
       const { metadata, scaling } = volume;
       const modality = metadata.Modality;
 
@@ -47,32 +37,32 @@ export const getWindowLevelsData = async (viewport: Types.IViewport, viewportInf
         max: modality === 'PT' ? 5 : 10000,
       };
 
-      const histogram = await getViewportVolumeHistogram(viewport, volume, options);
+      const histogram = await getViewportVolumeHistogram(volume, range, options);
 
       if (!histogram || histogram.range.min === histogram.range.max) {
         return null;
       }
 
-      if (!viewportInfo.displaySetOptions || !viewportInfo.displaySetOptions[volumeIndex]) {
-        return null;
-      }
+      const { voiRange, colormap: appearanceColormap, opacity } =
+        volumeViewport.getEffectiveDisplaySetAppearance(displaySetId) ?? {};
 
-      const { voi: displaySetVOI, colormap: displaySetColormap } =
-        viewportInfo.displaySetOptions[volumeIndex];
+      const voi = voiRange
+        ? {
+            windowWidth: voiRange.upper - voiRange.lower,
+            windowCenter: voiRange.lower + (voiRange.upper - voiRange.lower) / 2,
+          }
+        : undefined;
 
-      let colormap;
-      if (displaySetColormap) {
-        colormap =
-          csUtils.colormap.getColormap(displaySetColormap.name) ??
-          vtkColorMaps.getPresetByName(displaySetColormap.name);
-      }
-
-      const voi = !volumeIndex ? (viewportVoi ?? displaySetVOI) : displaySetVOI;
+      const colormap = appearanceColormap?.name
+        ? (csUtils.colormap.getColormap(appearanceColormap.name) ??
+          vtkColorMaps.getPresetByName(appearanceColormap.name))
+        : undefined;
 
       return {
-        viewportId: viewportInfo.viewportId,
+        viewportId: volumeViewport.id,
         modality,
         volumeId,
+        displaySetId,
         volumeIndex,
         voi,
         histogram,
@@ -86,3 +76,22 @@ export const getWindowLevelsData = async (viewport: Types.IViewport, viewportInf
 
   return windowLevels.filter(Boolean);
 };
+
+/**
+ * The rows for the volumes that the viewport shows: the new row of each
+ * volume, else its last row. A volume has no new row while the values on
+ * display have not arrived, as a time point of a dynamic volume that is still
+ * loading; it keeps its last histogram until they do.
+ */
+export const keepRowsWithoutRange = <T extends { volumeId: string }>(
+  volumeIds: string[],
+  rows: T[],
+  previousRows: T[]
+): T[] =>
+  volumeIds
+    .map(
+      volumeId =>
+        rows.find(row => row.volumeId === volumeId) ??
+        previousRows.find(row => row.volumeId === volumeId)
+    )
+    .filter(Boolean);

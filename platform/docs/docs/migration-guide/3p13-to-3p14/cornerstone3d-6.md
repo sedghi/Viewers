@@ -234,6 +234,96 @@ read. Code that writes a position presentation, as the SEG, RTSTRUCT and SR
 viewports do, gives `viewReference` and, if it wants a framing,
 `viewFraming`; drop `viewPresentation`.
 
+## The events of a viewport
+
+| 3.13 | 3.14 |
+|---|---|
+| `cornerstoneViewportService.EVENTS.VIEWPORT_VOLUMES_CHANGED` | Removed. Listen to `Enums.Events.DISPLAY_SETS_CHANGED` of `@cornerstonejs/core`, with `detail.viewportId`. |
+| `Enums.Events.VIEWPORT_NEW_IMAGE_SET`, `VOLUME_VIEWPORT_NEW_VOLUME` | `Enums.Events.DISPLAY_SETS_CHANGED` (the codemod renames them). |
+| `detail.imageIdIndex` of `NEW_IMAGE` | `detail.sliceIndex`, with `detail.displaySetId` |
+| `STACK_VIEWPORT_SCROLL` | Removed: `CAMERA_MODIFIED` when an index is asked for, `NEW_IMAGE` when it shows, `SCROLL_OUT_OF_BOUNDS` when a scroll stops at an end. |
+
+A viewport of every kind fires `DISPLAY_SETS_CHANGED` on its element once for
+each `setDisplaySets`, `addDisplaySet` and `removeDisplaySet` that completes. The
+detail has `viewportId`, `displaySets` (each `{ displaySetId, role }`),
+`sourceDisplaySetId`, `added`, `removed` and `sourceChanged`. An event of
+Cornerstone3D does not bubble: listen on the element of the viewport, or on
+`document` in the capture phase to hear every viewport. Before:
+
+```js
+const { unsubscribe } = cornerstoneViewportService.subscribe(
+  cornerstoneViewportService.EVENTS.VIEWPORT_VOLUMES_CHANGED,
+  ({ viewportInfo }) => {
+    if (viewportInfo.viewportId === viewportId) {
+      updateRows();
+    }
+  }
+);
+```
+
+After:
+
+```js
+const onDisplaySetsChanged = evt => {
+  if (evt.detail.viewportId === viewportId) {
+    updateRows();
+  }
+};
+
+document.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, onDisplaySetsChanged, true);
+```
+
+The event fires when an overlay comes or goes too, as a labelmap that a
+segmentation shows, with `detail.sourceChanged` false. A listener that cares for
+the series of the viewport (a cine, a tracking state, a prefetch) returns early
+then, or it starts again each time a segmentation is shown:
+
+```js
+element.addEventListener(Enums.Events.DISPLAY_SETS_CHANGED, evt => {
+  if (!evt.detail.sourceChanged) {
+    return;
+  }
+
+  restartCine();
+});
+```
+
+A stack with a labelmap fires it twice for each image that it shows (the
+labelmap of the image is mounted again). A listener for every layer compares
+what it shows before it does costly work: the window level panel recomputes
+its histograms only when the source changed or `viewport.getVolumeIds()`
+differs from its rows.
+
+The `listeners` of a toolbar button run on the events of the viewport grid
+only (`ACTIVE_VIEWPORT_ID_CHANGED` and `VIEWPORTS_READY`). An entry keyed by a
+Cornerstone3D event never ran: the Image Slice Sync button of 3.13 had one
+(`[EVENTS.VIEWPORT_NEW_IMAGE_SET]` with a command that did not exist), and it is
+gone. A button of your own that copied it drops the entry.
+
+## What the viewport answers
+
+The window level panel, the range of the threshold menu and the capture of the
+download dialog ask the viewport, where 3.13 read the cache, the actors or a
+volume id built from the UID:
+
+| 3.13 | 3.14 |
+|---|---|
+| `getViewportAdapter(viewport).getDataIdForVolumeId(volumeId)` | Removed: `viewport.getDisplaySetIdForVolumeId(volumeId)` of a planar or 3D viewport |
+| `getViewportAdapter(viewport).getVoxelManagerForDisplaySet(uid).getRange()` | Removed: `viewport.getScalarRange(uid)` |
+| `getViewportAdapter(viewport).copyDisplayedContentTo(target)` | Removed: mount `viewport.getDisplaySets()` on the target, each with `appearance: viewport.getDisplaySetAppearance(displaySetId)`, then `target.setViewReference(viewport.getViewReference())` and `target.setViewFraming(viewport.getViewFraming())` |
+
+`viewport.getVolumeIds()` gives the volumes of a viewport, the source first,
+without the labelmap of a segmentation: the window level panel has one row for
+each, so a hydrated SEG adds no row, a PET/CT fusion has two and a stack none.
+Each row shows the window, colormap and opacity that its display set is drawn
+with, and its histogram spans `getScalarRange` of the display set (of the time
+point on display for a dynamic volume).
+
+The capture mounts every display set of the viewport that is not the labelmap
+of a segmentation, so a fusion keeps its PET, and adds the segmentations of
+the viewport once through their representations. Its framing is relative to
+the fit, so a capture of another size shows the same part of the image.
+
 ## Removed and renamed exports of `@ohif/extension-cornerstone`
 
 | 3.13 | 3.14 |

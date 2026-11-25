@@ -12,7 +12,6 @@ import type {
  * rather than import core-internal PlanarViewport types.
  */
 type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportAppearance> & {
-  getSourceDisplaySetId?: () => string | undefined;
   getDisplaySets?: () => Array<{ displaySetId: string; options?: { mode?: string } }>;
   getDisplaySetAppearance?: (displaySetId?: string) => ViewportAppearance | undefined;
   getEffectiveDisplaySetAppearance?: (displaySetId?: string) => ViewportAppearance | undefined;
@@ -23,15 +22,9 @@ type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportAppearance>
   getViewState?: () => ViewportViewState | undefined;
   setViewState?: (patch: ViewportViewState) => void;
   getViewReference?: () => CoreTypes.ViewReference | undefined;
-  setViewReference?: (ref: CoreTypes.ViewReference) => void;
   getCurrentMode?: () => string;
   getActors?: () => Array<{ referencedId?: string }>;
   hasVolumeId?: (volumeId: string) => boolean;
-  getDisplaySetIdForVolumeId?: (volumeId: string) => string | undefined;
-  setDisplaySets?: (args: {
-    displaySetId: string;
-    options?: Record<string, unknown>;
-  }) => Promise<void>;
 };
 
 /**
@@ -154,65 +147,5 @@ export class ViewportAdapter implements IViewportAdapter {
       .filter(id => !!id && viewport.hasVolumeId(id));
 
     return [...new Set(volumeIds)];
-  }
-
-  getDataIdForVolumeId(volumeId: string): string | undefined {
-    return this.viewport.getDisplaySetIdForVolumeId?.(volumeId);
-  }
-
-  getVoxelManagerForDisplaySet(
-    displaySetInstanceUID: string
-  ): { getRange?: () => [number, number]; [key: string]: unknown } | undefined {
-    // No getAllVolumeIds/getImageData(volumeId); resolve the display set's volume
-    // from the cornerstone cache instead. Anchored match: volumeIds are built as
-    // `${loaderSchema}:${displaySetInstanceUID}`, and an unanchored includes()
-    // could resolve a different cached volume whose id merely embeds the same
-    // UID (e.g. a derived labelmap id).
-    const volume = cache
-      .getVolumes()
-      .find(
-        v =>
-          v.volumeId === displaySetInstanceUID || v.volumeId?.endsWith(`:${displaySetInstanceUID}`)
-      );
-    return volume?.voxelManager as unknown as
-      | { getRange?: () => [number, number]; [key: string]: unknown }
-      | undefined;
-  }
-
-  // ---- capture ----
-
-  async copyDisplayedContentTo(target: CoreTypes.IViewport): Promise<void> {
-    const targetViewport = target as NativeViewport;
-    const viewRef = this.viewport.getViewReference?.();
-
-    // The source's display set is registered by the display set service under its
-    // UID, so re-mount it on the capture viewport by id in the mode it has here, then
-    // copy per-binding presentation + view state. The native classes have no
-    // setStack/setVolumes/setProperties/setViewPresentation.
-    const sourceDisplaySetId = this.viewport.getSourceDisplaySetId?.();
-    if (sourceDisplaySetId) {
-      const { orientation } = this.getViewState();
-      const sourceOptions = this.viewport
-        .getDisplaySets?.()
-        ?.find(entry => entry.displaySetId === sourceDisplaySetId)?.options as
-        | { mode?: string }
-        | undefined;
-      const mode = sourceOptions?.mode;
-      await targetViewport.setDisplaySets?.({
-        displaySetId: sourceDisplaySetId,
-        options: { orientation, role: 'source', ...(mode ? { mode } : {}) },
-      });
-
-      targetViewport.setDisplaySetAppearance?.(
-        sourceDisplaySetId,
-        this.getAppearance(sourceDisplaySetId)
-      );
-    }
-
-    // Slice/orientation via the view reference, then pan/zoom/rotate/flip via view state.
-    if (viewRef && targetViewport.setViewReference) {
-      targetViewport.setViewReference(viewRef);
-    }
-    targetViewport.setViewState?.(this.getViewState());
   }
 }
