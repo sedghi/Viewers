@@ -9,15 +9,16 @@ compatibility layer.
 ## What is done
 
 Every step but the run in CI (step 9), Safari on an iPhone (step 10) and the release
-(step 12): see [Progress](#progress). The branch has 16 commits on `master` and the
-uncommitted work of task O9. The record of each problem is
+(step 12): see [Progress](#progress). The branch has 17 commits on `master` and the
+uncommitted log entries of task O9b. The record of each problem is
 `CORNERSTONE3D_6_MIGRATION_LOG.md`, with a summary table at its top.
 
 ## How it goes: the numbers
 
 Measured on this Mac. "Before" is `master` on 5.18.3, "first" the branch after the
 codemod (21 November), "now" the branch with task O9 on the Cornerstone3D link at
-`735fc811e` (25 November).
+`735fc811e` (25 November); jest and Playwright were run again by task O9b on the link at
+`28dd3ab33`, the final head of the plan, with the same results.
 
 | Check | Before (`master`) | First (21 November) | Now (25 November) |
 |---|---|---|---|
@@ -29,8 +30,10 @@ codemod (21 November), "now" the branch with task O9 on the Cornerstone3D link a
 
 ## Progress
 
-Brought to 25 November (task O9). The Cornerstone3D that the branch is checked on is
-the linked checkout at `735fc811e`, the last commit of the unified API plan.
+Brought to 25 November (tasks O9 and O9b). The Cornerstone3D that the branch is checked
+on is the linked checkout at `28dd3ab33`, the last commit of the unified API plan; task
+O9 made its checks on `735fc811e`, task O9b checked M71 and ran jest and the Playwright
+suite again on `28dd3ab33`.
 
 | Step | State | Commit |
 |---|---|---|
@@ -42,7 +45,7 @@ the linked checkout at `735fc811e`, the last commit of the unified API plan.
 | 6. The review sites | done: 23 of 23 read | `8f7232418c` (package U2) |
 | 7. The packages the codemod does not cover | done: no new type error is left | `1653f6df00` (package U3) |
 | 8. jest | done: 171 suites, 1,988 tests pass | packages U2 to U7, tasks O1 to O9 |
-| 9. Playwright on 6.0 | on this Mac all pass on the link at `735fc811e`: 243 passed, 0 failed, 4 skipped, twice (7.4 min each); the run in CI open (open point 2) | packages U3, U4, U6, U7; tasks O1 to O9 |
+| 9. Playwright on 6.0 | on this Mac all pass on the link at `735fc811e`: 243 passed, 0 failed, 4 skipped, twice (7.4 min each); on the link at `28dd3ab33` (task O9b): 243 passed, 0 failed, 4 skipped (7.1 min); the run in CI open (open point 2) | packages U3, U4, U6, U7; tasks O1 to O9b |
 | 10. By hand, on devices | the desktop part done twice: package U6 (22 November, old names) and task O9 (25 November, final names): each mode on the GPU and on the CPU against `master`; Safari on an iPhone open | packages U6, U7; task O9 |
 | 11. Clean names and docs | done; the interfaces with one implementation were kept on 21 November (open point 1) and deleted in task O8 by the owner's decision of 24 November | `15b843a50a`; `e4f9451c6e` |
 | 12. Release | open: a Cornerstone3D 6.0 beta with the commits of the unified API plan, then the pull request | |
@@ -63,7 +66,8 @@ Cornerstone3D and then taken into OHIF by nine tasks. The record of each is in t
 | O6 | The window level rows, the range of the threshold menu and the capture ask the viewport | done | `67ab3444fd` | M61, closes M17 |
 | O7 | The viewport adapter is deleted: OHIF calls the viewports of Cornerstone3D | done | `e4f9451c6e` | M68 |
 | O8 | The interfaces with one implementation are deleted | done | `e4f9451c6e` | M69 |
-| O9 | OHIF as a whole on the final Cornerstone3D: the gaps of M62 to M67 checked, the flaky spec, every check, each mode by hand, the log, this table and the migration guide | done (not committed yet) | | M49, M62 to M67 closed; M70, M71 |
+| O9 | OHIF as a whole on the final Cornerstone3D: the gaps of M62 to M67 checked, the flaky spec, every check, each mode by hand, the log, this table and the migration guide | done | `ca046b21d2` | M49, M62 to M67 closed; M70, M71 |
+| O9b | M71 checked on the final head of the plan (Cornerstone3D `28dd3ab33`, FX6) and closed; jest and the Playwright suite again on that link | done (not committed yet) | | closes M71; M75 |
 
 ## What OHIF has that makes this smaller
 
@@ -261,5 +265,5 @@ points at this branch; `@cornerstonejs` moves to 6.0.0 when it is out.
 2. Step 9: how the CI baselines are updated (from CI artefacts, or another way).
 3. A 6.0.0-beta.2 for the babel fix, or work on the linked checkout until more fixes
    are in. The babel fix is in `v6.0.0-beta.2`; the branch is checked on the linked
-   checkout at `735fc811e`, which has the commits of the unified API plan after it. A
+   checkout at `28dd3ab33`, which has the commits of the unified API plan after it. A
    beta with them is needed before the pull request (step 12).

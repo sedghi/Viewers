@@ -14,12 +14,15 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (25 November, task O9)
+## Summary (25 November, tasks O9 and O9b)
 
-The state of every entry today, on the branch at `e4f9451c6e` plus the work of task O9
-(not committed yet), with the Cornerstone3D link at `735fc811e`. "Whose" says where the
-problem was: in OHIF, in Cornerstone3D (the library, its codemod or its guide), in a test
-of OHIF, or "work" for an entry that records a planned task and not a defect.
+The state of every entry today, on the branch at `ca046b21d2` (task O9) plus the log
+entries of task O9b (not committed yet). Task O9 checked the entries on the Cornerstone3D
+link at `735fc811e`; task O9b moved the link to `28dd3ab33`, the final head of the
+unified API plan, checked M71 there and ran jest and the Playwright suite again on it.
+"Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
+or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
+not a defect.
 
 | Entry | The problem, in one line | Whose | State today |
 |---|---|---|---|
@@ -36,7 +39,7 @@ of OHIF, or "work" for an entry that records a planned task and not a defect.
 | M11 | A labelmap asked for on a 3D viewport was not made a surface | OHIF + Cornerstone | fixed `e5881fc1a7` and in cornerstone (C5, its row 127) |
 | M12 | The initial image of a protocol was not applied to a volume | OHIF | fixed `8f7232418c` |
 | M13 | The type comparison counted paths of the linked checkout as errors | OHIF method + Cornerstone | fixed: the comparison; the declaration paths in cornerstone (C2, row 114); O9: no such error on the link |
-| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`); the run in CI open, waits for the owner (open point 2 of the plan) |
+| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`); the run in CI open, waits for the owner (open point 2 of the plan) |
 | M15 | An optional call of a legacy member failed without a sign | OHIF | fixed `8f7232418c`; the Cornerstone guide names it (step by step) |
 | M16 | Three places did the same thing twice after the codemod | OHIF + Cornerstone codemod | OHIF fixed `8f7232418c`; open for cornerstone: a report of a rewrite that duplicates a line (small) |
 | M17 | The window level panel had no rows | OHIF | fixed `67ab3444fd` (M61) |
@@ -92,24 +95,25 @@ of OHIF, or "work" for an entry that records a planned task and not a defect.
 | M67 | A 3D pane that went to a pane of another size came back with half its pan | Cornerstone | fixed in cornerstone `869981396` (FX5), checked in O9 |
 | M68 | The viewport adapter is deleted (task O7) | work | done `e4f9451c6e` |
 | M69 | The interfaces with one implementation are deleted (task O8) | work | done `e4f9451c6e` |
-| M70 | A spec of the contour colour read the stroke before the next draw | OHIF test | fixed in O9 (not committed yet) |
-| M71 | A destroyed stack viewport keeps its prefetch listener | Cornerstone | open, waits for cornerstone |
-| M72 | On the CPU a jump to a measurement pushed the image out of the pane | OHIF | fixed in O9 (not committed yet) |
-| M73 | The PET axial pane of TMTV showed its slice without the instance number | OHIF | fixed in O9 (not committed yet) |
+| M70 | A spec of the contour colour read the stroke before the next draw | OHIF test | fixed `ca046b21d2` (O9) |
+| M71 | A destroyed stack viewport keeps its prefetch listener | Cornerstone | fixed in cornerstone `28dd3ab33` (FX6), checked in O9b |
+| M72 | On the CPU a jump to a measurement pushed the image out of the pane | OHIF | fixed `ca046b21d2` (O9) |
+| M73 | The PET axial pane of TMTV showed its slice without the instance number | OHIF | fixed `ca046b21d2` (O9) |
 | M74 | A volume of a display set that grew while no viewport showed it keeps its first images | OHIF | open, OHIF; the same on `master` |
+| M75 | OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it | OHIF | open, OHIF (small: holds nothing); the same on `master` |
 
-**The count.** 74 entries; 8 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69), so the upgrade met **66 problems**:
+**The count.** 75 entries; 8 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69), so the upgrade met **67 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 29 | 25, all in Cornerstone3D | 4: M41, M46, M48, M71, each waits for cornerstone | |
-| OHIF (22 in its code, 6 in its tests) | 28 | 26 in OHIF (M70, M72 and M73 in task O9, not committed yet) | 1: M74, OHIF's, the same on `master` | 1: M19 |
+| Cornerstone3D (the library, its codemod or its guide) | 29 | 26, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b) | 3: M41, M46, M48, each waits for cornerstone | |
+| OHIF (23 in its code, 6 in its tests) | 29 | 26 in OHIF (M70, M72 and M73 in `ca046b21d2`, task O9) | 2: M74 and M75, OHIF's, both the same on `master` | 1: M19 |
 | Both | 8 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
 | Cause not found | 1 (M50) | closed by measurement in task O9 | | |
 
-Open today: **M14** (waits for the owner: the Playwright run in CI), **M41, M46, M48,
-M71** (wait for cornerstone), **M74** (OHIF), and three small asks of Cornerstone3D in
+Open today: **M14** (waits for the owner: the Playwright run in CI), **M41, M46, M48**
+(wait for cornerstone), **M74, M75** (OHIF), and three small asks of Cornerstone3D in
 M10, M16 and M27 whose OHIF part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
@@ -2818,7 +2822,7 @@ M10, M16 and M27 whose OHIF part is done.
   fixed sleep. Checks: 20 of 20 on this branch (`--repeat-each=20 --workers=1`, lane O9
   `m70-branch-20.json`), and the same test against `master`, 10 of 10
   (`m70-master-fixed-10.json`).
-- **State:** fixed in task O9 (not committed yet).
+- **State:** fixed `ca046b21d2` (task O9).
 
 ## M71. A stack viewport that is destroyed keeps its prefetch listener
 
@@ -2839,12 +2843,47 @@ M10, M16 and M27 whose OHIF part is done.
   `utilities.stackContextPrefetch.enable(element)`, then `renderingEngine.disableElement`
   of that viewport: `eventTarget.listeners[IMAGE_CACHE_IMAGE_REMOVED]` holds one more
   function after each of three rounds (2, 3, 4, 5).
-- **Fix, in cornerstone:** to do: the prefetch removes its handler and state when the
-  element is disabled (`ELEMENT_DISABLED`), as the synchronizer does.
+- **Fix, in cornerstone:** when the element of a viewport is disabled (by
+  `disableElement` or by the destroy of its rendering engine), the tools' `ELEMENT_DISABLED`
+  path (`removeEnabledElement`) calls `disable` of both stack prefetches; `disable` removes
+  the cache listeners on `eventTarget`, the `NEW_IMAGE` listener, the timer (one per
+  element now), the state and the queued requests of that element. `stackPrefetch.disable`
+  also stopped emptying the whole prefetch queue (the loads of every other viewport with
+  it): it removes the requests of its own element only (cornerstone3D `28dd3ab33`, FX6,
+  its open issues rows 217, 223 and 224).
 - **Fix, in OHIF:** none (rule 3). A call of `disable` in `disableElement` would work too;
   it is not added, as the library keeps this state per element and can drop it itself.
-- **State:** open, waits for cornerstone. A leak of one listener and one detached element
-  per destroyed stack viewport, on `master` as well.
+- **Checked (task O9b, link at `28dd3ab33`; lane O9b `specs/`, `cases/`):**
+  - The smallest case (`m63disabled.spec.ts`), three rounds with `stackContextPrefetch` as
+    in O9 and three with `stackPrefetch`: `IMAGE_CACHE_IMAGE_REMOVED` on `eventTarget` is 2,
+    3 after `enable`, and 2 again after `disableElement`, in every round (O9: 2, 3, 4, 5).
+    The element has one `NEW_IMAGE` listener while the prefetch is on and none after.
+  - The five rounds of layout changes in OHIF (`listeners.spec.ts`, run twice, the same
+    numbers): `IMAGE_CACHE_IMAGE_REMOVED` is 2 after the first load, then 1 after each of
+    the five rounds, so it grows by 0 a round (O9: 2, 4, 5, 6, 7, 8). The one left is the
+    cache's own (`markRemoved`); no prefetch handler is left, as the pane after each round is
+    an MPR pane. `ELEMENT_DISABLED` stays flat after round 1, as in O9 (M64). Of the 24
+    elements destroyed in the five rounds, 19 are collected after a forced garbage
+    collection; 5 stay alive, detached: 2 of round 1 and the 3 panes of the last round, none
+    of rounds 2 to 4, so nothing grows by round. What holds them is not the prefetch (no
+    prefetch handler is left) and was not looked for. The only listener on each of them is
+    OHIF's `CAMERA_RESET` listener (M75); no listener of the prefetch is left on any
+    destroyed element.
+  - The other change in the viewer (`volumeKeepsLoading.spec.ts`, `ownElementOnly.spec.ts`,
+    the `LIVER 3 PHASE` study, network slowed to 1 MB/s and 0.6 MB/s): a pane with a CT as
+    a sagittal volume still loading (11 of 79 frames; in the second case 10 of 79), the
+    stack pane beside it closed by a layout change (1x2 to 1x1; 1x3 to 1x2). The 63 (66)
+    queued requests of the volume are in the pool just before and just after the change,
+    and the volume loads to the end (79 of 79, `IMAGE_VOLUME_LOADING_COMPLETED`, never
+    cancelled, 21 s and 64 s). The queued requests of the other stack pane stay (70 before,
+    70 after); in an earlier run of the 1x3 case (its volume came from the cache, so it
+    counts for this only) the closed pane's own 75 queued requests went and the other
+    pane's 70 stayed. OHIF's volumes load with `coarseInterleavedRetrieveStages`, whose
+    requests are of the type `thumbnail`, so the old `stackPrefetch.disable` (it emptied the
+    `prefetch` queue only, and only for an element with `stackPrefetch` on, which OHIF never
+    enables: it uses `stackContextPrefetch`) could not have stopped a volume of OHIF; it
+    would have taken the queued prefetch of every other stack pane.
+- **State:** closed (fixed in cornerstone `28dd3ab33`, checked in task O9b).
 
 ## M72. On the CPU a jump to a measurement pushed the image out of the pane
 
@@ -2871,7 +2910,7 @@ M10, M16 and M27 whose OHIF part is done.
   the picture when the CPU draws it" (failed first, lane O9 `jest-cpujump-failfirst.log`;
   16 of 16 after). In the viewer on the CPU: pan `[63.7, -13.8]` after the jump, as on
   the GPU.
-- **State:** fixed in task O9 (not committed yet).
+- **State:** fixed `ca046b21d2` (task O9).
 
 ## M73. The PET axial pane of TMTV showed its slice without the instance number
 
@@ -2892,7 +2931,7 @@ M10, M16 and M27 whose OHIF part is done.
 - **Checks:** `CustomizableViewportOverlay.test.ts` (new; it failed first, lane O9
   `jest-overlay-failfirst.log`). In the viewer: the PET axial pane reads `I:135 (1/135)`
   from the mount.
-- **State:** fixed in task O9 (not committed yet).
+- **State:** fixed `ca046b21d2` (task O9).
 
 ## M74. A volume of a display set that grew while no viewport showed it keeps its first images
 
@@ -2915,3 +2954,22 @@ M10, M16 and M27 whose OHIF part is done.
   it now says so of a stack mount only.
 - **Fix, in cornerstone:** none.
 - **State:** open, OHIF, the same on `master`.
+
+## M75. OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it
+
+- **Seen (task O9b, checking M71 on the link at `28dd3ab33`):** after `disableElement` an
+  element still has one listener, of `CAMERA_RESET`, for a viewport made with Cornerstone3D
+  calls only (lane O9b `specs/m63disabled.spec.ts`, every round) and for the 5 elements
+  of OHIF's panes still alive after the five layout rounds of M71 (`listeners.spec.ts`).
+- **Why (read in the code, lane O9b `specs/whoReset.spec.ts`, `cases/who-reset/`):**
+  `elementEnabledHandler` in `extensions/cornerstone/src/init.tsx` runs at each
+  `ELEMENT_ENABLED` and adds a `CAMERA_RESET` listener to the element (it runs
+  `resetCrosshairs`); nothing removes it. `master` has the same code.
+- **What it costs:** little. The listener is on the element, not on `eventTarget`, and it
+  holds only `commandsManager`, not the element or the viewport; a destroyed element that
+  nothing else holds is collected with it (19 of the 24 of M71's rounds were).
+- **Fix, in OHIF:** to do: remove the listener at `ELEMENT_DISABLED` (or add it with the
+  viewport's mount and remove it with its unmount). Not done in task O9b, which only checks
+  M71.
+- **Fix, in cornerstone:** none.
+- **State:** open, OHIF (small), the same on `master`.
