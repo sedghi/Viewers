@@ -37,7 +37,10 @@ is the linked checkout at `472d908e8`: the unified API plan (`28dd3ab33`) and fi
 of fixes after it (lanes FX7 to FX11). Task O9 made its checks on `735fc811e`, task O9b
 checked M71 and ran jest and the Playwright suite again on `28dd3ab33`, tasks O10 and O11
 made their fixes and checks there, and task O12 ran every check again on `472d908e8` and
-closed the entries that waited for those five commits.
+closed the entries that waited for those five commits. Task O13 moved the link to
+`487285b21` (lane FX12, the cut of a contour segmentation in the other planes), saw M79
+fixed in the viewer, and ran jest (176 suites, 2,016 tests pass), the build and the
+Playwright suite (245 passed, 0 failed, 4 skipped) on it.
 
 | Step | State | Commit |
 |---|---|---|

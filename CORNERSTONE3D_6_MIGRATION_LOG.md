@@ -25,6 +25,9 @@ deleted the RTSTRUCT stack pin of the `?useNextViewports` path (M77) and found M
 M79. The link then moved to `472d908e8`, five Cornerstone3D commits later (lanes FX7 to
 FX11); task O12 ran every check on it, measured M41, M46, M48 and M78 in the viewer and
 closed them, checked the source rules of FX8 and FX10 in OHIF's own flows, and found M80.
+The link then moved to `487285b21` (lane FX12, the cut of a contour segmentation in the
+other planes): M79 was seen fixed in the viewer and closed, and jest, the build and the
+Playwright suite ran again on it (task O13).
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -109,7 +112,7 @@ not a defect.
 | M76 | Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed | OHIF | fixed `2bbed3c040` (O11); `master` has it too |
 | M77 | Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR | OHIF | fixed `2bbed3c040` (O11): the rule of the `?useNextViewports` path is deleted |
 | M78 | A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll | Cornerstone | fixed in cornerstone `472d908e8` (FX11), checked in O12: 33 ms, as on `master` |
-| M79 | A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT | Cornerstone | open, waits for cornerstone (lane FX12 works on it; a known difference from `master`, whose cuts came from M31; seen again in O12) |
+| M79 | A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT | Cornerstone | fixed in cornerstone `487285b21` (lane FX12), checked in the viewer in task O13 |
 | M80 | A PET added from the data overlay menu tints the pane more than on `master` | OHIF | open: the initial overlay opacity is a policy of OHIF (0.4) that `master`'s legacy path draws at 0.25; a choice for the owner |
 
 **The count.** 80 entries; 8 of them record a planned task ("work": M54, M56 to M58,
@@ -117,14 +120,13 @@ M60, M61, M68, M69), so the upgrade met **72 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 31 | 30, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12) | 1: M79, waits for cornerstone (lane FX12) | |
+| Cornerstone3D (the library, its codemod or its guide) | 31 | 31, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13) | | |
 | OHIF (26 in its code, 6 in its tests) | 32 | 30 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`) | 1: M80, a choice for the owner | 1: M19 |
 | Both | 8 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
 | Cause not found | 1 (M50) | closed by measurement in task O9 | | |
 
-Open today: **M14** (waits for the owner: the Playwright run in CI), **M79** (waits for
-cornerstone: lane FX12 works on it), **M80** (the initial opacity of a data overlay: a
-choice for the owner), and three small asks of Cornerstone3D in M10, M16 and M27 whose
+Open today: **M14** (waits for the owner: the Playwright run in CI), **M80** (the initial
+opacity of a data overlay: a choice for the owner), and three small asks of Cornerstone3D in M10, M16 and M27 whose
 OHIF part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
@@ -3345,12 +3347,27 @@ OHIF part is done.
   surface. Where `computeSurfaceData` loses the surfaces of a contour segmentation was not
   looked for.
 - **Fix, in OHIF:** none (rule 3).
-- **Fix, in cornerstone:** to do: the surfaces of a contour segmentation for the cut, or a
-  message that says why there is none.
-- **State:** open, waits for cornerstone. A known difference from `master` that the user
-  sees: the sagittal and coronal panes of an MPR show no contour after an RTSTRUCT is
-  hydrated; on `master` the pane it was loaded from showed flat lines and the axial pane
-  nothing.
+- **Fix, in cornerstone:** `487285b21` (lane FX12). The cut was tried only while the
+  viewport said `rendered`, which it never does when the representation is added, and the
+  conversion read contour annotations that were not made yet. `contourCuts` now draws the
+  contour set first, makes the surface of each segment once, cuts it by every slice of the
+  plane in one worker task and shows the cut of the slice on display; a scroll swaps the
+  cut with no new task.
+- **State before task O13:** open, waits for cornerstone. A known difference from
+  `master` that the user saw: the sagittal and coronal panes of an MPR showed no contour
+  after an RTSTRUCT was hydrated; on `master` the pane it was loaded from showed flat
+  lines and the axial pane nothing.
+- **State:** fixed in cornerstone, checked in the viewer (task O13, link at `487285b21`,
+  the probe of lane O11 `scratch/cutProbe.mjs` with `WAIT=45000`): after the hydration
+  from the sagittal pane the axial pane draws 13 contour paths, the sagittal pane 21 cuts
+  and the coronal pane 25, each structure in its colour; every pane stays a volume pane in
+  its orientation; the cache holds 31 surfaces next to the 31 contour geometries. OHIF
+  changed nothing: it registers the polySeg add-on already. Two things are left in
+  Cornerstone3D (its lane FX13): each structure is converted twice (62
+  `convertContourToSurface` tasks for 31 structures), and the first cut is drawn about
+  15 s after the hydration (its open row 251); the wasm of the conversion also prints
+  `Contour spacing is not consistent` warnings for some structures. `master` never drew a
+  cut (its flat lines came from M31).
 - **Seen again (task O12, link at `472d908e8`, lane O12 `cases/m78/rt/`):** the same
   counts: after the hydration from the axial, the sagittal or the coronal pane the branch
   draws 13 contour paths in the axial pane and none in the sagittal and coronal panes;
