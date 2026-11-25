@@ -9,31 +9,35 @@ compatibility layer.
 ## What is done
 
 Every step but the run in CI (step 9), Safari on an iPhone (step 10) and the release
-(step 12): see [Progress](#progress). The branch has 19 commits on `master` and the
-uncommitted work of task O11 (M76, M77). The record of each problem is
-`CORNERSTONE3D_6_MIGRATION_LOG.md`, with a summary table at its top.
+(step 12): see [Progress](#progress). The branch has 20 commits on `master` (the last,
+`2bbed3c040`, is task O11) and the uncommitted work of task O12 (the log and this plan).
+The record of each problem is `CORNERSTONE3D_6_MIGRATION_LOG.md`, with a summary table at
+its top.
 
 ## How it goes: the numbers
 
 Measured on this Mac. "Before" is `master` on 5.18.3, "first" the branch after the
 codemod (21 November), "now" the branch with task O9 on the Cornerstone3D link at
 `735fc811e` (25 November); jest and Playwright were run again by task O9b on the link at
-`28dd3ab33`, the final head of the plan, with the same results.
+`28dd3ab33`, and every check by task O12 on the link at `472d908e8`, with the same
+results.
 
 | Check | Before (`master`) | First (21 November) | Now (25 November) |
 |---|---|---|---|
-| jest | 153 suites, 1,853 tests, all pass | 148 suites pass, 5 fail; 1,834 tests pass, 19 fail | 176 suites, 2,016 tests, all pass (task O11; 173 and 2,007 after task O10, 171 and 1,988 before it) |
+| jest | 153 suites, 1,853 tests, all pass | 148 suites pass, 5 fail; 1,834 tests pass, 19 fail | 176 suites, 2,016 tests, all pass (task O11, and again in task O12 on the link at `472d908e8`; 173 and 2,007 after task O10, 171 and 1,988 before it) |
 | build (`pnpm run build`) | passes | fails: 2 removed functions in 3 files | passes |
-| type check (`tsc`, not part of OHIF's build) | 8,452 errors | 8,568: 96 new kinds, 22 gone | 8,788 lines in OHIF files (`master` 8,333 by the same count): no new kind of error against `master` but 3 reprints of existing errors and the test-runner globals (`it`, `expect`, `jest`) of the 19 new test files; 21 kinds gone. Task O10 adds no error outside the test-runner globals of its 2 new test files and its new tests, task O11 none outside those of its 3 new test files |
+| type check (`tsc`, not part of OHIF's build) | 8,452 errors | 8,568: 96 new kinds, 22 gone | 8,788 lines in OHIF files (`master` 8,333 by the same count): no new kind of error against `master` but 3 reprints of existing errors and the test-runner globals (`it`, `expect`, `jest`) of the 19 new test files; 21 kinds gone. Task O10 adds no error outside the test-runner globals of its 2 new test files and its new tests, task O11 none outside those of its 3 new test files; the link at `472d908e8` adds none (task O12, against the errors of task O11) |
 | lint of CI (`pnpm run lint:compiler:ci`) | 94 errors, 94 warnings (the budget) | not run | 94 errors, 94 warnings: the budget, passes |
-| Playwright (101 specs, 247 tests) | 243 passed, 4 skipped | not run | 243 passed, 0 failed, 4 skipped, twice (7.4 min each); task O10: 243 passed, 0 failed, 4 skipped (7.6 min); task O11 (249 tests, 2 new): 245 passed, 0 failed, 4 skipped (7.6 min); no baseline changed |
+| Playwright (101 specs, 247 tests) | 243 passed, 4 skipped | not run | 243 passed, 0 failed, 4 skipped, twice (7.4 min each); task O10: 243 passed, 0 failed, 4 skipped (7.6 min); task O11 (249 tests, 2 new): 245 passed, 0 failed, 4 skipped (7.6 min); task O12 on the link at `472d908e8`: 245 passed, 0 failed, 4 skipped (7.2 min); no baseline changed |
 
 ## Progress
 
-Brought to 25 November (tasks O9, O9b, O10 and O11). The Cornerstone3D that the branch is
-checked on is the linked checkout at `28dd3ab33`, the last commit of the unified API plan;
-task O9 made its checks on `735fc811e`, task O9b checked M71 and ran jest and the
-Playwright suite again on `28dd3ab33`, and tasks O10 and O11 made their fixes and checks there.
+Brought to 25 November (tasks O9 to O12). The Cornerstone3D that the branch is checked on
+is the linked checkout at `472d908e8`: the unified API plan (`28dd3ab33`) and five commits
+of fixes after it (lanes FX7 to FX11). Task O9 made its checks on `735fc811e`, task O9b
+checked M71 and ran jest and the Playwright suite again on `28dd3ab33`, tasks O10 and O11
+made their fixes and checks there, and task O12 ran every check again on `472d908e8` and
+closed the entries that waited for those five commits.
 
 | Step | State | Commit |
 |---|---|---|
@@ -44,19 +48,21 @@ Playwright suite again on `28dd3ab33`, and tasks O10 and O11 made their fixes an
 | 5. The other manual sites | done: the codemod reports 0 | `8f7232418c` (package U2) |
 | 6. The review sites | done: 23 of 23 read | `8f7232418c` (package U2) |
 | 7. The packages the codemod does not cover | done: no new type error is left | `1653f6df00` (package U3) |
-| 8. jest | done: 176 suites, 2,016 tests pass (task O11) | packages U2 to U7, tasks O1 to O11 |
-| 9. Playwright on 6.0 | on this Mac all pass on the link at `735fc811e`: 243 passed, 0 failed, 4 skipped, twice (7.4 min each); on the link at `28dd3ab33` (task O9b): 243 passed, 0 failed, 4 skipped (7.1 min); with task O10: 243 passed, 0 failed, 4 skipped (7.6 min); with task O11: 245 passed, 0 failed, 4 skipped (7.6 min); the run in CI open (open point 2) | packages U3, U4, U6, U7; tasks O1 to O11 |
-| 10. By hand, on devices | the desktop part done twice: package U6 (22 November, old names) and task O9 (25 November, final names): each mode on the GPU and on the CPU against `master`; Safari on an iPhone open | packages U6, U7; task O9 |
+| 8. jest | done: 176 suites, 2,016 tests pass (task O11; the same in task O12 on the link at `472d908e8`) | packages U2 to U7, tasks O1 to O12 |
+| 9. Playwright on 6.0 | on this Mac all pass on the link at `735fc811e`: 243 passed, 0 failed, 4 skipped, twice (7.4 min each); on the link at `28dd3ab33` (task O9b): 243 passed, 0 failed, 4 skipped (7.1 min); with task O10: 243 passed, 0 failed, 4 skipped (7.6 min); with task O11: 245 passed, 0 failed, 4 skipped (7.6 min); on the link at `472d908e8` (task O12): 245 passed, 0 failed, 4 skipped (7.2 min); the run in CI open (open point 2) | packages U3, U4, U6, U7; tasks O1 to O12 |
+| 10. By hand, on devices | the desktop part done twice: package U6 (22 November, old names) and task O9 (25 November, final names): each mode on the GPU and on the CPU against `master`; task O12 (25 November, link `472d908e8`): the US annotation mode, the whole slide, the CPU path of a stack, an MPR and TMTV, the MIP and fusion edges of TMTV, the RTSTRUCT over an MPR, the data overlay menu, a 3D pane and the capture of a fusion, a 3D pane, a video, an ECG and a slide against `master`; Safari on an iPhone open | packages U6, U7; tasks O9, O12 |
 | 11. Clean names and docs | done; the interfaces with one implementation were kept on 21 November (open point 1) and deleted in task O8 by the owner's decision of 24 November | `15b843a50a`; `e4f9451c6e` |
 | 12. Release | open: a Cornerstone3D 6.0 beta with the commits of the unified API plan, then the pull request | |
 
-### The unified API plan (tasks O1 to O11)
+### The unified API plan (tasks O1 to O12)
 
 The owner's decisions of 24 November (one display set registry, the appearance and the
 framing of a display set, one event for each change, no adapter) were built in
 Cornerstone3D and then taken into OHIF by nine tasks; task O10 fixed the two entries of
 the log that were OHIF's own and still open, and task O11 the last one (M76) and the
-last rule of the `?useNextViewports` path (M77). The record of each is in the log.
+last rule of the `?useNextViewports` path (M77); task O12 checked OHIF on the five
+Cornerstone3D commits that followed the plan and closed the four entries that waited for
+them. The record of each is in the log.
 
 | Task | What | State | Commit | Log |
 |---|---|---|---|---|
@@ -71,7 +77,8 @@ last rule of the `?useNextViewports` path (M77). The record of each is in the lo
 | O9 | OHIF as a whole on the final Cornerstone3D: the gaps of M62 to M67 checked, the flaky spec, every check, each mode by hand, the log, this table and the migration guide | done | `ca046b21d2` | M49, M62 to M67 closed; M70, M71 |
 | O9b | M71 checked on the final head of the plan (Cornerstone3D `28dd3ab33`, FX6) and closed; jest and the Playwright suite again on that link | done | `b7e4ae19a2` | closes M71; M75 |
 | O10 | OHIF's two open entries: the volume of a display set is valid for the image ids it was made from (every kind of volume OHIF makes); the `CAMERA_RESET` listener removed at `ELEMENT_DISABLED`, and the element state that held destroyed elements | done | `2e5ecdd662` | closes M74, M75; M76 |
-| O11 | One path, clean: the RTSTRUCT stack pin of the `?useNextViewports` path deleted (a pane keeps its type and orientation when an RTSTRUCT is hydrated), the last comments of two paths, the dead code checked; one toolbar listener per viewer entry (`registerEventForToolbarUpdate` returns its release) | done (not committed yet) | | closes M76, M77; M78, M79 |
+| O11 | One path, clean: the RTSTRUCT stack pin of the `?useNextViewports` path deleted (a pane keeps its type and orientation when an RTSTRUCT is hydrated), the last comments of two paths, the dead code checked; one toolbar listener per viewer entry (`registerEventForToolbarUpdate` returns its release) | done | `2bbed3c040` | closes M76, M77; M78, M79 |
+| O12 | OHIF on the Cornerstone3D link at `472d908e8` (lanes FX7 to FX11): every check again (jest, type check, build, lint budget, Playwright); M41, M46, M48 and M78 measured in the viewer against `master`; the MIP edge of TMTV; the source rules of FX8 and FX10 in OHIF's own flows (the data overlay menu, a 3D pane, the capture of a fusion, a video, an ECG and a slide); no code changed | done (not committed yet) | | closes M41, M46, M48, M78; M80 |
 
 ## What OHIF has that makes this smaller
 
@@ -269,5 +276,6 @@ points at this branch; `@cornerstonejs` moves to 6.0.0 when it is out.
 2. Step 9: how the CI baselines are updated (from CI artefacts, or another way).
 3. A 6.0.0-beta.2 for the babel fix, or work on the linked checkout until more fixes
    are in. The babel fix is in `v6.0.0-beta.2`; the branch is checked on the linked
-   checkout at `28dd3ab33`, which has the commits of the unified API plan after it. A
-   beta with them is needed before the pull request (step 12).
+   checkout at `472d908e8`, which has the commits of the unified API plan and the five
+   fixes after it (FX7 to FX11). A beta with them is needed before the pull request
+   (step 12).

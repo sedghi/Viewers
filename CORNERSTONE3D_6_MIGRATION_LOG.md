@@ -14,15 +14,17 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (25 November, tasks O9 to O11)
+## Summary (25 November, tasks O9 to O12)
 
-The state of every entry today, on the branch at `2e5ecdd662` (task O10) plus the work
-of task O11 (not committed yet). Task O9 checked the entries on the Cornerstone3D link at
-`735fc811e`; task O9b moved the link to `28dd3ab33`, the final head of the unified API
+The state of every entry today, on the branch at `2bbed3c040` (task O11) and the
+Cornerstone3D link at `472d908e8`. Task O9 checked the entries on the Cornerstone3D link
+at `735fc811e`; task O9b moved the link to `28dd3ab33`, the final head of the unified API
 plan, checked M71 there and ran jest and the Playwright suite again on it; task O10 fixed
 OHIF's two open entries (M74, M75) on that link and found M76; task O11 fixed M76,
 deleted the RTSTRUCT stack pin of the `?useNextViewports` path (M77) and found M78 and
-M79.
+M79. The link then moved to `472d908e8`, five Cornerstone3D commits later (lanes FX7 to
+FX11); task O12 ran every check on it, measured M41, M46, M48 and M78 in the viewer and
+closed them, checked the source rules of FX8 and FX10 in OHIF's own flows, and found M80.
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -42,7 +44,7 @@ not a defect.
 | M11 | A labelmap asked for on a 3D viewport was not made a surface | OHIF + Cornerstone | fixed `e5881fc1a7` and in cornerstone (C5, its row 127) |
 | M12 | The initial image of a protocol was not applied to a volume | OHIF | fixed `8f7232418c` |
 | M13 | The type comparison counted paths of the linked checkout as errors | OHIF method + Cornerstone | fixed: the comparison; the declaration paths in cornerstone (C2, row 114); O9: no such error on the link |
-| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link; O11: 245 passed (2 new tests), 0 failed, 4 skipped (7.6 min), same link); the run in CI open, waits for the owner (open point 2 of the plan) |
+| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link; O11: 245 passed (2 new tests), 0 failed, 4 skipped (7.6 min), same link; O12: 245 passed, 0 failed, 4 skipped (7.2 min), link `472d908e8`); the run in CI open, waits for the owner (open point 2 of the plan) |
 | M15 | An optional call of a legacy member failed without a sign | OHIF | fixed `8f7232418c`; the Cornerstone guide names it (step by step) |
 | M16 | Three places did the same thing twice after the codemod | OHIF + Cornerstone codemod | OHIF fixed `8f7232418c`; open for cornerstone: a report of a rewrite that duplicates a line (small) |
 | M17 | The window level panel had no rows | OHIF | fixed `67ab3444fd` (M61) |
@@ -69,14 +71,14 @@ not a defect.
 | M38 | A window level drag in an MPR changed the window twice as much | Cornerstone | fixed in cornerstone (C6), checked in O3 |
 | M39 | On the CPU a planar viewport missed a resize back to its first size | Cornerstone | fixed in cornerstone (C6, its row 129); O9: on the CPU a 2x2 layout and back is the GPU picture; its jump effect was M72 |
 | M40 | A resize kept the pan of a planar viewport as a share of the canvas | Cornerstone | fixed in cornerstone (C5), checked in O4 |
-| M41 | A console warning of Chrome on the CPU path (`willReadFrequently`) | Cornerstone | open, waits for cornerstone (a warning only) |
+| M41 | A console warning of Chrome on the CPU path (`willReadFrequently`) | Cornerstone | fixed in cornerstone `ccb599e2a` (FX7), checked in O12: no warning of the CPU draw step on a stack, an MPR or the TMTV mode |
 | M42 | A stack of a series shown as a volume elsewhere was drawn as a volume slice | OHIF + Cornerstone | fixed `309cc169f3` with cornerstone DS3 |
 | M43 | A jump to an empty segment put every pane on slice NaN | OHIF + Cornerstone | fixed `2f4718f986` and in cornerstone (C6, row 133) |
 | M44 | An SR, SEG or RTSTRUCT viewport showed no window text | OHIF | fixed `2f4718f986` |
 | M45 | The PET of a TMTV fusion tinted the whole pane red | OHIF | fixed `8659924b25` (M57) |
-| M46 | The ultrasound pleura and B-line tool threw before the first image | Cornerstone | open, waits for cornerstone (seen again in O9; `master` has no error) |
+| M46 | The ultrasound pleura and B-line tool threw before the first image | Cornerstone | fixed in cornerstone `ccb599e2a` (FX7), checked in O12: no error on the GPU or the CPU, the lines and their percentage as on `master` |
 | M47 | A reference that names the PET of a fusion made the PET the source | Cornerstone | fixed in cornerstone (C6 row 131, DS4 row 150) |
-| M48 | A whole slide viewport never reported that it had rendered | Cornerstone | open, waits for cornerstone (`preRender` in O9, GPU and CPU; `master` `rendered`) |
+| M48 | A whole slide viewport never reported that it had rendered | Cornerstone | fixed in cornerstone `ccb599e2a` (FX7), checked in O12: `rendered` 2.1 to 2.3 s after the page opens, GPU and CPU |
 | M49 | The cine of a stack with a labelmap played at 15 to 17 a second | Cornerstone | fixed in cornerstone `735fc811e` (FX4), checked in O9: as `master` |
 | M50 | The TMTV CSV export did nothing on the CPU | not found | closed by measurement in O9: on the CPU the statistics of the GPU and the CSV file |
 | M51 | A planar viewport took a reference only while its data was registered | Cornerstone | fixed in cornerstone (DS3, DS4); the OHIF registry deleted in `309cc169f3` |
@@ -104,24 +106,26 @@ not a defect.
 | M73 | The PET axial pane of TMTV showed its slice without the instance number | OHIF | fixed `ca046b21d2` (O9) |
 | M74 | A volume of a display set that grew while no viewport showed it keeps its first images | OHIF | fixed `2e5ecdd662` (O10); `master` has it too |
 | M75 | OHIF adds a `CAMERA_RESET` listener to each enabled element and never removes it | OHIF | fixed `2e5ecdd662` (O10), with the element state that held destroyed elements; `master` has it too |
-| M76 | Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed | OHIF | fixed in task O11 (not committed yet); `master` has it too |
-| M77 | Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR | OHIF | fixed in task O11 (not committed yet): the rule of the `?useNextViewports` path is deleted |
-| M78 | A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll | Cornerstone | open, waits for cornerstone |
-| M79 | A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT | Cornerstone | open, waits for cornerstone (a known difference from `master`, whose cuts came from M31) |
+| M76 | Each mode entry adds a `TOOL_ACTIVATED` listener to `eventTarget` that is never removed | OHIF | fixed `2bbed3c040` (O11); `master` has it too |
+| M77 | Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR | OHIF | fixed `2bbed3c040` (O11): the rule of the `?useNextViewports` path is deleted |
+| M78 | A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll | Cornerstone | fixed in cornerstone `472d908e8` (FX11), checked in O12: 33 ms, as on `master` |
+| M79 | A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT | Cornerstone | open, waits for cornerstone (lane FX12 works on it; a known difference from `master`, whose cuts came from M31; seen again in O12) |
+| M80 | A PET added from the data overlay menu tints the pane more than on `master` | OHIF | open: the initial overlay opacity is a policy of OHIF (0.4) that `master`'s legacy path draws at 0.25; a choice for the owner |
 
-**The count.** 79 entries; 8 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69), so the upgrade met **71 problems**:
+**The count.** 80 entries; 8 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69), so the upgrade met **72 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 31 | 26, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b) | 5: M41, M46, M48, M78, M79, each waits for cornerstone | |
-| OHIF (25 in its code, 6 in its tests) | 31 | 30 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in task O11, not committed yet) | | 1: M19 |
+| Cornerstone3D (the library, its codemod or its guide) | 31 | 30, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12) | 1: M79, waits for cornerstone (lane FX12) | |
+| OHIF (26 in its code, 6 in its tests) | 32 | 30 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`) | 1: M80, a choice for the owner | 1: M19 |
 | Both | 8 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
 | Cause not found | 1 (M50) | closed by measurement in task O9 | | |
 
-Open today: **M14** (waits for the owner: the Playwright run in CI), **M41, M46, M48,
-M78, M79** (wait for cornerstone), and three small asks of Cornerstone3D in M10, M16 and
-M27 whose OHIF part is done.
+Open today: **M14** (waits for the owner: the Playwright run in CI), **M79** (waits for
+cornerstone: lane FX12 works on it), **M80** (the initial opacity of a data overlay: a
+choice for the owner), and three small asks of Cornerstone3D in M10, M16 and M27 whose
+OHIF part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
 
@@ -592,6 +596,7 @@ M27 whose OHIF part is done.
 | `SegAcrossViewportTypes.spec.ts` | keeps the selected segment selected across viewport types | passes (M22) | timeout | timeout | timeout |
 | `ZoomIn.spec.ts` | should render the magnified region with the same horizontal flip as the source viewport | passes (M25) | picture differs (0.94) | picture differs (0.94) | throws: Unsupported viewport type |
 - **State today (task O9):** on this Mac every spec passes on the link at `735fc811e` (task O9); the run in CI is open, waits for the owner (open point 2 of the plan).
+- **Task O12, link at `472d908e8`:** 245 passed, 0 failed, 0 flaky, 4 skipped (7.2 min, 6 workers, `TEST_ENV=true`); the two expected failures (`test.fail`) failed as expected; no baseline changed. The two whole slide specs do not wait for `rendered` (their `visitStudy` waits for the network), so M48 does not change their time: `WSI` 8.0 s on the old link, 7.8 s now; `MicroscopyPanel` 8.1 s, 8.6 s.
 
 ## M15. An optional call of a legacy member fails without a sign
 
@@ -1426,8 +1431,27 @@ M27 whose OHIF part is done.
 - **Fix, in cornerstone:** to do: `getContext('2d', { willReadFrequently: true })` for the
   canvases that are read back on each draw.
 - **Fix, in OHIF:** none (rule 3).
-- **State:** open, waits for cornerstone. A warning, nothing else is seen. Task O9: no
-  2D context of `core` or `tools` at `735fc811e` is made with `willReadFrequently`.
+- **State before task O12:** open, waits for cornerstone. A warning, nothing else is
+  seen. Task O9: no 2D context of `core` or `tools` at `735fc811e` is made with
+  `willReadFrequently`.
+- **Fixed in cornerstone (lane FX7, `ccb599e2a`):** the canvas that a planar viewport
+  shows on the CPU and the overlay layer of a video viewport are made with
+  `willReadFrequently: true`, and the CPU draw step no longer reads back the canvas into
+  which it writes the pixels of an image. The Cornerstone guide names it
+  (`2-rendering-changes.md`, "The canvas that shows keeps its pixels in memory").
+- **Checked (task O12, link at `472d908e8`, lane O12 `specs/m41.spec.ts`,
+  `specs/m41trace.spec.ts`, `cases/m41/`):** with `?viewportRendering=cpu`, each case on a
+  new page, every console message counted by its text. A CT stack scrolled over 10
+  images: 0 readback warnings. An MPR scrolled in its three panes, then zoomed out to 0.6
+  so that the faces of the volume are in view and scrolled again: 0. The TMTV mode, each
+  of its 10 panes scrolled: 1, and that one is not the CPU draw step: a trace of
+  `getContext` and `getImageData` shows a 400 by 400 canvas of vtk.js
+  (`vtkAnnotatedCubeActor`, the cube of the orientation marker tool) read 18 times. The
+  same single warning comes on the GPU, on the branch and on `master` (on the CPU
+  `master` draws no volume pane and makes no cube). Each canvas of a viewport on the CPU
+  path is made with `willReadFrequently: true` and is read 1 to 6 times without a
+  warning. The entry had no count for the old link.
+- **State:** fixed in cornerstone `ccb599e2a`, checked in task O12.
 
 ## M42. A stack of a series that another pane shows as a volume is drawn as a volume slice
 
@@ -1700,6 +1724,18 @@ M27 whose OHIF part is done.
   mode on that study (`1.2.840.113663.1500.1.248223208.1.1.20110323.105903.687`) gives
   `getImage: imageId must not be undefined` at the opening; `master` gives none.
   `deriveFanGeometryFromViewport` is as it was.
+- **Fixed in cornerstone (lane FX7, `ccb599e2a`):** the tool finds no fan while the
+  viewport has drawn no image (`getFanShapeGeometryParameters()` gives false) and derives
+  it at the next render. The Cornerstone guide names it (`2-rendering-changes.md`, events
+  and image loading of a planar viewport).
+- **Checked (task O12, link at `472d908e8`, lane O12 `specs/m46.spec.ts`, `cases/m46/`):**
+  the US annotation mode on that study, on the branch and on `master`, on the GPU and on
+  the CPU: no page error and no console error, at the opening or after. The depth guide
+  draws its 10 dashes on all four. A pleura line and a B-line drawn with the same clicks
+  give `B-Line/Pleura : 16.07 %` on the branch on the GPU and on the CPU and on `master`
+  on the GPU, 15.92 % on `master` on the CPU (the 39.14 % of package U6 came from other
+  lines).
+- **State:** fixed in cornerstone `ccb599e2a`, checked in task O12.
 
 ## M47. A view reference that names the PET of a fusion makes the PET the source
 
@@ -1757,7 +1793,20 @@ M27 whose OHIF part is done.
 - **Also measured:** three wheel ticks over the slide add 0.88 to the zoom of 6.0, three
   times alike; 5.18.3 adds between 0.90 and 1.08 from run to run (the map's animated wheel
   zoom). Not counted as a difference.
-- **State:** open, waits for cornerstone.
+- **Fixed in cornerstone (lane FX7, `ccb599e2a`):** the viewport is `rendered` when the map
+  has drawn every tile of its view (the `rendercomplete` of OpenLayers), and again after
+  each later complete draw; a pass of the rendering engine leaves it `needsRender` until
+  then. The Cornerstone guide names it (`2-rendering-changes.md`, whole slide viewports).
+- **Checked (task O12, link at `472d908e8`, lane O12 `specs/m48.spec.ts`, `cases/m48/`):**
+  the slide in the basic viewer, the status sampled every 100 ms from the navigation:
+  `rendered` 2.3 s after it on the GPU and 2.1 s on the CPU; `master` 1.8 s and 1.7 s (it
+  reports `rendered` after the first pass, before the tiles). After 20 s the predicate of
+  OHIF's `waitForViewportsRendered` resolves in 9 ms on the GPU and 11 ms on the CPU,
+  where it waited its 15 s; after a wheel zoom the status is `rendered` again; the
+  capture of the slide is `rendered`. No spec of OHIF waits for it on the slide (their
+  `visitStudy` waits for the network): `WSI` took 8.0 s on the old link and 7.8 s now,
+  `MicroscopyPanel` 8.1 s and 8.6 s.
+- **State:** fixed in cornerstone `ccb599e2a`, checked in task O12.
 
 ## M49. The cine of a stack with a labelmap plays at 15 to 17 images a second
 
@@ -3142,7 +3191,7 @@ M27 whose OHIF part is done.
     opening, the tracked measurements service 10, `VIEWPORT_DATA_CHANGED` 4 then 8 from
     the second opening on (4 subscriptions that come once, at the second opening, and do
     not grow; the same step is in the run before the fix).
-- **State:** fixed in task O11 (not committed yet).
+- **State:** fixed in task O11, committed in `2bbed3c040`.
 
 ## M77. Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR
 
@@ -3222,7 +3271,7 @@ M27 whose OHIF part is done.
   - The 11 RTSTRUCT specs pass with the change (`pw-rt-specs.log`), the four pictures of
     `RTHydrationFromMPR.spec.ts` (made with the pin on the axial pane) among them: no
     baseline changed.
-- **State:** fixed in task O11 (not committed yet).
+- **State:** fixed in task O11, committed in `2bbed3c040`.
 
 ## M78. A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll
 
@@ -3250,7 +3299,24 @@ M27 whose OHIF part is done.
   where this cost is not paid; a stack with many contours pays it, as before.
 - **Fix, in cornerstone:** to do: the filter of the annotations of a stack should not read
   the metadata of the referenced image of every annotation on every draw.
-- **State:** open, waits for cornerstone.
+- **Fixed in cornerstone (lane FX11, `472d908e8`):** `viewport.getReferenceViewableCheck()`
+  (public, new) reads the facts of the view once and answers `isReferenceViewable` for
+  many references; `filterAnnotationsForDisplay` makes one check per call, the image of a
+  reference is found in an index of the image URIs, and the contour draw asks for the
+  image data once per draw. In lane FX11 a stack with 2,265 contours made 96 metadata
+  calls per draw, 63,844 before. The Cornerstone guide names it
+  (`2-rendering-changes.md`, the annotation filter of the tools).
+- **Checked (task O12, link at `472d908e8`, lane O12 `cases/m78/`):** `stackDelay.mjs` of
+  lane O11 (label `after`, its `cases/stack-delay-after.json`, and two more runs): with
+  the hydrated RTSTRUCT the stack draws its annotations 20 to 41 ms after a scroll of one
+  slice and 6 to 9 ms after the image, where it drew them 159 to 164 ms after the scroll;
+  `master` at the same time 21 to 42 ms, 4 to 6 ms after the image. The machine had other
+  work: with no annotation both sides drew at 21 to 37 ms, where O11 measured 17 to 18. The
+  method of O11's `rtPanes.spec.ts` (40 scrolls, the median from the scroll to the next
+  annotation render): the stack 33.2 ms (155.7 ms in O11 without the pin), `master`
+  33.3 ms; the three MPR panes the RTSTRUCT was loaded from 33.3 to 33.5 ms (33.2 to
+  33.3 in O11), `master` 33.3 to 35.8 ms.
+- **State:** fixed in cornerstone `472d908e8`, checked in task O12.
 
 ## M79. A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT
 
@@ -3285,3 +3351,33 @@ M27 whose OHIF part is done.
   sees: the sagittal and coronal panes of an MPR show no contour after an RTSTRUCT is
   hydrated; on `master` the pane it was loaded from showed flat lines and the axial pane
   nothing.
+- **Seen again (task O12, link at `472d908e8`, lane O12 `cases/m78/rt/`):** the same
+  counts: after the hydration from the axial, the sagittal or the coronal pane the branch
+  draws 13 contour paths in the axial pane and none in the sagittal and coronal panes;
+  `master` draws 13 in the axial pane, 51 in the sagittal pane or 21 in the coronal pane,
+  each in the pane the RTSTRUCT was loaded from. Lane FX12 of Cornerstone3D works on it.
+
+## M80. A PET added from the data overlay menu tints the pane more than on `master`
+
+- **Seen (task O12, lane O12 `specs/flows.spec.ts`, `cases/flows/fusion/`):** the study
+  "LUNG DELAYS" (`1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463`) in
+  the basic viewer, the CT in the pane, its PT added with `addDisplaySetAsLayer` (the
+  command of the data overlay menu). The PT gets the colormap `hsv`, red at its lowest
+  value, so the whole extent of the volume takes a red tint: its mean colour in an empty
+  part of the pane is (102, 0, 1) on the branch and (64, 0, 1) on `master`, the CT alone
+  (0, 0, 0) on both; 88% of the pixels of the pane differ by more than 16. The picture
+  after the CT background is removed, the 3D pane and the TMTV fusion are as on `master`.
+- **Why (read in the code and measured):** the overlay menu gives the PT the opacity 0.9;
+  OHIF starts an overlay on a live viewport at `OVERLAY_OPACITY` (0.4,
+  `utils/viewportPolicies.ts`), which Cornerstone3D 6 blends flat: 0.4 of 255 is 102. The
+  legacy volume viewport of `master` drew the nominal 0.9 at `1 - (1 - 0.9) ** 0.125`,
+  0.25 (M57), 64 of 255. The constant came from the `?useNextViewports` path of 3.13
+  (`NEXT_OVERLAY_OPACITY`, 0.4), whose comment says the legacy 0.9 "renders at ~40%
+  effective"; measured, it is 25%. Not a change of the commits of the link: the value is
+  OHIF's since 3.13 and the guide lists it ("`NEXT_OVERLAY_OPACITY` ->
+  `OVERLAY_OPACITY`, the same value").
+- **Fix, in OHIF:** not made: the look of a data overlay is a choice of the product, and
+  task O12 does not change code. With `OVERLAY_OPACITY` at 0.25 the first picture of such
+  a fusion would be the one of `master`.
+- **Fix, in cornerstone:** none.
+- **State:** open, a choice for the owner.
