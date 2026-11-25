@@ -1,3 +1,29 @@
+/**
+ * The opacities by SUV of the PET over the CT of the fusion panes. They are the
+ * ramp of OHIF 3.13 (0 at SUV 0, 0.8 at 0.1, 0.9 from 1 on) as the legacy
+ * volume viewport of Cornerstone3D 5.x drew it: each opacity `a` as
+ * `1 - (1 - a) ** 0.125`, the exponent of its blend for the volumes of a
+ * PET/CT study. Cornerstone3D 6.0 draws an opacity as it is given, so the
+ * fusion keeps the look of 3.13 with these weaker points; the opacity slider
+ * scales them. Measured on the study "LUNG DELAYS": the fusion panes are
+ * within 3 levels of 255 of 3.13 on 99% of their pixels.
+ */
+const FUSION_PT_OPACITY_MAPPING = [
+  { value: 0, opacity: 0 },
+  { value: 0.0125, opacity: 0.0131 },
+  { value: 0.025, opacity: 0.0275 },
+  { value: 0.0375, opacity: 0.0436 },
+  { value: 0.05, opacity: 0.0619 },
+  { value: 0.0625, opacity: 0.083 },
+  { value: 0.075, opacity: 0.1082 },
+  { value: 0.0875, opacity: 0.1397 },
+  { value: 0.1, opacity: 0.1822 },
+  { value: 0.325, opacity: 0.1958 },
+  { value: 0.55, opacity: 0.2111 },
+  { value: 0.775, opacity: 0.2289 },
+  { value: 1, opacity: 0.2501 },
+];
+
 // Common sync group configurations
 const cameraPositionSync = (id: string) => ({
   type: 'cameraPosition',
@@ -286,11 +312,7 @@ const fusionAXIAL: AppTypes.HangingProtocol.Viewport = {
       options: {
         colormap: {
           name: 'hsv',
-          opacity: [
-            { value: 0, opacity: 0 },
-            { value: 0.1, opacity: 0.8 },
-            { value: 1, opacity: 0.9 },
-          ],
+          opacityMapping: FUSION_PT_OPACITY_MAPPING,
         },
         voi: {
           custom: 'getPTVOIRange',
@@ -349,11 +371,7 @@ const fusionSAGITTAL = {
       options: {
         colormap: {
           name: 'hsv',
-          opacity: [
-            { value: 0, opacity: 0 },
-            { value: 0.1, opacity: 0.8 },
-            { value: 1, opacity: 0.9 },
-          ],
+          opacityMapping: FUSION_PT_OPACITY_MAPPING,
         },
         voi: {
           custom: 'getPTVOIRange',
@@ -412,11 +430,7 @@ const fusionCORONAL = {
       options: {
         colormap: {
           name: 'hsv',
-          opacity: [
-            { value: 0, opacity: 0 },
-            { value: 0.1, opacity: 0.8 },
-            { value: 1, opacity: 0.9 },
-          ],
+          opacityMapping: FUSION_PT_OPACITY_MAPPING,
         },
         voi: {
           custom: 'getPTVOIRange',

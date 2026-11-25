@@ -70,8 +70,8 @@ export const viewportOperations: IViewportOperations = {
 
   invert(viewport: CoreTypes.IViewport): void {
     const adapter = getViewportAdapter(viewport);
-    const { invert } = adapter.getPresentation();
-    adapter.setPresentation({ invert: !invert });
+    const { invert } = adapter.getEffectiveAppearance();
+    adapter.setAppearance({ invert: !invert });
   },
 
   rotate(viewport: CoreTypes.IViewport, rotation: number, mode: RotationMode = 'apply'): void {
@@ -204,7 +204,7 @@ export const viewportOperations: IViewportOperations = {
     // on the intended layer (e.g. the PT overlay) instead of always the source (CT) —
     // mirroring setColormap. When no id is given (single stack/volume) the adapter falls
     // back to the source binding.
-    getViewportAdapter(viewport).setPresentation(
+    getViewportAdapter(viewport).setAppearance(
       { voiRange: { upper, lower } },
       params.displaySetInstanceUID
     );
@@ -215,22 +215,17 @@ export const viewportOperations: IViewportOperations = {
     // binding, so a PT/CT *fusion* colormap lands on the overlay (PT) binding instead of
     // defaulting to the source (CT). When no id is given (single-volume / plain stack
     // colormap) the adapter falls back to the source.
-    getViewportAdapter(viewport).setPresentation(
-      { colormap: params.colormap },
+    getViewportAdapter(viewport).setAppearance(
+      {
+        colormap: params.colormap,
+        ...(params.opacity !== undefined ? { opacity: params.opacity } : {}),
+      },
       params.displaySetInstanceUID
     );
   },
 
   setPreset(viewport: CoreTypes.IViewport, preset: string): void {
-    // The native VolumeViewport3D has no setProperties; apply the volume-rendering
-    // preset (RGBA transfer function) to the volume actor directly.
-    const presetObj = csConstants.VIEWPORT_PRESETS?.find(p => p.name === preset);
-    const actor = (
-      viewport as unknown as { getDefaultActor?: () => { actor?: unknown } | undefined }
-    ).getDefaultActor?.()?.actor;
-    if (presetObj && actor) {
-      csUtils.applyPreset(actor as Parameters<typeof csUtils.applyPreset>[0], presetObj);
-    }
+    getViewportAdapter(viewport).setAppearance({ preset });
   },
 
   setVolumeRenderingQuality(viewport: CoreTypes.IViewport, volumeQuality: number): void {

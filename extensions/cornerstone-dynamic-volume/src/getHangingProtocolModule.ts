@@ -11,12 +11,10 @@ function getPTOptions({
 }: {
   colormap?: {
     name: string;
-    opacity:
-      | number
-      | {
-          value: number;
-          opacity: number;
-        }[];
+    opacityMapping?: {
+      value: number;
+      opacity: number;
+    }[];
   };
   voiInverted?: boolean;
 } = {}) {
@@ -35,7 +33,7 @@ function getPTViewports() {
   const ptOptionsParams = {
     colormap: {
       name: DEFAULT_COLORMAP,
-      opacity: [
+      opacityMapping: [
         { value: 0, opacity: 0 },
         { value: 0.1, opacity: 1 },
         { value: 1, opacity: 1 },
@@ -145,7 +143,7 @@ function getFusionViewports() {
   const ptOptionsParams = {
     colormap: {
       name: DEFAULT_COLORMAP,
-      opacity: [
+      opacityMapping: [
         { value: 0, opacity: 0 },
         { value: 0.1, opacity: 0.8 },
         { value: 1, opacity: 0.8 },

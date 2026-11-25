@@ -1,7 +1,7 @@
 export type {
   IViewportAdapter,
+  ViewportAppearance,
   ViewportColormap,
-  ViewportPresentation,
   ViewportShape,
   ViewportViewState,
   VOIRange,

@@ -5,22 +5,26 @@ export type { ViewportShape };
 
 export type VOIRange = { lower: number; upper: number };
 
+/**
+ * The colormap of an appearance: its name, the opacities by value of the data
+ * (`opacityMapping`) and the value below which nothing is drawn (`threshold`).
+ */
 export interface ViewportColormap {
   name?: string;
-  opacity?: number | Array<{ value: number; opacity: number }> | number[];
-  threshold?: number;
+  opacityMapping?: CoreTypes.OpacityMapping[];
+  threshold?: number | null;
   [key: string]: unknown;
 }
 
 /**
- * Per-display-set appearance (VOI/colormap/invert/blend mode): the per-binding
- * display-set appearance keyed by the display set UID.
+ * The appearance of one display set of a viewport (window, invert, colormap,
+ * opacity, blend mode), keyed by the display set UID.
  */
-export interface ViewportPresentation {
+export interface ViewportAppearance {
   voiRange?: VOIRange;
   colormap?: ViewportColormap;
   invert?: boolean;
-  isComputedVOI?: boolean;
+  opacity?: number;
   blendMode?: CoreEnums.BlendModes;
   [key: string]: unknown;
 }
@@ -96,42 +100,26 @@ export interface IViewportAdapter {
   // ---- per-display-set appearance ----
 
   /**
-   * Read appearance (voiRange/colormap/invert/...) for a display set binding,
-   * named by the UID of its display set. Defaults to the active source binding
-   * when no UID is given. A VOI matching the binding's computed default is
-   * stamped `isComputedVOI: true` so LUT-presentation capture strips it.
+   * What a caller set on the appearance of a display set, named by its UID
+   * (the source when no UID is given): the overrides, none of the defaults.
+   * Store or copy this.
    */
-  getPresentation(displaySetId?: string): ViewportPresentation;
+  getAppearance(displaySetId?: string): ViewportAppearance;
 
   /**
-   * Write appearance for a display set binding, named as for getPresentation
-   * (active source binding when no UID).
+   * The appearance that a display set is drawn with, named as for
+   * getAppearance: the overrides over the defaults of its data (the window
+   * of the image on display, the invert of a MONOCHROME1 image, opacity 1).
+   * Show or compare this. Empty while the display set is not mounted.
    */
-  setPresentation(props: ViewportPresentation, displaySetId?: string): void;
-
-  /** The binding's computed default VOI, named as for getPresentation. */
-  getDefaultVOIRange(displaySetId?: string): VOIRange | undefined;
-
-  /**
-   * The colormap currently applied to a display set's layer, or undefined when
-   * none (callers supply their own fallback, e.g. Grayscale).
-   */
-  getColormap(displaySetInstanceUID: string): ViewportColormap | undefined;
+  getEffectiveAppearance(displaySetId?: string): ViewportAppearance;
 
   /**
-   * Merge an opacity into the display set layer's colormap (the layer named by
-   * the UID of its display set). When the layer has opacity
-   * points by value (a fusion ramp), the opacity scales each point. Returns
-   * true when applied (caller renders); false when the viewport/layer does
-   * not support it.
+   * Changes the appearance of a display set, named as for getAppearance. A
+   * colormap update keeps the colormap keys it does not name; a key given as
+   * undefined removes its override.
    */
-  setLayerOpacity(displaySetInstanceUID: string, opacity: number): boolean;
-
-  /**
-   * Apply a threshold to the display set layer's colormap. Returns true when
-   * applied (caller renders); false when unsupported.
-   */
-  setLayerThreshold(displaySetInstanceUID: string, threshold: number): boolean;
+  setAppearance(props: ViewportAppearance, displaySetId?: string): void;
 
   /**
    * The blend mode of the slab of a display set binding (the active source
@@ -139,12 +127,6 @@ export interface IViewportAdapter {
    * none was set, and for a 3D viewport.
    */
   getBlendMode(displaySetId?: string): CoreEnums.BlendModes | undefined;
-
-  /**
-   * Gamma applied between the fusion opacity slider position and the rendered
-   * opacity. The blend is linear (gamma 1).
-   */
-  getOpacityGamma(): number;
 
   // ---- data addressing ----
 

@@ -75,8 +75,7 @@ export default class ColorbarService extends PubSubService {
       }
 
       const displaySetId = adapter.getShownDisplaySetId(displaySetInstanceUID);
-      const properties = adapter.getPresentation(displaySetId);
-      const colormap = properties?.colormap;
+      const { colormap } = adapter.getEffectiveAppearance(displaySetId);
 
       if (activeColormapName && !colormap) {
         this.setViewportColormap(
@@ -233,7 +232,7 @@ export default class ColorbarService extends PubSubService {
     // Address the display set's binding when the viewport shows it, the active
     // binding otherwise
     const displaySetId = adapter.getShownDisplaySetId(displaySetInstanceUID);
-    adapter.setPresentation({ colormap }, displaySetId);
+    adapter.setAppearance({ colormap }, displaySetId);
 
     if (immediate) {
       viewport.render();

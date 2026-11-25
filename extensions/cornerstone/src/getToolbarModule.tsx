@@ -547,7 +547,7 @@ export default function getToolbarModule({ servicesManager, extensionManager }: 
         const propId = button.id;
 
         const adapter = getViewportAdapter(viewport);
-        const properties = adapter.getPresentation();
+        const properties = adapter.getEffectiveAppearance();
         const camera = adapter.getViewState();
 
         const prop = camera?.[propId] || properties?.[propId];

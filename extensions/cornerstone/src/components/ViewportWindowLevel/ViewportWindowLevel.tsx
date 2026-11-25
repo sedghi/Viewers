@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useState, ReactElement, useMemo } from '
 import debounce from 'lodash.debounce';
 import { PanelSection, WindowLevel } from '@ohif/ui-next';
 import { Enums, eventTarget, cache, utilities as csUtils } from '@cornerstonejs/core';
+import type { Types } from '@cornerstonejs/core';
 import { useActiveViewportDisplaySets } from '@ohif/core';
 import { getWindowLevelsData } from './utils';
 import { getViewportAdapter } from '../../services/ViewportService/adapter';
@@ -75,12 +76,12 @@ const ViewportWindowLevel = ({
   }, [cornerstoneViewportService, viewportId]);
 
   const handleCornerstoneVOIModified = useCallback(
-    e => {
-      const { detail } = e;
-      const { volumeId, range } = detail;
+    (e: Types.EventTypes.DisplaySetAppearanceChangedEvent) => {
+      const { volumeId, changedKeys, effective } = e.detail;
+      const range = effective.voiRange;
       const oldWindowLevel = windowLevels.find(wl => wl.volumeId === volumeId);
 
-      if (!oldWindowLevel) {
+      if (!oldWindowLevel || !range || !changedKeys.includes('voiRange')) {
         return;
       }
 
@@ -124,7 +125,7 @@ const ViewportWindowLevel = ({
 
     const adapter = getViewportAdapter(viewport);
 
-    adapter.setPresentation({ voiRange: newRange }, adapter.getDataIdForVolumeId(volumeId));
+    adapter.setAppearance({ voiRange: newRange }, adapter.getDataIdForVolumeId(volumeId));
     viewport.render();
   };
 
@@ -140,9 +141,10 @@ const ViewportWindowLevel = ({
 
     viewports.forEach(vp => {
       const adapter = getViewportAdapter(vp);
-      const dataId = adapter.getDataIdForVolumeId(volumeId);
+      const displaySetId = adapter.getDataIdForVolumeId(volumeId);
 
-      if (dataId && adapter.setLayerOpacity(dataId, opacity)) {
+      if (displaySetId) {
+        adapter.setAppearance({ opacity }, displaySetId);
         vp.render();
       }
     });

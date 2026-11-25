@@ -1427,6 +1427,13 @@ function commandsModule({
 
       csUtils.scroll(viewport, options);
     },
+    /**
+     * Sets the colormap of a display set of a viewport. The hanging protocol
+     * of the display set takes priority over the opacity given: a ramp of
+     * opacities by value (`colormap.opacityMapping`, the PET of a fusion) is
+     * given again and the opacity of the display set stays as the slider left
+     * it; an `opacity` of the protocol is the opacity; else the opacity given.
+     */
     setViewportColormap: ({
       viewportId,
       displaySetInstanceUID,
@@ -1436,7 +1443,7 @@ function commandsModule({
     }) => {
       const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
 
-      let hpOpacity;
+      let hpOptions;
       // Retrieve active protocol's viewport match details
       const { viewportMatchDetails } = hangingProtocolService.getActiveProtocol();
       // Get display set options for the specified viewport ID
@@ -1447,14 +1454,17 @@ function commandsModule({
         const matchingDisplaySet = displaySetsInfo.find(
           displaySet => displaySet.displaySetInstanceUID === displaySetInstanceUID
         );
-        // If a matching display set is found, update the opacity with its value
-        hpOpacity = matchingDisplaySet?.displaySetOptions?.options?.colormap?.opacity;
+        hpOptions = matchingDisplaySet?.displaySetOptions?.options;
       }
 
-      // HP takes priority over the default opacity
-      colormap = { ...colormap, opacity: hpOpacity || opacity };
+      const hpOpacityMapping = hpOptions?.colormap?.opacityMapping;
 
-      ops.setColormap(viewport, { colormap, displaySetInstanceUID });
+      // HP takes priority over the default opacity
+      ops.setColormap(viewport, {
+        colormap: hpOpacityMapping ? { ...colormap, opacityMapping: hpOpacityMapping } : colormap,
+        opacity: hpOpacityMapping ? undefined : (hpOptions?.opacity ?? opacity),
+        displaySetInstanceUID,
+      });
 
       if (immediate) {
         viewport.render();

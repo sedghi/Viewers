@@ -86,7 +86,8 @@ export const sortByOverlayable = (a, b) => {
 };
 
 /**
- * Create display set options based on modality and opacity settings
+ * Create display set options based on modality and opacity settings: the
+ * colormap of the modality and the opacity, given in percent, beside it.
  */
 export function createColormapOverlayDisplaySetOptions(displaySet, opacity, customizationService) {
   if (displaySet.Modality === 'SEG') {
@@ -97,8 +98,8 @@ export function createColormapOverlayDisplaySetOptions(displaySet, opacity, cust
   return {
     colormap: {
       name: modalitySettings.colormap || DEFAULT_COLORMAP,
-      opacity: opacity / 100, // Convert from percentage to 0-1 range
     },
+    opacity: opacity / 100,
   };
 }
 

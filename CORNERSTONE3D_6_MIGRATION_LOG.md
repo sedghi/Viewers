@@ -1074,6 +1074,10 @@ failed first, a build, or a run that is named).
   2 failed first), and in the viewer: the zoom after the round trip is 0.5 with the
   change and 1 without it (`laneU4/probes-6-newbuild.log`,
   `laneU4/fit3d-back-6-without-newbuild.log`). It does not make the test of M32 pass.
+- **Closed by M58 (task O4, not committed yet):** the position presentation of a 3D
+  viewport is its framing, `viewport.getViewFraming()`, with the camera: the direction
+  comes back too, with the zoom and the pan against the fit (the pan only while M59 is
+  open). `viewportProjection` and `_set3DViewPresentation` are gone from the backend.
 
 ## M34. A page object of the Playwright tests read the type of the viewport
 
@@ -1199,6 +1203,11 @@ failed first, a build, or a run that is named).
   in volume mode, as 5.x did, or the guide names the change.
 - **Fix, in OHIF:** none (rule 3).
 - **State:** open, waits for cornerstone.
+- **Closed (task O3, 25 November):** fixed in cornerstone (the guide: "a window level drag
+  in volume mode takes its multiplier from the volume on display, as 5.x did"). Check, the
+  same drag on both (8% right, 5% up of the axial pane of the MPR of the CT
+  `1.3.6.1.4.1.14519.5.2.1.1706.8374.643249677828306008300337414785`): W: 166 L: -56 on
+  5.18.3 and on this branch (lane O3, `cases/{base,branch}/mpr-wl-drag/log.json`).
 
 ## M39. On the CPU a planar viewport misses a resize back to its first size
 
@@ -1262,6 +1271,12 @@ failed first, a build, or a run that is named).
   did, or name the change in the guide.
 - **Fix, in OHIF:** none (rule 3).
 - **State:** open, waits for cornerstone. A small move, seen only after a pan.
+- **Closed (task O4, 25 November):** fixed in cornerstone (a resize of a planar viewport
+  keeps its parallel scale and its focal point). Check: the CT stack, panned, the window
+  from 1600 to 1100 pixels wide and back: the centre of the image stays 128 and 47 pixels
+  from the centre of the canvas on 5.18.3 and on this branch, at the same scale (lane O3,
+  `cases/{base,branch}/resize-pan/log.json`). OHIF's resize keeps storing and restoring
+  the position presentation, now the framing (M58).
 
 ## M41. A console warning of Chrome on the CPU path
 
@@ -1520,6 +1535,10 @@ failed first, a build, or a run that is named).
   - Playwright: the TMTV specs that run pass (`TMTVCSVReport`, `TMTVSUV`); the other four
     are `test.skip` in their sources, as on `master`, and the suite has no TMTV picture, so
     no baseline changes (`laneU7/pw/tmtv.json`).
+- **Closed by M57 (task O3, not committed yet):** the ramp is `colormap.opacityMapping`,
+  the slider sets `opacity` alone, `resolveOpacityScalar` and the colormap juggling of
+  `setLayerOpacity` are gone, and the PET of the fusion gets the ramp of `master` in the
+  look that 5.18.3 drew it with, so the fusion panes look as on `master`.
 
 ## M46. The ultrasound pleura and B-line tool throws before the first image is drawn
 
@@ -1726,6 +1745,12 @@ failed first, a build, or a run that is named).
   `opacity`): it should then read an `opacityMapping` without `opacity` as 1.
 - **State:** open, waits for cornerstone. What a user sees: after a change of the colour
   map of the PET of a fusion, the opacity slider is back at 100%.
+- **Closed by M57 (task O3, not committed yet):** fixed in cornerstone by one opacity:
+  `colormap.opacity` is gone, a list is `colormap.opacityMapping` and a number is the
+  `opacity` of the appearance, two keys that cannot replace each other; a colormap
+  update keeps the stored mapping and threshold. `setViewportColormap` sets the colormap
+  and leaves the opacity of a display set whose protocol gives a ramp, so the slider
+  keeps its place.
 
 ## M53. The codemod step of the names after 6.0.0-beta.2, on this branch (task O1)
 
@@ -1932,4 +1957,181 @@ failed first, a build, or a run that is named).
 - **Fix, in OHIF:** none (rule 3). The URL of the video of the static test data
   (`index.mp4` for a file named `pixeldata.mp4`) is a question of the test data and of
   `directURL`, on `master` too; not looked into further.
+- **State:** open, waits for cornerstone.
+
+## M56. The appearance of a display set: one event, two getters, no guessing (task O3)
+
+- **Seen (on `309cc169f3`, read in the code, then shown by tests that fail there):**
+  - The viewer read one appearance per display set (`getPresentation` of the adapter):
+    the overrides of Cornerstone3D 6, with a window that equals the default window of the
+    image stamped `isComputedVOI` so that the stored LUT presentation dropped it. A window
+    that the user set to the default was dropped too.
+  - The invert of a MONOCHROME1 image: `viewportOperations.invert` read the overrides,
+    where the invert of such an image is its default, not an override. The first click of
+    the invert button set `invert: true` on an image that is drawn inverted already, and
+    nothing changed on the screen.
+  - The stored LUT presentation held the appearance of the source only. The PET of a fusion
+    lost its colormap and opacity on a layout change and back; on `master` the legacy path
+    stored the properties of each volume.
+  - `useViewportRendering` took the window, the opacity and the threshold of every appearance
+    event of the element: in a fusion an event of the CT set the readout of the PET.
+  - The 3D preset of the viewport menu was applied to the actor (`utilities.applyPreset`);
+    the next change of the appearance of the 3D viewport writes the look of the actor again
+    from the appearance ("An edit of an actor does not last" in the guide), and a layout
+    change and back gave the preset of the hanging protocol.
+- **Fix, in OHIF:**
+  - The adapter has `getAppearance(id?)` (the overrides: store or copy),
+    `getEffectiveAppearance(id?)` (what is drawn: show or compare) and `setAppearance`.
+    `isComputedVOI`, `getDefaultVOIRange`, `getColormap`, `setLayerOpacity`,
+    `setLayerThreshold`, `getOpacityGamma` and `cleanProperties` of the LUT presentation are
+    gone. Nothing compares a window with the default window any more.
+  - Readouts read the effective appearance: the window level text and the opacity and
+    threshold menus (`useViewportRendering`, its `readPresentation` is
+    `readEffectiveAppearance`), the toggled state of the invert button, the colour bar
+    service, the rows of the window level panel and the invert command.
+  - One listener of `DISPLAY_SET_APPEARANCE_CHANGED` in `useViewportRendering`, for every
+    cause, for the display set that the hook reads (the source in a viewport of an SR, SEG
+    or RTSTRUCT, M44); the window level panel takes `effective.voiRange` when `voiRange` is a
+    changed key. OHIF has no synchronizer of its own: the VOI synchronizers are those of the
+    tools, which act on `'edit'` and `'reset'` only.
+  - The LUT presentation is `{ viewportType, appearances }`: the overrides of each display
+    set that the viewport shows, by UID. A stack and a volume mount give each display set its
+    stored overrides, else the display set options of the hanging protocol.
+  - The preset of a 3D viewport is set on its appearance (`setAppearance({ preset })`).
+  - `reportsVOI`, `keepsStackVOI` and `getPresentationEventVolumeId`, named by the plan,
+    were members of `PlanarViewport` of Cornerstone3D, not OHIF code, and are gone from it.
+- **Checks:**
+  - jest: the new tests of the adapter, the operations (the invert of a MONOCHROME1 and a
+    MONOCHROME2 image, the preset, the colormap with its opacity, the reset), the backend
+    (the stored appearance of each display set of a fusion, a reset display set),
+    the service (what the LUT store holds, what a stack mount takes) and
+    `hooks/useViewportRendering.test.ts` (new: the readouts follow the event of the PET and
+    not that of the CT, for every cause; the slider and the threshold write one key; the
+    source of an SR viewport). Run on an export of `309cc169f3`: 33 of them fail, the 58
+    others pass (lane O3, `jest-failfirst.log`). The jest config of the extension maps
+    `@ohif/<package>/src/...` imports, so the hook can be loaded.
+  - In the viewer, the same steps on this branch and on `master` (legacy path), lane O3
+    `cases/`: a CT stack (window preset, window level drag, invert, zoom, pan, rotation, flip,
+    2x2 layout and back, reset), an MPR (preset in one pane, round trip through "Axial
+    Primary", reset), a series dropped into a second pane, the colour bar: the window level
+    texts are the same on both at every step, and the pictures of the stack, the MPR panes
+    that were not edited, the colour bar and the drop are the same (0.00% of the pixels
+    differ by more than 16). In the MPR the mount writes no window into the other panes, an
+    edit in one pane reaches the other two, a reset resets all three. `master` loses the
+    rotation of an MPR pane on the round trip and keeps the invert after a reset; this
+    branch keeps the rotation and resets the invert.
+  - No MONOCHROME1 image is in the test data of OHIF (the CR, DX, MG and US series of the
+    local and the remote data are MONOCHROME2 or colour), so the MONOCHROME1 cases are shown
+    by jest only, with the tests of Cornerstone3D for the default invert and its event
+    (open issues 156 and 157 of Cornerstone3D).
+  - jest (all): 163 suites, 1,977 tests pass (`309cc169f3`: 162, 1,959). The type check of
+    the root has no new error kind outside the test-runner globals of the new tests, and
+    one kind less. `pnpm run build` passes. The Playwright suite once, 6 workers,
+    `TEST_ENV=true` (7.1 minutes): 243 passed, 0 failed, 4 skipped; no baseline changed.
+- **State:** fixed in task O3 (not committed yet).
+
+## M57. One opacity: the hanging protocols, the slider, and the TMTV fusion with the look of `master` (task O3)
+
+- **Seen:** `colormap.opacity` is gone from Cornerstone3D 6: a number is the `opacity` of the
+  appearance, a list of points is `colormap.opacityMapping`, the alpha of a pixel is
+  `opacity * mapping(value)`, 0 below `colormap.threshold`, on every render path. The
+  protocols of the TMTV mode (3 fusion panes), of the dynamic volume mode (2) and the
+  parametric map viewport gave the ramp as a list in `colormap.opacity`, and OHIF's own
+  overlay options of the data overlay menu gave a number there.
+- **What the fusion looked like with the ramp of `master` drawn as given** (TMTV mode, the
+  study "LUNG DELAYS", the three fusion panes on their middle slice, lane O3
+  `tmtv/as-given/`): 40 to 76% of the pixels differ from `master` by more than 16; the lungs
+  and the soft tissue are red, the CT under them is hidden. The legacy volume viewport drew
+  an opacity `a` of the PET as `1 - (1 - a) ** 0.125` (the guide: "The legacy look of a
+  numeric opacity is not copied"; its `petColorMapPresentation()` gives the weaker points).
+- **Fix, in OHIF:**
+  - The protocols give `colormap.opacityMapping`. The TMTV fusion panes get the ramp of
+    `master` (0 at SUV 0, 0.8 at 0.1, 0.9 from 1 on) in the legacy look, 13 points from 0 to
+    0.2501 (`FUSION_PT_OPACITY_MAPPING` in `extensions/tmtv/src/utils/hpViewports.ts`), as the
+    TMTV example of Cornerstone3D does. The dynamic volume protocol and the parametric map
+    keep their numbers under the new key (their look was not measured: no test data for the
+    parametric map, and the 4D PET is not a fusion over a CT).
+  - The overlay options of the data overlay menu give `opacity` beside the colormap.
+  - `ViewportInfo` reads `opacity` of the display set options, and a `colormap.opacity` of a
+    protocol from outside OHIF gets a `console.error` in a development build and is left
+    out: no translation.
+  - The opacity slider sets `{ opacity }`; the threshold menu sets `{ colormap: { threshold } }`;
+    the readout is the effective `opacity`. `utils/resolveOpacityScalar.ts` and its test are
+    deleted, with the gamma of the slider (`opacityLinear` of the hook).
+  - `setViewportColormap` gives the ramp of the protocol again and leaves the opacity when the
+    protocol has a ramp (as `master` did), else the `opacity` of the protocol, else the one
+    given.
+- **Checks (lane O3, `tmtv/`, specs `tmtvFusion.spec.ts`; each side makes the Cornerstone3D
+  calls that its slider and threshold code make):**
+  - "LUNG DELAYS", GPU: at rest 0.00 to 0.29% of the pixels of the fusion panes differ from
+    `master` by more than 16 (99% within 3 levels); slider at 50% 0.00 to 0.25% (this branch
+    a little weaker: the slider sets the opacity that is drawn, `master` went through a gamma
+    of 1/5 and its blend); threshold 2.5 SUV: `master` hides the whole PET (no point of the
+    ramp above 1 SUV, so its threshold rose to nothing), this branch keeps the lesions at the
+    ramp, 0.6 to 2.5% of the pixels. The guide names both.
+  - The uniformity phantom of the TMTV specs, threshold 0.5: 5.5 to 6.7% at 100% (its legacy
+    exponent is 0.0625, not 0.125, as the guide says of a phantom), 0.0 to 0.13% at 50%.
+  - The CT alone (slider at 0): the same as `master` (at most 0.24%).
+  - CPU (`?viewportRendering=cpu`): this branch draws the GPU picture (at most 0.06% of the
+    pixels differ). `master` on the CPU never draws the fusion panes (the legacy volume
+    viewport has no CPU path), so there is no picture of `master` to compare.
+  - jest: `Viewport.test.ts` (new: the error for `colormap.opacity`, the opacity of the
+    options), the hook test (one key per control), the backend test (the opacity of the
+    options on the mount).
+- **State:** fixed in task O3 (not committed yet). Closes M45 and M52.
+
+## M58. The position presentation is the view reference and the framing (task O4)
+
+- **Seen (read in the code):** `ViewportBackend` stored the keys of the planar view state
+  that encode the pan and the zoom (`NATIVE_VIEW_PRESENTATION_KEYS`), cleared a stale display
+  area by hand, and stored the zoom and the pan of a 3D viewport through `viewportProjection`
+  without its direction (`_set3DViewPresentation`): about 100 lines that worked around the
+  round trip of a framing, fixed in Cornerstone3D (`getViewFraming` keeps `scaleMode` and
+  `fitScale`, a 3D framing carries its camera).
+- **Fix, in OHIF:** the position presentation is `{ viewportType, viewReference,
+  viewFraming }`, `viewFraming` from `viewport.getViewFraming()` (typed
+  `PlanarViewFraming | Volume3DProjectionFraming`, no casts); a planar viewport shows the
+  view reference when it can and then `setViewFraming(viewFraming)`; a 3D viewport only the
+  framing. `viewPresentation` is gone (the RTSTRUCT viewport wrote an empty one). The stores
+  live in memory only (zustand without persistence, nothing in the URL or local storage),
+  so nothing stored before this change is read. The display area of a hanging protocol
+  (mammography) goes through `setViewState({ displayArea })` and has
+  `storeAsInitialCamera: true` in the protocol, so a reset (`resetViewState`) shows it again.
+- **Checks:** jest, `ViewportBackend.test.ts`: what is stored (the framing with `scaleMode` and
+  `fitScale`), the order of the restore (reference, then framing), a reference that the
+  viewport cannot show, a 3D camera, a viewport that showed nothing, a position of the SEG
+  or RTSTRUCT viewport without a framing. In the viewer (lane O3 `cases/`): the CT stack
+  zoomed, panned, turned and flipped keeps its framing through a 2x2 layout and back, pixel
+  for pixel, as `master`; an MPR pane keeps its zoom and rotation through "Axial Primary"
+  and back (`master` loses the rotation); the mammography protocol shows its display area,
+  a zoom takes it away, the zoom and the pan come back after a layout change, and the reset
+  shows the display area again, the same pictures as `master` (only the zoomed pane in a 1x1
+  layout differs: `master` keeps the display area under a zoom, a planar viewport of 6.0
+  drops it, which the guide names); a 3D viewport keeps its preset, direction and zoom
+  through MPR and back (`master` loses the direction and the preset), not its pan (M59).
+- **State:** fixed in task O4 (not committed yet). Closes M33; M38 and M40 are closed by the
+  checks above.
+
+## M59. The pan of a 3D viewport is lost on a layout change
+
+- **Seen (task O4):** 3D only, a pan and a zoom, MPR, 3D only again: the direction and the
+  zoom come back, the view is centred again. OHIF stores the position presentation when the
+  viewport component unmounts, after React has detached its element.
+- **Why:** `getViewFraming()` of a 3D viewport whose element has no size gives `pan: [0, 0]`
+  and `scale.mmPerCanvasPixel` of twice the parallel scale, with the camera of the panned
+  view; `setViewFraming` of that framing puts the focal point back on the fit. A planar
+  viewport gives the same framing with or without a size.
+- **Smallest case**, Cornerstone3D calls only (lane O3, `specs/pan3dMin.spec.ts`,
+  `cases/pan3d-min.json`): a `VolumeViewport3D` with a mounted volume,
+  `setViewFraming({ pan: [40, 20], zoom: 1.5 })`, then `element.style.display = 'none'`,
+  `const framing = viewport.getViewFraming()` gives `pan: [0, 0]`, `zoom: 1.5`,
+  `mmPerCanvasPixel: 157.6` (0.167 with a size); `element.style.display = ''`,
+  `viewport.resetViewState()`, `viewport.setViewFraming(framing)` gives `pan: [0, 0]`. The
+  same steps on a planar viewport give `pan: [40, 20]` back.
+- **Also seen:** `setViewFraming` of a 3D framing without its `camera` (`{ pan, position,
+  rotation, scale, zoom }`) leaves the viewport without a view plane normal and a zoom
+  (`getViewFraming()` gives `zoom: undefined`). OHIF never writes such a patch.
+- **Fix, in cornerstone:** to do: a 3D framing read without a canvas size keeps the pan of
+  its camera (the last size the viewport had, or the pan left out, so the camera decides).
+- **Fix, in OHIF:** none (rule 3). The backend stores `getViewFraming()` as it is.
 - **State:** open, waits for cornerstone.

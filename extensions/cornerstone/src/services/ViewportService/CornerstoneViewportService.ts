@@ -20,6 +20,7 @@ import ViewportInfo, {
   DisplaySetOptions,
   PublicViewportOptions,
   ViewportOptions,
+  getDisplaySetOptionsAppearance,
 } from './Viewport';
 import { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
 import {
@@ -37,7 +38,6 @@ import { useSynchronizersStore } from '../../stores/useSynchronizersStore';
 import { useSegmentationPresentationStore } from '../../stores/useSegmentationPresentationStore';
 import getClosestOrientationFromIOP from '../../utils/isReferenceViewable';
 import { getViewportAdapter } from './adapter';
-import type { ViewportPresentation } from './adapter';
 import { viewportOperations } from './backends/viewportOperations';
 import { BlendModes } from '@cornerstonejs/core/enums';
 import { isAutoHydrateViewportType } from '../../utils/autoHydrateViewportTypes';
@@ -353,33 +353,31 @@ class CornerstoneViewportService
     return this.backend.getPositionPresentation(csViewport, viewportInfo, viewportId);
   }
 
+  /**
+   * What a user set on the appearance of each display set that the viewport
+   * shows (the overrides of `getDisplaySetAppearance`), by its UID. A window
+   * that comes from the data is not an override, so it is not stored and a
+   * later mount takes the window of the data again.
+   */
   private _getLutPresentation(viewportId: string): LutPresentation {
-    const csViewport = this.getCornerstoneViewport(viewportId) as PlanarViewport | PlanarViewport;
+    const csViewport = this.getCornerstoneViewport(viewportId);
 
     if (!csViewport) {
       return;
     }
 
-    const cleanProperties = properties => {
-      if (properties?.isComputedVOI) {
-        delete properties?.voiRange;
-        delete properties?.VOILUTFunction;
-      }
-      if (properties?.colormap) {
-        if (properties.colormap?.opacity?.length === 0) {
-          delete properties.colormap.opacity;
-        }
-      }
-      return properties;
-    };
-
-    const properties = cleanProperties(getViewportAdapter(csViewport).getPresentation());
+    const adapter = getViewportAdapter(csViewport);
+    const appearances = Object.fromEntries(
+      csViewport
+        .getDisplaySets()
+        .map(({ displaySetId }) => [displaySetId, adapter.getAppearance(displaySetId)])
+    );
 
     const viewportInfo = this.viewportsById.get(viewportId);
 
     return {
       viewportType: viewportInfo.getViewportType(),
-      properties,
+      appearances,
     };
   }
 
@@ -874,20 +872,9 @@ class CornerstoneViewportService
 
     const { rotation, flipHorizontal, displayArea } = viewportInfo.getViewportOptions();
 
-    const properties = { ...presentations.lutPresentation?.properties };
-    if (!presentations.lutPresentation?.properties) {
-      const { voi, voiInverted, colormap } = displaySetOptions[0];
-      if (voi && (voi.windowWidth || voi.windowCenter)) {
-        const { lower, upper } = csUtils.windowLevel.toLowHighRange(
-          voi.windowWidth,
-          voi.windowCenter
-        );
-        properties.voiRange = { lower, upper };
-      }
-
-      properties.invert = voiInverted ?? properties.invert;
-      properties.colormap = colormap ?? properties.colormap;
-    }
+    const properties =
+      presentations.lutPresentation?.appearances?.[displaySetInstanceUIDs[0]] ??
+      getDisplaySetOptionsAppearance(displaySetOptions[0]);
 
     viewport.element.addEventListener(
       csEnums.Events.DISPLAY_SETS_CHANGED,
@@ -1100,24 +1087,8 @@ class CornerstoneViewportService
     // Todo: use presentations states
     const volumesProperties = filteredVolumeInputArray.map(({ volumeInput, displaySetOptions }) => {
       const { volumeId } = volumeInput;
-      const { voi, voiInverted, colormap, displayPreset } = displaySetOptions;
-      const properties: ViewportPresentation = {};
-
-      if (voi && (voi.windowWidth || voi.windowCenter)) {
-        const { lower, upper } = csUtils.windowLevel.toLowHighRange(
-          voi.windowWidth,
-          voi.windowCenter
-        );
-        properties.voiRange = { lower, upper };
-      }
-
-      if (voiInverted !== undefined) {
-        properties.invert = voiInverted;
-      }
-
-      if (colormap !== undefined) {
-        properties.colormap = colormap;
-      }
+      const { displayPreset } = displaySetOptions;
+      const properties = getDisplaySetOptionsAppearance(displaySetOptions);
 
       if (displayPreset !== undefined) {
         properties.preset = displayPreset[displaySetModality] || displayPreset.default;

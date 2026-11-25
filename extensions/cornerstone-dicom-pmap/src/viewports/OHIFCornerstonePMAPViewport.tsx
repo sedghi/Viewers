@@ -48,7 +48,7 @@ function OHIFCornerstonePMAPViewport(props: withAppTypes) {
       options: {
         colormap: {
           name: 'rainbow_2',
-          opacity: [
+          opacityMapping: [
             { value: 0, opacity: 0 },
             { value: 0.25, opacity: 0.25 },
             { value: 0.5, opacity: 0.5 },

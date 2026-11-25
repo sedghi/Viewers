@@ -171,3 +171,75 @@ describe('setOrientation', () => {
     warn.mockRestore();
   });
 });
+
+describe('the appearance operations', () => {
+  /** A viewport whose source is drawn with `effective` and has the overrides `overrides`. */
+  function makeAppearanceViewport(effective: object, overrides: object = {}) {
+    return {
+      type: Enums.ViewportType.PLANAR,
+      getDisplaySetAppearance: jest.fn().mockReturnValue(overrides),
+      getEffectiveDisplaySetAppearance: jest.fn().mockReturnValue(effective),
+      setDisplaySetAppearance: jest.fn(),
+      resetDisplaySetAppearance: jest.fn(),
+      resetViewState: jest.fn(),
+    };
+  }
+
+  it('inverts a MONOCHROME1 image, which is drawn inverted with no override, to not inverted', () => {
+    const viewport = makeAppearanceViewport({ invert: true });
+
+    viewportOperations.invert(viewport as never);
+
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith({ invert: false });
+  });
+
+  it('inverts a MONOCHROME2 image to inverted, and back', () => {
+    const viewport = makeAppearanceViewport({ invert: false });
+
+    viewportOperations.invert(viewport as never);
+    expect(viewport.setDisplaySetAppearance).toHaveBeenLastCalledWith({ invert: true });
+
+    viewport.getEffectiveDisplaySetAppearance.mockReturnValue({ invert: true });
+    viewportOperations.invert(viewport as never);
+    expect(viewport.setDisplaySetAppearance).toHaveBeenLastCalledWith({ invert: false });
+  });
+
+  it('sets the preset of a 3D viewport on its appearance, so a later change keeps it', () => {
+    const viewport = { ...makeAppearanceViewport({}), type: Enums.ViewportType.VOLUME_3D };
+
+    viewportOperations.setPreset(viewport as never, 'CT-Bone');
+
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith({ preset: 'CT-Bone' });
+  });
+
+  it('sets a colormap with the opacity beside it, and keeps the opacity when none is given', () => {
+    const viewport = makeAppearanceViewport({});
+
+    viewportOperations.setColormap(viewport as never, {
+      colormap: { name: 'hsv' },
+      opacity: 0.5,
+      displaySetInstanceUID: 'pt',
+    });
+    viewportOperations.setColormap(viewport as never, {
+      colormap: { name: 'jet' },
+      displaySetInstanceUID: 'pt',
+    });
+
+    expect(viewport.setDisplaySetAppearance).toHaveBeenNthCalledWith(1, 'pt', {
+      colormap: { name: 'hsv' },
+      opacity: 0.5,
+    });
+    expect(viewport.setDisplaySetAppearance).toHaveBeenNthCalledWith(2, 'pt', {
+      colormap: { name: 'jet' },
+    });
+  });
+
+  it('resets the appearance of the source and the view', () => {
+    const viewport = makeAppearanceViewport({});
+
+    viewportOperations.reset(viewport as never);
+
+    expect(viewport.resetDisplaySetAppearance).toHaveBeenCalledWith();
+    expect(viewport.resetViewState).toHaveBeenCalledWith();
+  });
+});

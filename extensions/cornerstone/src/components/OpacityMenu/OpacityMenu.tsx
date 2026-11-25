@@ -12,11 +12,11 @@ function OpacityMenu({ viewportId, className }: OpacityMenuProps) {
     includeForeground: true,
     includeBackground: true,
   });
-  const { opacityLinear, setOpacityLinear } = useViewportRendering(viewportId, {
+  const { opacity, setOpacity } = useViewportRendering(viewportId, {
     displaySetInstanceUID: foregroundDisplaySets[0].displaySetInstanceUID,
   });
 
-  const opacityValue = opacityLinear !== undefined ? opacityLinear : 0;
+  const opacityValue = opacity !== undefined ? opacity : 0;
   const backgroundModality = backgroundDisplaySet?.Modality || '';
   const foregroundModality = foregroundDisplaySets[0]?.Modality || '';
 
@@ -32,7 +32,7 @@ function OpacityMenu({ viewportId, className }: OpacityMenuProps) {
             value={opacityValue}
             onChange={(val: number | [number, number]) => {
               if (typeof val === 'number') {
-                setOpacityLinear(val);
+                setOpacity(val);
               }
             }}
             min={0}

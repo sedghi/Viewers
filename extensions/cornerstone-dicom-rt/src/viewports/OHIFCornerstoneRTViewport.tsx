@@ -118,7 +118,6 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
             viewReference: {
               referencedImageId: firstSegmentedSliceImageId,
             },
-            viewPresentation: {},
           });
         }
       }

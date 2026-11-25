@@ -19,6 +19,8 @@ export interface WindowLevelParams {
 
 export interface ColormapParams {
   colormap: Record<string, unknown>;
+  /** The opacity of the display set, 0 to 1. The opacity stays as it is when absent. */
+  opacity?: number;
   /** The binding to change (e.g. the PT overlay in a fusion). The source binding when absent. */
   displaySetInstanceUID?: string;
 }
@@ -74,7 +76,7 @@ export interface IViewportOperations {
 
   // ---- appearance / properties ----
 
-  /** Toggle invert. */
+  /** Toggles the invert of the source from the invert it is drawn with. */
   invert(viewport: CoreTypes.IViewport): void;
 
   /** Apply a VOI window/level. */
@@ -85,7 +87,7 @@ export interface IViewportOperations {
 
   // ---- 3D volume rendering ----
 
-  /** VR preset. */
+  /** The volume rendering preset of a 3D viewport, set on its appearance. */
   setPreset(viewport: CoreTypes.IViewport, preset: string): void;
 
   /** VR sample distance / samples-per-ray quality. */

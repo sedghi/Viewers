@@ -4,14 +4,12 @@ import vtkColorMaps from '@kitware/vtk.js/Rendering/Core/ColorTransferFunction/C
 import { utilities as csUtils } from '@cornerstonejs/core';
 import { getViewportVolumeHistogram } from './getViewportVolumeHistogram';
 import { getViewportAdapter } from '../../services/ViewportService/adapter';
-import { resolveOpacityScalar } from '../../utils/resolveOpacityScalar';
 
 /**
  * Gets window levels data for a viewport: one row for each volume that the
  * viewport shows, the source first. A stack shows no volume and has no rows.
- * The window of the source is its presentation, or the window that the data
- * starts with when none was set. The opacity of a volume is the opacity of the
- * colormap of its presentation.
+ * The window of the source and the opacity of each volume are those that they
+ * are drawn with.
  */
 export const getWindowLevelsData = async (viewport: Types.IViewport, viewportInfo: any) => {
   if (!viewport) {
@@ -24,7 +22,7 @@ export const getWindowLevelsData = async (viewport: Types.IViewport, viewportInf
     return [];
   }
 
-  const voiRange = adapter.getPresentation().voiRange ?? adapter.getDefaultVOIRange();
+  const { voiRange } = adapter.getEffectiveAppearance();
   const viewportVoi = voiRange
     ? {
         windowWidth: voiRange.upper - voiRange.lower,
@@ -40,9 +38,7 @@ export const getWindowLevelsData = async (viewport: Types.IViewport, viewportInf
         return null;
       }
 
-      const opacity = resolveOpacityScalar(
-        adapter.getPresentation(adapter.getDataIdForVolumeId(volumeId)).colormap?.opacity
-      );
+      const { opacity } = adapter.getEffectiveAppearance(adapter.getDataIdForVolumeId(volumeId));
       const { metadata, scaling } = volume;
       const modality = metadata.Modality;
 

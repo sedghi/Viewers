@@ -1,11 +1,9 @@
 import { Enums, cache, Types as CoreTypes, utilities as csUtils } from '@cornerstonejs/core';
 import type {
   IViewportAdapter,
-  ViewportColormap,
-  ViewportPresentation,
+  ViewportAppearance,
   ViewportShape,
   ViewportViewState,
-  VOIRange,
 } from './IViewportAdapter';
 
 /**
@@ -13,14 +11,14 @@ import type {
  * are on the viewport classes (not on IViewport), so we cast at this boundary
  * rather than import core-internal PlanarViewport types.
  */
-type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentation> & {
+type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportAppearance> & {
   getSourceDisplaySetId?: () => string | undefined;
   getDisplaySets?: () => Array<{ displaySetId: string; options?: { mode?: string } }>;
-  getDisplaySetAppearance?: (displaySetId: string) => ViewportPresentation | undefined;
-  getDefaultVOIRange?: (displaySetId?: string) => VOIRange | undefined;
+  getDisplaySetAppearance?: (displaySetId?: string) => ViewportAppearance | undefined;
+  getEffectiveDisplaySetAppearance?: (displaySetId?: string) => ViewportAppearance | undefined;
   setDisplaySetAppearance?: {
-    (props: ViewportPresentation): void;
-    (displaySetId: string, props: ViewportPresentation): void;
+    (props: ViewportAppearance): void;
+    (displaySetId: string, props: ViewportAppearance): void;
   };
   getViewState?: () => ViewportViewState | undefined;
   setViewState?: (patch: ViewportViewState) => void;
@@ -35,15 +33,6 @@ type NativeViewport = CoreTypes.IViewport<ViewportViewState, ViewportPresentatio
     options?: Record<string, unknown>;
   }) => Promise<void>;
 };
-
-const voiRangesClose = (a: VOIRange, b: VOIRange, eps = 0.001): boolean =>
-  Math.abs(a.lower - b.lower) < eps && Math.abs(a.upper - b.upper) < eps;
-
-/** Whether a colormap opacity is a list of opacities by value (`{ value, opacity }`). */
-const isOpacityPoints = (opacity: unknown): opacity is Array<{ value: number; opacity: number }> =>
-  Array.isArray(opacity) &&
-  opacity.length > 0 &&
-  opacity.every(point => typeof point?.value === 'number' && typeof point?.opacity === 'number');
 
 /**
  * The implementation of IViewportAdapter: a thin pass-through to the semantic
@@ -123,86 +112,24 @@ export class ViewportAdapter implements IViewportAdapter {
 
   // ---- per-display-set appearance ----
 
-  getPresentation(displaySetId?: string): ViewportPresentation {
-    const id = displaySetId ?? this.viewport.getSourceDisplaySetId?.();
-    const presentation = (id ? this.viewport.getDisplaySetAppearance?.(id) : undefined) ?? {};
-
-    // A native binding's presentation normally holds only EXPLICIT VOI overrides,
-    // but a computed default VOI can transiently land here during intermediate
-    // mounts (e.g. while a SEG hydrates, the base image briefly mounts as a volume
-    // and its min/max default is stored). Flag such a VOI as computed when it
-    // matches the binding's default so the LUT-presentation capture (cleanProperties)
-    // strips it instead of persisting+restoring it over the real default — matching
-    // legacy StackViewport's isComputedVOI. Stamping is harmless even on a genuine
-    // user VOI that happens to equal the default (stripping it falls back to the
-    // same value).
-    const voiRange = presentation.voiRange;
-    if (voiRange && presentation.isComputedVOI === undefined) {
-      const defaultVOIRange = this.viewport.getDefaultVOIRange?.(id);
-      if (defaultVOIRange && voiRangesClose(voiRange, defaultVOIRange)) {
-        return { ...presentation, isComputedVOI: true };
-      }
-    }
-
-    return presentation;
+  getAppearance(displaySetId?: string): ViewportAppearance {
+    return this.viewport.getDisplaySetAppearance?.(displaySetId) ?? {};
   }
 
-  setPresentation(props: ViewportPresentation, displaySetId?: string): void {
-    const id = displaySetId ?? this.viewport.getSourceDisplaySetId?.();
-    if (id) {
-      this.viewport.setDisplaySetAppearance?.(id, props);
+  getEffectiveAppearance(displaySetId?: string): ViewportAppearance {
+    return this.viewport.getEffectiveDisplaySetAppearance?.(displaySetId) ?? {};
+  }
+
+  setAppearance(props: ViewportAppearance, displaySetId?: string): void {
+    if (displaySetId) {
+      this.viewport.setDisplaySetAppearance?.(displaySetId, props);
     } else {
       this.viewport.setDisplaySetAppearance?.(props);
     }
   }
 
-  getDefaultVOIRange(displaySetId?: string): VOIRange | undefined {
-    return this.viewport.getDefaultVOIRange?.(displaySetId);
-  }
-
-  getColormap(displaySetInstanceUID: string): ViewportColormap | undefined {
-    return this.getPresentation(displaySetInstanceUID).colormap;
-  }
-
-  /**
-   * Merges the opacity into the stored colormap, which keeps its name and
-   * threshold. When the layer has opacity points by value (the ramp of the
-   * PET of a fusion), the opacity scales them, as on the legacy volume
-   * viewport: each point is drawn at `opacity` times its own. Points stored
-   * as a list in `opacity`, as a hanging protocol gives them, become the
-   * `opacityMapping` of the colormap, so that the number does not replace
-   * them. A layer without points gets the opacity as it is.
-   */
-  setLayerOpacity(displaySetInstanceUID: string, opacity: number): boolean {
-    const { opacity: storedOpacity, ...currentColormap } =
-      this.getPresentation(displaySetInstanceUID).colormap ?? {};
-    const opacityMapping = isOpacityPoints(storedOpacity)
-      ? storedOpacity
-      : currentColormap.opacityMapping;
-    const colormap = opacityMapping
-      ? { ...currentColormap, opacityMapping, opacity }
-      : { ...currentColormap, opacity };
-
-    this.setPresentation({ colormap }, displaySetInstanceUID);
-    return true;
-  }
-
-  setLayerThreshold(displaySetInstanceUID: string, threshold: number): boolean {
-    // Merge the threshold into the existing colormap so its name/opacity persist.
-    // The threshold is an absolute pixel/SUV value, matching the legacy volume path.
-    const currentColormap = this.getPresentation(displaySetInstanceUID).colormap ?? {};
-    this.setPresentation({ colormap: { ...currentColormap, threshold } }, displaySetInstanceUID);
-    return true;
-  }
-
   getBlendMode(displaySetId?: string): Enums.BlendModes | undefined {
-    return this.getPresentation(displaySetId).blendMode;
-  }
-
-  getOpacityGamma(): number {
-    // Native volume viewports render the fusion as a volume slice whose blend is
-    // linear in the opacity scalar, so the slider maps 1:1.
-    return 1;
+    return this.getAppearance(displaySetId).blendMode;
   }
 
   // ---- data addressing ----
@@ -278,7 +205,7 @@ export class ViewportAdapter implements IViewportAdapter {
 
       targetViewport.setDisplaySetAppearance?.(
         sourceDisplaySetId,
-        this.getPresentation(sourceDisplaySetId)
+        this.getAppearance(sourceDisplaySetId)
       );
     }
 

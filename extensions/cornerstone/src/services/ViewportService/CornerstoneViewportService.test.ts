@@ -6,6 +6,7 @@ import type { IViewportBackend, StackMountContext } from './backends/IViewportBa
 import type ViewportInfo from './Viewport';
 import type { StackViewportData, VolumeViewportData } from '../../types/CornerstoneCacheService';
 import type { ViewportShape } from '../../utils/viewportDataShape';
+import type { LutPresentation } from '../../types/Presentation';
 
 jest.mock('@cornerstonejs/core', () => {
   const actual = jest.requireActual('@cornerstonejs/core');
@@ -267,6 +268,85 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       expect(performResize).toHaveBeenCalledTimes(1);
       expect(enqueue).not.toHaveBeenCalled();
       clearTimeout(service.gridResizeTimeOut);
+    });
+  });
+
+  describe('the stored LUT presentation', () => {
+    it('holds what a user set on each display set that the viewport shows, by its UID', () => {
+      const { service } = makeServiceWithViewport('volume', { viewportType: 'volume' });
+      const overrides = { ct: { voiRange: { lower: -160, upper: 240 } }, pt: { opacity: 0.4 } };
+      const viewport = {
+        getDisplaySets: () => [{ displaySetId: 'ct' }, { displaySetId: 'pt' }],
+        getDisplaySetAppearance: jest.fn((displaySetId: string) => overrides[displaySetId]),
+        getEffectiveDisplaySetAppearance: jest.fn(),
+      };
+      jest.spyOn(service, 'getCornerstoneViewport').mockReturnValue(viewport as never);
+
+      const lutPresentation = (
+        service as unknown as { _getLutPresentation: (id: string) => LutPresentation }
+      )._getLutPresentation('viewport-1');
+
+      expect(lutPresentation.appearances).toEqual(overrides);
+      expect(viewport.getEffectiveDisplaySetAppearance).not.toHaveBeenCalled();
+    });
+
+    /** Mounts a stack with the options and the presentations given; gives the mount context. */
+    const mountStack = async (displaySetOptions: object, presentations: object) => {
+      const { service, viewportInfo, viewportData } = makeServiceWithViewport('stack');
+      viewportInfo.setPublicDisplaySetOptions([displaySetOptions]);
+      const backendMount = jest.fn().mockResolvedValue(undefined);
+      const internals = service as unknown as {
+        backend: { mountStack: jest.Mock };
+        _processExtraDisplaySetsForViewport: () => unknown[];
+      };
+      internals.backend.mountStack = backendMount;
+      jest.spyOn(internals, '_processExtraDisplaySetsForViewport').mockReturnValue([]);
+      const viewport = {
+        id: 'viewport-1',
+        element: { addEventListener: jest.fn() },
+      } as unknown as PlanarViewport;
+
+      await service._setStackViewport(
+        viewport,
+        viewportData as StackViewportData,
+        viewportInfo,
+        presentations
+      );
+
+      return backendMount.mock.calls[0][1] as StackMountContext;
+    };
+
+    const protocolOptions = {
+      voi: { windowWidth: 400, windowCenter: 40 },
+      colormap: { name: 'hsv' },
+      opacity: 0.6,
+    };
+
+    it('a stack takes the window, the colormap and the opacity of its display set options', async () => {
+      const context = await mountStack(protocolOptions, {});
+
+      expect(context.properties).toEqual({
+        voiRange: utilities.windowLevel.toLowHighRange(400, 40),
+        colormap: { name: 'hsv' },
+        opacity: 0.6,
+      });
+    });
+
+    it('a stack takes the stored appearance of its display set in place of the options', async () => {
+      const stored = { voiRange: { lower: 0, upper: 10 }, invert: true };
+      const context = await mountStack(protocolOptions, {
+        lutPresentation: { viewportType: 'stack', appearances: { 'display-set': stored } },
+      });
+
+      expect(context.properties).toEqual(stored);
+    });
+
+    it('a stack whose stored appearance was reset keeps the window of its images', async () => {
+      const context = await mountStack(protocolOptions, {
+        lutPresentation: { viewportType: 'stack', appearances: { 'display-set': {} } },
+      });
+
+      expect(context.properties).toEqual({});
     });
   });
 

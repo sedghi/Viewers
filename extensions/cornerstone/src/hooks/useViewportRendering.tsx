@@ -3,7 +3,6 @@ import { useSystem } from '@ohif/core';
 import { useViewportDisplaySets } from './useViewportDisplaySets';
 import { Types, utilities, Enums } from '@cornerstonejs/core';
 import { getViewportAdapter } from '../services/ViewportService/adapter';
-import { resolveOpacityScalar } from '../utils/resolveOpacityScalar';
 import { WindowLevelPreset } from '../types/WindowLevel';
 import { ColorbarPositionType, ColorbarOptions, ColorbarProperties } from '../types/Colorbar';
 import { VolumeRenderingConfig } from '../types/VolumeRenderingConfig';
@@ -56,8 +55,6 @@ interface WindowLevelHook {
   // Opacity functions
   opacity: number | undefined;
   setOpacity: (opacity: number) => void;
-  opacityLinear: number | undefined;
-  setOpacityLinear: (opacityLinear: number) => void;
 
   // Threshold functions
   threshold: number | undefined;
@@ -113,7 +110,9 @@ function resolveActiveColormap(
     if (!viewport) {
       return null;
     }
-    const colormap = getViewportAdapter(viewport).getColormap(activeDisplaySetInstanceUID);
+    const { colormap } = getViewportAdapter(viewport).getEffectiveAppearance(
+      activeDisplaySetInstanceUID
+    );
     return colormap || colormaps?.find(c => c.Name === 'Grayscale') || colormaps?.[0];
   } catch (error) {
     console.error('Error getting viewport colormap:', error);
@@ -127,36 +126,44 @@ function isVolume3DViewport(viewport: Types.IViewport | null | undefined): boole
 }
 
 /**
- * Reads the viewport's stored presentation (VOI range, colormap) for a display
- * set. Kept at module scope: the `??` inside the try/catch trips a React
- * Compiler limitation ("value blocks within a try/catch") that bails the whole
- * hook when this code is inlined.
+ * Reads the appearance that a display set is drawn with (window, opacity,
+ * colormap): the overrides over the defaults of its data, so a series without
+ * a window set reads the window of its image. A viewport that shows other
+ * display sets (an SR, SEG or RTSTRUCT viewport) reads its source. Kept at
+ * module scope: a `??` inside the try/catch trips a React Compiler limitation
+ * ("value blocks within a try/catch") that bails the whole hook when this
+ * code is inlined.
  */
-function readPresentation(viewport, activeDisplaySetInstanceUID) {
+function readEffectiveAppearance(viewport, activeDisplaySetInstanceUID) {
   try {
     const adapter = getViewportAdapter(viewport);
-    const displaySetId = adapter.getShownDisplaySetId(activeDisplaySetInstanceUID);
-    const properties = adapter.getPresentation(displaySetId);
-
-    if (!properties) {
-      return null;
-    }
-
-    let voiRange = properties.voiRange;
-    if (!voiRange) {
-      // A viewport stores only explicit VOI overrides in the per-display-set
-      // presentation; a freshly shown series has none, so fall back to its
-      // computed default VOI (the legacy getProperties always returned the
-      // applied VOI). Without this, changing
-      // the series left the overlay showing the previous series' window level.
-      voiRange = adapter.getDefaultVOIRange(displaySetId);
-    }
-
-    return { voiRange, colormap: properties.colormap };
+    return adapter.getEffectiveAppearance(
+      adapter.getShownDisplaySetId(activeDisplaySetInstanceUID)
+    );
   } catch (error) {
-    console.error('Error initializing VOI range:', error);
+    console.error('Error reading the appearance of the viewport:', error);
     return null;
   }
+}
+
+/**
+ * Whether an appearance event is about the display set that the hook reads:
+ * the display set itself when the viewport shows it, the source otherwise.
+ * The readouts of the hook follow what is drawn for every cause of the event:
+ * a mount, an edit, a reset, and a scroll to an image with another default
+ * window.
+ */
+function isEventOfDisplaySet(
+  viewport: Types.IViewport,
+  activeDisplaySetInstanceUID: string,
+  detail: Types.EventTypes.DisplaySetAppearanceChangedEventDetail
+): boolean {
+  const shownDisplaySetId =
+    getViewportAdapter(viewport).getShownDisplaySetId(activeDisplaySetInstanceUID);
+
+  return shownDisplaySetId
+    ? detail.displaySetId === shownDisplaySetId
+    : detail.role === 'source';
 }
 
 export function useViewportRendering(
@@ -179,20 +186,7 @@ export function useViewportRendering(
   );
   const [is3DVolume, setIs3DVolume] = useState(isVolume3DViewport(viewport));
 
-  // The opacity slider gamma follows the rendering path, so the slider feel and
-  // its initial position match what is rendered.
-  const opacityGamma = viewport ? getViewportAdapter(viewport).getOpacityGamma() : 1;
-  const linearToOpacity = useCallback(
-    (linearValue: number): number => Math.pow(linearValue, opacityGamma),
-    [opacityGamma]
-  );
-  const opacityToLinear = useCallback(
-    (opacityValue: number): number => Math.pow(opacityValue, 1.0 / opacityGamma),
-    [opacityGamma]
-  );
-
   const [opacity, setOpacityState] = useState<number | undefined>();
-  const [opacityLinear, setOpacityLinearState] = useState<number | undefined>();
   const [threshold, setThresholdState] = useState<number | undefined>();
   const [pixelValueRange, setPixelValueRange] = useState<PixelValueRange>({ min: 0, max: 255 });
 
@@ -324,27 +318,18 @@ export function useViewportRendering(
     if (!viewport || !activeDisplaySetInstanceUID) {
       return;
     }
-    const presentation = readPresentation(viewport, activeDisplaySetInstanceUID);
-    if (!presentation) {
+    const appearance = readEffectiveAppearance(viewport, activeDisplaySetInstanceUID);
+    if (!appearance) {
       return;
     }
 
-    if (presentation.voiRange) {
-      setVoiRange(presentation.voiRange);
-      voiRangeRef.current = presentation.voiRange;
+    if (appearance.voiRange) {
+      setVoiRange(appearance.voiRange);
+      voiRangeRef.current = appearance.voiRange;
     }
 
-    if (presentation.colormap?.opacity !== undefined) {
-      const opacity = resolveOpacityScalar(presentation.colormap.opacity);
-      if (opacity !== undefined) {
-        setOpacityState(opacity);
-        setOpacityLinearState(opacityToLinear(opacity));
-      }
-    }
-
-    if (presentation.colormap?.threshold !== undefined) {
-      setThresholdState(presentation.colormap.threshold);
-    }
+    setOpacityState(appearance.opacity);
+    setThresholdState(appearance.colormap?.threshold ?? undefined);
   }, [activeDisplaySetInstanceUID, viewport]);
 
   useEffect(() => {
@@ -376,56 +361,44 @@ export function useViewportRendering(
 
     const element = viewport.element;
 
-    const updateVOI = eventDetail => {
-      const {
-        effective: { voiRange: range },
-      } = eventDetail.detail;
+    const onAppearanceChanged = (evt: Types.EventTypes.DisplaySetAppearanceChangedEvent) => {
+      const { detail } = evt;
 
-      if (!range) {
+      if (!isEventOfDisplaySet(viewport, activeDisplaySetInstanceUID, detail)) {
         return;
       }
 
-      // Check if this update is coming from our own setVOIRange or setWindowLevel call
-      // If so, we already updated our state and don't need to do it again
-      const isInternalUpdate = voiRangeRef.current && areVoiRangesClose(voiRangeRef.current, range);
+      const { changedKeys, effective } = detail;
+      const range = effective.voiRange;
 
-      if (!isInternalUpdate) {
-        voiRangeRef.current = range;
-        setVoiRange(range);
-      }
-    };
+      if (changedKeys.includes('voiRange') && range) {
+        const isInternalUpdate =
+          voiRangeRef.current && areVoiRangesClose(voiRangeRef.current, range);
 
-    const updateColormap = eventDetail => {
-      const {
-        effective: { colormap },
-      } = eventDetail.detail;
-
-      if (!colormap) {
-        return;
-      }
-
-      // Extract threshold from colormap in the event detail
-      if (colormap.threshold !== undefined) {
-        setThresholdState(colormap.threshold);
-      }
-
-      if (colormap.opacity !== undefined) {
-        const opacity = resolveOpacityScalar(colormap.opacity);
-        if (opacity !== undefined) {
-          setOpacityState(opacity);
-          setOpacityLinearState(opacityToLinear(opacity));
+        if (!isInternalUpdate) {
+          voiRangeRef.current = range;
+          setVoiRange(range);
         }
       }
+
+      if (changedKeys.includes('opacity')) {
+        setOpacityState(effective.opacity);
+      }
+
+      if (changedKeys.includes('colormap')) {
+        setThresholdState(effective.colormap?.threshold ?? undefined);
+      }
     };
 
-    element.addEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateVOI);
-    element.addEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateColormap);
+    element.addEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, onAppearanceChanged);
 
     return () => {
-      element.removeEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateVOI);
-      element.removeEventListener(Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED, updateColormap);
+      element.removeEventListener(
+        Enums.Events.DISPLAY_SET_APPEARANCE_CHANGED,
+        onAppearanceChanged
+      );
     };
-  }, [activeDisplaySetInstanceUID, viewport, opacityToLinear]);
+  }, [activeDisplaySetInstanceUID, viewport]);
 
   const validateActiveDisplaySet = useCallback(() => {
     if (!activeDisplaySetInstanceUID) {
@@ -599,11 +572,6 @@ export function useViewportRendering(
 
       const displaySetInstanceUID = validateActiveDisplaySet();
 
-      // Update local opacity state
-      if (opacity !== undefined) {
-        setOpacityState(opacity);
-      }
-
       commandsManager.run({
         commandName: 'setViewportColormap',
         commandOptions: {
@@ -625,27 +593,14 @@ export function useViewportRendering(
         return;
       }
 
-      // Apply the actual opacity value
       setOpacityState(opacityValue);
-      // Update the linear value for UI
-      setOpacityLinearState(opacityToLinear(opacityValue));
 
       const displaySetInstanceUID = validateActiveDisplaySet();
 
-      if (getViewportAdapter(viewport).setLayerOpacity(displaySetInstanceUID, opacityValue)) {
-        viewport.render();
-      }
+      getViewportAdapter(viewport).setAppearance({ opacity: opacityValue }, displaySetInstanceUID);
+      viewport.render();
     },
-    [validateActiveDisplaySet, opacityToLinear, viewport]
-  );
-
-  const setOpacityLinear = useCallback(
-    (linearValue: number) => {
-      // Convert linear UI value to actual opacity value and apply it
-      const actualOpacity = linearToOpacity(linearValue);
-      setOpacity(actualOpacity);
-    },
-    [linearToOpacity, setOpacity]
+    [validateActiveDisplaySet, viewport]
   );
 
   const setThreshold = useCallback(
@@ -657,9 +612,11 @@ export function useViewportRendering(
       const displaySetInstanceUID = validateActiveDisplaySet();
       setThresholdState(thresholdValue);
 
-      if (getViewportAdapter(viewport).setLayerThreshold(displaySetInstanceUID, thresholdValue)) {
-        viewport.render();
-      }
+      getViewportAdapter(viewport).setAppearance(
+        { colormap: { threshold: thresholdValue } },
+        displaySetInstanceUID
+      );
+      viewport.render();
     },
     [validateActiveDisplaySet, viewport]
   );
@@ -776,8 +733,6 @@ export function useViewportRendering(
     // Opacity functions
     opacity,
     setOpacity,
-    opacityLinear,
-    setOpacityLinear,
 
     // Threshold functions
     threshold,

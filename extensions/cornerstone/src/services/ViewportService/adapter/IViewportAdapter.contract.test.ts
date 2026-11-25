@@ -160,133 +160,68 @@ describe('view geometry', () => {
 });
 
 describe('per-display-set appearance', () => {
-  it('getPresentation: per-binding read, defaulting to the source display set', () => {
+  it('getAppearance reads the overrides of a display set, the source when none is named', () => {
     const viewport = makeViewport({
       getDisplaySetAppearance: jest.fn().mockReturnValue({ invert: true }),
     });
     const adapter = getViewportAdapter(viewport);
-    expect(adapter.getPresentation()).toEqual({ invert: true });
-    expect(viewport.getDisplaySetAppearance).toHaveBeenCalledWith('source-uid');
-    adapter.getPresentation('ds-2');
+    expect(adapter.getAppearance()).toEqual({ invert: true });
+    expect(viewport.getDisplaySetAppearance).toHaveBeenCalledWith(undefined);
+    adapter.getAppearance('ds-2');
     expect(viewport.getDisplaySetAppearance).toHaveBeenCalledWith('ds-2');
   });
 
-  it('getPresentation stamps isComputedVOI when the VOI matches the binding default', () => {
+  it('getAppearance gives a window that a caller set also when it equals the default', () => {
     const voiRange = { lower: 0, upper: 80 };
-    const stamped = getViewportAdapter(
+    const appearance = getViewportAdapter(
       makeViewport({
         getDisplaySetAppearance: jest.fn().mockReturnValue({ voiRange }),
         getDefaultVOIRange: jest.fn().mockReturnValue({ lower: 0, upper: 80 }),
       })
-    ).getPresentation();
-    expect(stamped.isComputedVOI).toBe(true);
+    ).getAppearance();
 
-    const notStamped = getViewportAdapter(
-      makeViewport({
-        getDisplaySetAppearance: jest.fn().mockReturnValue({ voiRange }),
-        getDefaultVOIRange: jest.fn().mockReturnValue({ lower: 10, upper: 90 }),
-      })
-    ).getPresentation();
-    expect(notStamped.isComputedVOI).toBeUndefined();
+    expect(appearance).toEqual({ voiRange });
   });
 
-  it('setPresentation targets setDisplaySetAppearance', () => {
+  it('getEffectiveAppearance reads what is drawn, the defaults included', () => {
+    const effective = { voiRange: { lower: -160, upper: 240 }, invert: true, opacity: 1 };
+    const viewport = makeViewport({
+      getDisplaySetAppearance: jest.fn().mockReturnValue({}),
+      getEffectiveDisplaySetAppearance: jest.fn().mockReturnValue(effective),
+    });
+    const adapter = getViewportAdapter(viewport);
+
+    expect(adapter.getEffectiveAppearance('ds-1')).toEqual(effective);
+    expect(viewport.getEffectiveDisplaySetAppearance).toHaveBeenCalledWith('ds-1');
+    expect(adapter.getAppearance('ds-1')).toEqual({});
+  });
+
+  it('getEffectiveAppearance is empty for a display set that is not mounted', () => {
+    const viewport = makeViewport({
+      getEffectiveDisplaySetAppearance: jest.fn().mockReturnValue(undefined),
+    });
+
+    expect(getViewportAdapter(viewport).getEffectiveAppearance('ds-x')).toEqual({});
+  });
+
+  it('setAppearance targets setDisplaySetAppearance', () => {
     const viewport = makeViewport();
-    getViewportAdapter(viewport).setPresentation({ invert: true }, 'ds-1');
+    getViewportAdapter(viewport).setAppearance({ invert: true }, 'ds-1');
     expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('ds-1', { invert: true });
 
-    getViewportAdapter(viewport).setPresentation({ invert: false });
-    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('source-uid', {
-      invert: false,
-    });
+    getViewportAdapter(viewport).setAppearance({ invert: false });
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith({ invert: false });
   });
 
-  it('getDefaultVOIRange gives the binding default', () => {
-    expect(
-      getViewportAdapter(
-        makeViewport({ getDefaultVOIRange: jest.fn().mockReturnValue({ lower: 1, upper: 2 }) })
-      ).getDefaultVOIRange('ds-1')
-    ).toEqual({ lower: 1, upper: 2 });
-  });
-
-  it('getColormap reads the presentation of the binding', () => {
-    const viewport = makeViewport({
-      getDisplaySetAppearance: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
-    });
-    expect(getViewportAdapter(viewport).getColormap('ds-1')).toEqual({ name: 'jet' });
-  });
-
-  it('setLayerOpacity merges into the existing colormap', () => {
-    const viewport = makeViewport({
-      getDisplaySetAppearance: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
-    });
-    expect(getViewportAdapter(viewport).setLayerOpacity('ds-1', 0.5)).toBe(true);
-    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('ds-1', {
-      colormap: { name: 'jet', opacity: 0.5 },
-    });
-  });
-
-  it('setLayerOpacity scales a ramp that a hanging protocol gives as a list in opacity', () => {
-    const ramp = [
-      { value: 0, opacity: 0 },
-      { value: 0.1, opacity: 0.8 },
-      { value: 1, opacity: 0.9 },
-    ];
-    const viewport = makeViewport({
-      getDisplaySetAppearance: jest
-        .fn()
-        .mockReturnValue({ colormap: { name: 'hsv', opacity: ramp } }),
-    });
-
-    expect(getViewportAdapter(viewport).setLayerOpacity('pt-1', 0.5)).toBe(true);
-    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('pt-1', {
-      colormap: { name: 'hsv', opacityMapping: ramp, opacity: 0.5 },
-    });
-  });
-
-  it('setLayerOpacity keeps the opacity mapping that it scaled before', () => {
-    const ramp = [
-      { value: 0, opacity: 0 },
-      { value: 1, opacity: 0.9 },
-    ];
-    const viewport = makeViewport({
-      getDisplaySetAppearance: jest.fn().mockReturnValue({
-        colormap: { name: 'hsv', opacity: 0.5, opacityMapping: ramp, threshold: 2 },
-      }),
-    });
-
-    getViewportAdapter(viewport).setLayerOpacity('pt-1', 0);
-    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('pt-1', {
-      colormap: { name: 'hsv', opacityMapping: ramp, threshold: 2, opacity: 0 },
-    });
-  });
-
-  it('setLayerThreshold merges into the existing colormap', () => {
-    const viewport = makeViewport({
-      getDisplaySetAppearance: jest.fn().mockReturnValue({ colormap: { name: 'jet' } }),
-    });
-    expect(getViewportAdapter(viewport).setLayerThreshold('ds-1', 42)).toBe(true);
-    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('ds-1', {
-      colormap: { name: 'jet', threshold: 42 },
-    });
-  });
-
-  it('getBlendMode reads the blend mode of the presentation', () => {
-    const getDisplaySetAppearance = jest.fn((displaySetId: string) =>
+  it('getBlendMode reads the blend mode of the appearance', () => {
+    const getDisplaySetAppearance = jest.fn((displaySetId = 'ds-mip') =>
       displaySetId === 'ds-mip' ? { blendMode: Enums.BlendModes.MAXIMUM_INTENSITY_BLEND } : {}
     );
-    const mip = makeViewport({
-      getSourceDisplaySetId: jest.fn().mockReturnValue('ds-mip'),
-      getDisplaySetAppearance,
-    });
+    const mip = makeViewport({ getDisplaySetAppearance });
 
     expect(getViewportAdapter(mip).getBlendMode()).toBe(Enums.BlendModes.MAXIMUM_INTENSITY_BLEND);
     expect(getViewportAdapter(mip).getBlendMode('ds-other')).toBeUndefined();
     expect(getViewportAdapter(makeViewport()).getBlendMode()).toBeUndefined();
-  });
-
-  it('getOpacityGamma is linear', () => {
-    expect(getViewportAdapter(makeViewport()).getOpacityGamma()).toBe(1);
   });
 });
 

@@ -6,6 +6,7 @@ import getCornerstoneViewportType from '../../utils/getCornerstoneViewportType';
 import { getViewportDataShape, type ViewportShape } from '../../utils/viewportDataShape';
 import JumpPresets from '../../utils/JumpPresets';
 import { SyncGroup } from '../SyncGroupService/SyncGroupService';
+import type { ViewportAppearance } from './adapter/IViewportAdapter';
 
 export type InitialImageOptions = {
   index?: number;
@@ -58,6 +59,18 @@ export type DisplaySetSelector = {
   options?: PublicDisplaySetOptions;
 };
 
+/**
+ * The colormap of a display set in a hanging protocol: its name, the
+ * opacities by value of the data (`opacityMapping`, the ramp of the PET of a
+ * fusion) and the value below which nothing is drawn (`threshold`). The
+ * opacity of the whole display set is the `opacity` beside the colormap.
+ */
+export type DisplaySetOptionsColormap = {
+  name: string;
+  opacityMapping?: Types.OpacityMapping[];
+  threshold?: number;
+};
+
 export type PublicDisplaySetOptions = {
   /** The display set options can have an id in order to distinguish
    * it from other similar items.
@@ -67,7 +80,9 @@ export type PublicDisplaySetOptions = {
   voiInverted?: boolean;
   blendMode?: string;
   slabThickness?: number;
-  colormap?: string;
+  colormap?: DisplaySetOptionsColormap;
+  /** The opacity of the display set, 0 to 1. */
+  opacity?: number;
   displayPreset?: string;
 };
 
@@ -77,9 +92,64 @@ export type DisplaySetOptions = {
   voiInverted: boolean;
   blendMode?: Enums.BlendModes;
   slabThickness?: number;
-  colormap?: { name: string; opacity?: number };
+  colormap?: DisplaySetOptionsColormap;
+  opacity?: number;
   displayPreset?: string;
 };
+
+/**
+ * The appearance that the options of a display set give its first draw: the
+ * window of `voi`, the invert, the colormap and the opacity.
+ */
+export function getDisplaySetOptionsAppearance(
+  displaySetOptions: DisplaySetOptions | undefined
+): ViewportAppearance {
+  const { voi, voiInverted, colormap, opacity } = displaySetOptions ?? ({} as DisplaySetOptions);
+  const appearance: ViewportAppearance = {};
+
+  if (voi && (voi.windowWidth || voi.windowCenter)) {
+    appearance.voiRange = utilities.windowLevel.toLowHighRange(voi.windowWidth, voi.windowCenter);
+  }
+  if (voiInverted !== undefined) {
+    appearance.invert = voiInverted;
+  }
+  if (colormap !== undefined) {
+    appearance.colormap = colormap;
+  }
+  if (opacity !== undefined) {
+    appearance.opacity = opacity;
+  }
+
+  return appearance;
+}
+
+/**
+ * The colormap of the options of a display set as Cornerstone3D 6.0 takes it.
+ * `colormap.opacity` is gone: a number is the `opacity` of the options, a
+ * list of `{ value, opacity }` points is `colormap.opacityMapping`. A protocol
+ * that still gives `colormap.opacity` gets an error in development, and the
+ * key is left out: OHIF does not guess which of the two the protocol meant.
+ */
+function getDisplaySetOptionsColormap(
+  colormap: (DisplaySetOptionsColormap & { opacity?: unknown }) | undefined
+): DisplaySetOptionsColormap | undefined {
+  if (!colormap || !('opacity' in colormap)) {
+    return colormap;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(
+      `Hanging protocol display set options: colormap.opacity is gone (Cornerstone3D 6.0) ` +
+        `and is ignored in the colormap "${colormap.name}". Give a number as the option ` +
+        `"opacity" beside the colormap, and a list of { value, opacity } points as ` +
+        `"colormap.opacityMapping".`,
+      colormap
+    );
+  }
+
+  const { opacity: _removed, ...rest } = colormap;
+  return rest;
+}
 
 type VOI = {
   windowWidth: number;
@@ -358,7 +428,8 @@ class ViewportInfo {
       displaySetOptions.push({
         voi: option.voi,
         voiInverted: option.voiInverted,
-        colormap: option.colormap,
+        colormap: getDisplaySetOptionsColormap(option.colormap),
+        opacity: option.opacity,
         slabThickness: option.slabThickness,
         blendMode,
         displayPreset: option.displayPreset,

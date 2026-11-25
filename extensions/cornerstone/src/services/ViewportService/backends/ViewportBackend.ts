@@ -1,16 +1,10 @@
-import {
-  Enums as csEnums,
-  Types,
-  isRegisteredRenderBackend,
-  viewportProjection,
-} from '@cornerstonejs/core';
+import { Enums as csEnums, Types, isRegisteredRenderBackend } from '@cornerstonejs/core';
 import type {
   RenderBackendValue,
   ECGViewport,
   PlanarViewport,
   PlanarMountOptions,
   Volume3DMountOptions,
-  VolumeViewport3D,
 } from '@cornerstonejs/core';
 import { utilities as csToolsUtils } from '@cornerstonejs/tools';
 import { getViewportRenderingOverride } from '../../../utils/viewportRendering';
@@ -51,21 +45,6 @@ function getMountRenderBackend(viewportTypeKey: string): RenderBackendValue | un
   return backend as RenderBackendValue;
 }
 
-// The PlanarViewState fields that encode pan/zoom/rotation/flip. Slice and
-// orientation are deliberately EXCLUDED — they are restored via the view reference,
-// and a partial setViewState patch that omits them leaves them untouched (the merge
-// at PlanarViewport.setViewState preserves unspecified fields).
-const NATIVE_VIEW_PRESENTATION_KEYS = [
-  'displayArea',
-  'anchorWorld',
-  'anchorCanvas',
-  'scale',
-  'scaleMode',
-  'rotation',
-  'flipHorizontal',
-  'flipVertical',
-] as const;
-
 // Minimal structural view of a native PlanarViewport's semantic accessors. These
 // live on the planar viewport (not IViewport), so we cast at the boundary
 // rather than import core-internal PlanarViewport/PlanarViewState types.
@@ -77,14 +56,11 @@ type NativePlanarViewport = Types.IViewport<Record<string, unknown>> & {
   isReferenceViewable?: (ref: Types.ViewReference, opts?: unknown) => boolean;
 };
 
-/** The zoom and the pan of a 3D viewport, measured against the fit of its content. */
-type View3DPresentation = { zoom?: number; pan?: [number, number] };
-
 /**
- * The keys of a stored LUT presentation that a mount applies as the initial
- * appearance of its source.
+ * The keys of the display set options of a hanging protocol that a planar
+ * mount gives as the first appearance of a display set.
  */
-const LUT_APPEARANCE_KEYS = ['voiRange', 'invert', 'colormap'] as const;
+const PLANAR_APPEARANCE_KEYS = ['voiRange', 'invert', 'colormap', 'opacity'] as const;
 
 /**
  * Copies the keys that are set in `properties` out of it: the appearance that
@@ -101,17 +77,6 @@ function pickAppearance(
     }
   }
   return appearance;
-}
-
-/** Picks the pan/zoom/rotation/flip subset out of a (deep-cloned) getViewState() result. */
-function pickNativeViewPresentation(viewState: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const key of NATIVE_VIEW_PRESENTATION_KEYS) {
-    if (viewState[key] !== undefined) {
-      out[key] = viewState[key];
-    }
-  }
-  return out;
 }
 
 /**
@@ -178,9 +143,11 @@ export class ViewportBackend implements IViewportBackend {
 
   /**
    * Stack mount: mounts the display set by its UID as a stack, on its first
-   * image and with its VOI/invert/colormap as the appearance of the first draw,
-   * then applies pan/zoom/rotate/flip/displayArea via setViewState — a planar
-   * viewport has no setStack, setProperties or setCamera.
+   * image and with the appearance of the first draw (the stored LUT
+   * presentation of the display set, or the VOI/invert/colormap/opacity of the
+   * hanging protocol), then applies pan/zoom/rotate/flip/displayArea via
+   * setViewState — a planar viewport has no setStack, setProperties or
+   * setCamera.
    */
   async mountStack(viewport: PlanarViewport, context: StackMountContext): Promise<void> {
     const {
@@ -210,7 +177,7 @@ export class ViewportBackend implements IViewportBackend {
       orientation: csEnums.OrientationAxis.ACQUISITION,
       role: 'source',
       initialImageIdIndex: initialImageIndex,
-      appearance: pickAppearance(properties, LUT_APPEARANCE_KEYS),
+      appearance: properties,
       ...(stackRenderBackend ? { renderBackend: stackRenderBackend } : {}),
     };
     await viewport.setDisplaySets({ displaySetId: displaySetInstanceUIDs[0], options });
@@ -358,10 +325,10 @@ export class ViewportBackend implements IViewportBackend {
    * fusion) and the others are overlays, and a call per volume would drop the
    * source. Each display set is mounted by its UID with the id of its cached
    * volume, a planar one with mode 'volume' and the orientation of the viewport.
-   * The appearance of each entry is the VOI/invert/colormap of its display set
-   * options, with the blend mode and the slab of a projection (the TMTV MIP)
-   * for a planar viewport and the preset for a 3D one; the stored LUT
-   * presentation goes over the appearance of the source.
+   * The appearance of each entry is the stored LUT presentation of its display
+   * set (what a user set on it), or else the VOI/invert/colormap/opacity of its
+   * display set options, with the blend mode and the slab of a projection (the
+   * TMTV MIP) for a planar viewport and the preset for a 3D one.
    */
   private async _setNativeVolumeDisplaySets(
     viewport: Types.IViewport,
@@ -383,22 +350,19 @@ export class ViewportBackend implements IViewportBackend {
       render: () => void;
     };
     const volumeRenderBackend = is3D ? undefined : getMountRenderBackend('orthographic');
-    const storedProperties =
-      lutPresentation?.properties instanceof Map ? undefined : lutPresentation?.properties;
 
     const entries = filteredVolumeInputArray.map(({ volumeInput }, index) => {
       const { volumeId, displaySetInstanceUID, blendMode, slabThickness } = volumeInput;
       const properties = volumesProperties[index]?.properties;
       const role = index === 0 ? 'source' : 'overlay';
-      const appearance = {
+      const appearance = lutPresentation?.appearances?.[displaySetInstanceUID] ?? {
         ...pickAppearance(
           properties,
-          is3D ? ['voiRange', 'invert', 'preset'] : LUT_APPEARANCE_KEYS
+          is3D ? ['voiRange', 'invert', 'preset'] : PLANAR_APPEARANCE_KEYS
         ),
         ...(!is3D && properties
           ? pickAppearance({ blendMode, slabThickness }, ['blendMode', 'slabThickness'])
           : {}),
-        ...(index === 0 ? pickAppearance(storedProperties, LUT_APPEARANCE_KEYS) : {}),
       };
       const options: PlanarMountOptions | Volume3DMountOptions = is3D
         ? { role, volumeId, appearance: appearance as Volume3DMountOptions['appearance'] }
@@ -426,139 +390,65 @@ export class ViewportBackend implements IViewportBackend {
     nativeViewport.render();
   }
 
+  /**
+   * The position of a viewport: what it shows (the view reference: the image,
+   * or the plane and the slice) and how it frames it (`getViewFraming()`: the
+   * zoom, pan, rotation, flips and display area against the fit, with how the
+   * view fits). A 3D viewport is placed by the camera of its framing and
+   * stores no view reference.
+   */
   getPositionPresentation(
     csViewport: Types.IViewport,
     viewportInfo: ViewportInfo,
     viewportId: string
   ): PositionPresentation {
-    if (csViewport.type === csEnums.ViewportType.VOLUME_3D) {
-      // The view state of a 3D viewport is its camera, in world units. Its zoom
-      // and its pan against the fit are what holds through a resize: the same
-      // zoom shows the content at the same share of a canvas of another size.
-      const presentation = viewportProjection.getFraming<View3DPresentation>(csViewport, {
-        selector: { zoom: true, pan: true },
-      });
-
-      return {
-        viewportType: viewportInfo.getViewportType(),
-        viewReference: null,
-        viewPresentation: (presentation
-          ? { zoom: presentation.zoom, pan: presentation.pan }
-          : undefined) as unknown as Types.ViewFraming,
-        viewportId,
-      };
-    }
-
-    const vp = csViewport as NativePlanarViewport;
-
-    // A planar viewport has no getViewPresentation; pan/zoom/rotation/flip
-    // live in the semantic view state. getViewState() is already deep-cloned, normalized
-    // and JSON-serializable, so snapshot the pan/zoom subset (slice/orientation come back
-    // via the view reference).
-    const viewState = typeof vp.getViewState === 'function' ? vp.getViewState() : undefined;
+    const is3D = csViewport.type === csEnums.ViewportType.VOLUME_3D;
 
     return {
       viewportType: viewportInfo.getViewportType(),
-      viewReference: vp.getViewReference(),
-      // Opaque native pan/zoom blob; cast at the boundary (legacy stores a Types.ViewPresentation).
-      viewPresentation: (viewState
-        ? pickNativeViewPresentation(viewState)
-        : undefined) as unknown as Types.ViewFraming,
+      viewReference: is3D ? null : csViewport.getViewReference(),
+      viewFraming: csViewport.getViewFraming(),
       viewportId,
     };
   }
 
+  /**
+   * Shows a stored position: the slice and the orientation by the view
+   * reference when the viewport can show it, then the framing, so a view that
+   * fit the width of its pane fits the width of a pane of another size, and a
+   * zoom and a pan are kept against the fit.
+   */
   setPositionPresentation(
     viewport: Types.IViewport,
     positionPresentation: PositionPresentation
   ): void {
-    if (viewport.type === csEnums.ViewportType.VOLUME_3D) {
-      this._set3DViewPresentation(
-        viewport as unknown as VolumeViewport3D,
-        positionPresentation?.viewPresentation as unknown as View3DPresentation | undefined
-      );
-      return;
-    }
-
-    const vp = viewport as NativePlanarViewport;
-
-    // 1) Slice + orientation first, via the view reference.
     const viewRef = positionPresentation?.viewReference;
-    if (viewRef && vp.isReferenceViewable?.(viewRef, WITH_ORIENTATION)) {
-      vp.setViewReference(viewRef);
+    const is3D = viewport.type === csEnums.ViewportType.VOLUME_3D;
+    if (!is3D && viewRef && viewport.isReferenceViewable(viewRef, WITH_ORIENTATION)) {
+      viewport.setViewReference(viewRef);
     }
 
-    // 2) Pan/zoom/rotation/flip second, as a partial setViewState patch that omits
-    //    slice/orientation so step 1 is preserved (the merge keeps unspecified fields).
-    const vpres = positionPresentation?.viewPresentation as unknown as
-      | Record<string, unknown>
-      | undefined;
-    if (vpres && typeof vp.setViewState === 'function') {
-      const patch: Record<string, unknown> = {};
-      for (const key of NATIVE_VIEW_PRESENTATION_KEYS) {
-        if (vpres[key] !== undefined) {
-          patch[key] = vpres[key];
-        }
-      }
-      if (Object.keys(patch).length > 0) {
-        // When the snapshot held live anchor/scale pan/zoom, displayArea was omitted;
-        // clear any stale displayArea explicitly so anchor/scale take effect (setViewState
-        // only rewrites displayArea when it is an own key of the patch).
-        if (!('displayArea' in patch)) {
-          patch.displayArea = undefined;
-        }
-        vp.setViewState(patch);
-      }
+    const viewFraming = positionPresentation?.viewFraming;
+    if (viewFraming) {
+      viewport.setViewFraming(viewFraming);
     }
   }
 
   /**
-   * Gives a 3D viewport the zoom and the pan of a stored presentation, against
-   * the fit of the viewport as it is now. A viewport that shows nothing yet has
-   * no fit and is left as it is.
+   * Gives each display set that the viewport shows what the user set on its
+   * appearance, from a stored LUT presentation.
    */
-  private _set3DViewPresentation(
-    viewport: VolumeViewport3D,
-    viewPresentation?: View3DPresentation
-  ): void {
-    if (viewPresentation?.zoom === undefined && viewPresentation?.pan === undefined) {
-      return;
-    }
-
-    const { zoom, pan } = viewPresentation;
-    const viewState = viewportProjection.withFraming(viewport, { zoom, pan });
-
-    if (viewState) {
-      viewport.setViewState(viewState);
-    }
-  }
-
   setLutPresentation(viewport: Types.IViewport, lutPresentation: LutPresentation): void {
-    if (!lutPresentation) {
+    const appearances = lutPresentation?.appearances;
+    if (!appearances) {
       return;
     }
-    const { properties } = lutPresentation;
-    // The LUT presentation is the getDisplaySetAppearance shape (voiRange/
-    // colormap/invert), not a per-volumeId Map; a planar viewport applies it via
-    // setDisplaySetAppearance (it has no setProperties).
-    if (!properties || properties instanceof Map) {
-      return;
-    }
-    const nativeViewport = viewport as unknown as {
-      setDisplaySetAppearance: (props: Record<string, unknown>) => void;
-    };
-    const presentationProps: Record<string, unknown> = {};
-    if (properties.voiRange) {
-      presentationProps.voiRange = properties.voiRange;
-    }
-    if (properties.invert !== undefined) {
-      presentationProps.invert = properties.invert;
-    }
-    if (properties.colormap) {
-      presentationProps.colormap = properties.colormap;
-    }
-    if (Object.keys(presentationProps).length > 0) {
-      nativeViewport.setDisplaySetAppearance(presentationProps);
+
+    for (const { displaySetId } of viewport.getDisplaySets()) {
+      const appearance = appearances[displaySetId];
+      if (appearance && Object.keys(appearance).length > 0) {
+        viewport.setDisplaySetAppearance(displaySetId, appearance);
+      }
     }
   }
 }

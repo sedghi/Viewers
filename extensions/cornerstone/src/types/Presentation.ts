@@ -1,37 +1,43 @@
-import type { Types } from '@cornerstonejs/core';
+import type { PlanarViewFraming, Volume3DProjectionFraming, Types } from '@cornerstonejs/core';
 import { SegmentationRepresentations } from '@cornerstonejs/tools/enums';
-import type { ViewportPresentation } from '../services/ViewportService/adapter/IViewportAdapter';
+import type { ViewportAppearance } from '../services/ViewportService/adapter/IViewportAdapter';
 
 /**
  * Represents a position presentation in a viewport. This is basically
- * viewport specific camera position and zoom, and not the display set
+ * viewport specific camera position and zoom, and not the display set.
+ *
+ * `viewFraming` is what `viewport.getViewFraming()` gives: the zoom, pan,
+ * rotation, flips and display area against the fit, with the scale mode and
+ * the scale of a planar view (`scaleMode`, `fitScale`), so a viewport of
+ * another size shows the same fit; for a 3D viewport the camera, with the
+ * zoom and the pan against the fit for its direction.
  */
 export type PositionPresentation = {
   viewportType: string;
   // The view reference has the basic information as to what image orientation/slice is shown
   viewReference: Types.ViewReference;
-  // The position information has the zoom/pan and possibly other related information, but not LUT
-  viewPresentation: Types.ViewFraming;
+  viewFraming?: PlanarViewFraming | Volume3DProjectionFraming;
   /**
    * Optionals
    */
   initialImageIndex?: number;
   // viewportId helps when hydrating SR or SEG - we can use it to filter
   // presentations to get the one prior to the current viewport and reuse it
-  // for viewReference and viewPresentation
+  // for viewReference and viewFraming
   viewportId?: string;
 };
 
 /**
  * Represents a LUT presentation in a viewport, and is really related
- * to displaySets and not the viewport itself. So that is why it can
- * be an object with volumeId keys, or a single object with the properties
- * itself
+ * to displaySets and not the viewport itself: what a user set on the
+ * appearance of each display set of the viewport (window, invert, colormap,
+ * opacity), keyed by the UID of the display set. These are the overrides
+ * (`getDisplaySetAppearance`), none of the defaults of the data, so a window
+ * that the user did not set is not stored.
  */
 export interface LutPresentation {
   viewportType: string;
-  // either a single object with the properties itself or a map of properties with volumeId keys
-  properties: Record<string, ViewportPresentation> | ViewportPresentation;
+  appearances: Record<string, ViewportAppearance>;
 }
 
 /**
