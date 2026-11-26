@@ -295,6 +295,40 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       expect(performResize).not.toHaveBeenCalled();
     });
 
+    it('a resize gives each viewport its framing back and leaves its slice to Cornerstone3D', () => {
+      const { service } = makeServiceWithViewport('volume', { viewportType: 'volume' });
+      const framing = { zoom: 1, pan: [0, 0] };
+      const viewport = {
+        id: 'viewport-1',
+        type: Enums.ViewportType.PLANAR,
+        getViewReference: () => ({
+          FrameOfReferenceUID: 'frame-of-reference',
+          viewPlaneNormal: [1, 0, 0],
+          cameraFocalPoint: [-2.344, 0, 0],
+          sliceIndex: 63,
+        }),
+        getViewFraming: () => framing,
+        isReferenceViewable: () => true,
+        setViewReference: jest.fn(),
+        setViewFraming: jest.fn(),
+      };
+      const renderingEngine = {
+        getViewports: () => [viewport],
+        getViewport: () => viewport,
+        resize: jest.fn(),
+        render: jest.fn(),
+        hasBeenDestroyed: false,
+      };
+      (service as unknown as { renderingEngine: unknown }).renderingEngine = renderingEngine;
+      jest.spyOn(service, 'getRenderingEngine').mockReturnValue(renderingEngine as never);
+
+      (service as unknown as { performResize: () => void }).performResize();
+
+      expect(renderingEngine.resize).toHaveBeenCalledTimes(2);
+      expect(viewport.setViewReference).not.toHaveBeenCalled();
+      expect(viewport.setViewFraming).toHaveBeenCalledWith(framing);
+    });
+
     it('does not count 3D viewports as volume viewports', () => {
       const service = new CornerstoneViewportService(makeServicesManager());
       addViewports(service, 'volume3d', 7);

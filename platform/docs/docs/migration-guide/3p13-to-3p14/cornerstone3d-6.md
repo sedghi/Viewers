@@ -83,6 +83,29 @@ guide.
   [The opacity of a colormap](#the-opacity-of-a-colormap-in-a-hanging-protocol)).
 - Reset of a pane resets the invert too, and an MPR pane keeps its rotation
   through a layout change and back.
+- A pane of a volume opens on the middle slice counted along its view,
+  `floor(N / 2)`. With an even number of slices and a view whose normal points
+  against the volume axis (the coronal view of an axial CT), that is one slice
+  further than 3.13 showed where the protocol names no initial slice, as in the
+  coronal panes of TMTV (257/512 where 3.13 showed 256/512); the `'middle'`
+  preset of a protocol, as in the MPR layout, gives the same slice as in 3.13.
+- Reset takes a pane of a volume back to that middle slice (3.13 went to the
+  middle counted along the volume, one slice before it for such a view); with
+  the crosshairs on, every pane of their group goes to its middle slice and the
+  crosshairs to where those slices meet, as in 3.13.
+- An oblique view steps by the thickness of one voxel along the view, on a
+  grid centred on the volume, so it has fewer slices than in 3.13: the axial
+  view of an MR acquired sagittally and turned 12.5 degrees in its plane has 256
+  slices of 1.19 mm where 3.13 had 305, and its middle slice lies half a step
+  from the centre. A view along a volume axis keeps its slices. A series tilted
+  by less than half a slice shows its acquired images for its standard
+  orientation; a larger tilt is shown on the true axes, as in 3.13.
+- The panes of one camera position sync group (the axial, the sagittal and the
+  coronal panes of TMTV) open on the slice of the CT, whatever the order in
+  which their volumes load; a PET pane shows its slice nearest to it, as in
+  3.13.
+- A 3D point of an SR (`SCOORD3D`) shows on no image of a stack, as in 3.13; a
+  jump to it from the measurement panel shows it in a volume.
 
 Against 3.13 with `?useNextViewports`, one more change: a pane in which an
 RTSTRUCT is hydrated keeps its viewport type and its orientation, as it does in
@@ -420,6 +443,13 @@ its direction, zoom and pan. The stores are kept in memory only; nothing
 stored by 3.13 is read. Code that writes a position presentation, as the SEG,
 RTSTRUCT and SR viewports do, gives `viewReference` and, if it wants a framing,
 `viewFraming`; drop `viewPresentation`.
+
+A resize (a panel that opens or closes, the window, a layout change of the
+same viewport) writes back only the framing: the slice and the orientation
+stay as they are, also for a pane that sits between two of its slices, such as
+a PET pane of a sync group on the slice of a CT. A video and an ECG keep their
+zoom and pan against the fit through it, an ECG keeps the layout of its traces,
+and Reset fits either again.
 
 ### The events of a viewport
 

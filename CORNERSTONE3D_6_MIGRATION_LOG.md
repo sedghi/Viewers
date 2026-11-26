@@ -14,7 +14,7 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (26 November, tasks O9 to O15)
+## Summary (26 November, tasks O9 to O16)
 
 The state of every entry today, on the branch at `2bbed3c040` (task O11) and the
 Cornerstone3D link at `472d908e8`. Task O9 checked the entries on the Cornerstone3D link
@@ -36,6 +36,21 @@ fusion), M82 (the thumbnails; the owner's are test data, and the canvas helper o
 Cornerstone3D draws black) and M83 (a PET overlay shows another slice first; OHIF's part
 fixed, Cornerstone3D's part open); with it 178 suites and 2,028 tests pass, and the
 Playwright suite gives 247 passed (2 new tests), 0 failed, 4 skipped.
+Task O16 (26 November) moved the link to `2810086ec` (lanes FX14 to FX16: one slice grid
+for a volume view, the camera of a video and an ECG through a resize, one polySeg worker).
+Before any edit, jest (178 suites, 2,028 tests), the type check (no new error), the build
+and the lint budget passed, and the Playwright suite gave 218 passed, 29 failed, 4 skipped:
+21 specs whose click on a segment no longer moves a stack (M87, OHIF, fixed), 7 pictures
+of the MPR of an MR turned 12.5 degrees in its plane and of a DWI of an even count, which
+the slice grid explains (their baselines replaced, the owner's exception for this task;
+one more picture of the same MR showed behind them, 8 in all, lane O16
+`baselines/LIST.md`), and the picture of `RTHydrationFromMPR` after its layout change
+(M89). It fixed the sync
+of the TMTV panes (M84), the Reset button (M88), measured the thumbnails (M82 closed), the
+camera of a video and an ECG through a panel and a layout change, the CPU canvas during a
+panel drag (no blank frame), the cuts of an RTSTRUCT with one worker, the scroll of a stack
+with a SEG, a tilted series and the 3D points of an SR, and found M85 and M86 in
+Cornerstone3D.
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -55,7 +70,7 @@ not a defect.
 | M11 | A labelmap asked for on a 3D viewport was not made a surface | OHIF + Cornerstone | fixed `e5881fc1a7` and in cornerstone (C5, its row 127) |
 | M12 | The initial image of a protocol was not applied to a volume | OHIF | fixed `8f7232418c` |
 | M13 | The type comparison counted paths of the linked checkout as errors | OHIF method + Cornerstone | fixed: the comparison; the declaration paths in cornerstone (C2, row 114); O9: no such error on the link |
-| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link; O11: 245 passed (2 new tests), 0 failed, 4 skipped (7.6 min), same link; O12: 245 passed, 0 failed, 4 skipped (7.2 min), link `472d908e8`; O15: 247 passed (2 new tests), 0 failed, 4 skipped (7.4 min), link `c2f202429`); the run in CI open, waits for the owner (open point 2 of the plan) |
+| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link; O11: 245 passed (2 new tests), 0 failed, 4 skipped (7.6 min), same link; O12: 245 passed, 0 failed, 4 skipped (7.2 min), link `472d908e8`; O15: 247 passed (2 new tests), 0 failed, 4 skipped (7.4 min), link `c2f202429`; O16: 249 passed (5 new tests), 3 failed (the pictures of M89), 4 skipped (7.7 min), link `2810086ec`); the run in CI open, waits for the owner (open point 2 of the plan) |
 | M15 | An optional call of a legacy member failed without a sign | OHIF | fixed `8f7232418c`; the Cornerstone guide names it (step by step) |
 | M16 | Three places did the same thing twice after the codemod | OHIF + Cornerstone codemod | OHIF fixed `8f7232418c`; open for cornerstone: a report of a rewrite that duplicates a line (small) |
 | M17 | The window level panel had no rows | OHIF | fixed `67ab3444fd` (M61) |
@@ -121,26 +136,34 @@ not a defect.
 | M77 | Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR | OHIF | fixed `2bbed3c040` (O11): the rule of the `?useNextViewports` path is deleted |
 | M78 | A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll | Cornerstone | fixed in cornerstone `472d908e8` (FX11), checked in O12: 33 ms, as on `master` |
 | M79 | A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT | Cornerstone | fixed in cornerstone `487285b21` (lane FX12), checked in the viewer in task O13 |
-| M80 | A PET added from the data overlay menu tints the pane more than on `master` | OHIF | fixed in task O15 (not committed yet): `OVERLAY_OPACITY` 0.25, the owner's choice; 0.08% of the pixels differ from `master` |
-| M81 | The opacity slider of a TMTV fusion starts at 100% while its PET is drawn at 25% at most | OHIF | fixed in task O15 (not committed yet): the ramp is the shape, `opacity` 0.2501 the level; the slider starts at 25% |
-| M82 | The thumbnails of the CT and the SCOUT are blown out | Cornerstone | the owner's thumbnails: decided, they are JPEG files of the test data, the same on `master`; found on the way: `loadImageToCanvas` draws black on the tiled engine (`sx`, `sy` of a planar viewport), open, waits for cornerstone |
-| M83 | A PET added as a data overlay shows the wrong slice for about a second | OHIF + Cornerstone | OHIF part fixed in task O15 (not committed yet): the source volume mounts on the slice of the pane; open for cornerstone: an overlay is drawn from the copies of other slices while it streams (`master` too, 0.6 s) |
+| M80 | A PET added from the data overlay menu tints the pane more than on `master` | OHIF | fixed in task O15 (`3aee48d6fe`): `OVERLAY_OPACITY` 0.25, the owner's choice; 0.08% of the pixels differ from `master` |
+| M81 | The opacity slider of a TMTV fusion starts at 100% while its PET is drawn at 25% at most | OHIF | fixed in task O15 (`3aee48d6fe`): the ramp is the shape, `opacity` 0.2501 the level; the slider starts at 25% |
+| M82 | The thumbnails of the CT and the SCOUT are blown out | Cornerstone | the owner's thumbnails: decided, they are JPEG files of the test data, the same on `master`; found on the way: `loadImageToCanvas` drew black on the tiled engine (`sx`, `sy` of a planar viewport): fixed in cornerstone `2810086ec` (FX14), checked in task O16 (the 23 series as `master`) |
+| M83 | A PET added as a data overlay shows the wrong slice for about a second | OHIF + Cornerstone | OHIF part fixed in task O15 (`3aee48d6fe`): the source volume mounts on the slice of the pane; open for cornerstone: an overlay is drawn from the copies of other slices while it streams (`master` too, 0.6 s) |
+| M84 | The panes of a TMTV sync group open on the slice of the pane that mounts last | OHIF + Cornerstone | Cornerstone part (the default slice) in `2810086ec` (FX14); OHIF part fixed in task O16 (not committed yet): a pane does not drive its group while it mounts and goes to the slice of the finest grid; the resize writes only the framing |
+| M85 | A zoom or a resize of a PET pane moves the CT panes of its sync group to the centre of the PET slice | Cornerstone | open, waits for cornerstone: the camera sync carries the centre of the source's slice |
+| M86 | The panes of a camera position sync group show one zoom against the fit, not one scale | Cornerstone | open, waits for cornerstone (to decide): the PET pane of TMTV draws the body 17% smaller than the CT pane |
+| M87 | A click on a segment does not move a stack to it | OHIF | fixed in task O16 (not committed yet): `navigatePlanarViewportToPoint` |
+| M88 | The Reset button keeps the slice of a volume pane | OHIF | fixed in task O16 (not committed yet): the middle slice, all panes of the crosshairs |
+| M89 | Three pictures change on the link `2810086ec` for a reason not found | Cause not found | open: the baselines are not replaced |
 
-**The count.** 83 entries; 8 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69), so the upgrade met **75 problems**:
+**The count.** 89 entries; 8 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69), so the upgrade met **81 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 32 | 31, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13) | 1: M82, the canvas helper draws black on the tiled engine (the owner's thumbnails of M82 are test data, the same on `master`) | |
-| OHIF (28 in its code, 6 in its tests) | 34 | 32 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`; M80 and M81 in task O15, not committed yet) | | 1: M19 |
-| Both | 9 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16, M27 and M83 (M83 in task O15, not committed yet) | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) and of M83 (an overlay drawn from the copies of other slices while it streams) | |
-| Cause not found | 1 (M50) | closed by measurement in task O9 | | |
+| Cornerstone3D (the library, its codemod or its guide) | 34 | 32, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13; M82 in `2810086ec`, checked in task O16) | 2: M85 (the camera sync carries the centre of the source's slice), M86 (the camera sync carries the zoom against the fit, not the scale) | |
+| OHIF (30 in its code, 6 in its tests) | 36 | 34 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`; M80 and M81 in `3aee48d6fe`; M87 and M88 in task O16, not committed yet) | | 1: M19 |
+| Both | 10 | 5 (M11, M13, M42, M43; M84: the Cornerstone part in `2810086ec`, the OHIF part in task O16, not committed yet); the OHIF part of M10, M16, M27 and M83 (M83 in `3aee48d6fe`) | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) and of M83 (an overlay drawn from the copies of other slices while it streams) | |
+| Cause not found | 2 (M50, M89) | M50 closed by measurement in task O9 | M89: three pictures (task O16) | |
 
-Open today: **M14** (waits for the owner: the Playwright run in CI), two defects of
-Cornerstone3D found in task O15, **M82** (the thumbnails that `loadImageToCanvas` draws
-are black) and the Cornerstone part of **M83** (a streaming overlay drawn from the copies
-of other slices), and three small asks of Cornerstone3D in M10, M16 and M27 whose OHIF
-part is done.
+Open today: **M14** (waits for the owner: the Playwright run in CI), the Cornerstone part
+of **M83** (a streaming overlay drawn from the copies of other slices), two defects of
+Cornerstone3D found in task O16, **M85** (a camera change of a PET pane moves the CT panes
+of its sync group to the centre of the PET slice) and **M86** (the panes of a sync group
+show one zoom against the fit, not one scale), **M89** (three pictures whose change has a
+part without a named cause), and three small asks of Cornerstone3D in M10, M16 and M27
+whose OHIF part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
 
@@ -3557,6 +3580,16 @@ part is done.
   probably the same cause.
 - **State:** the owner's thumbnails: decided, the test data (the same on `master`); the
   black thumbnails of the canvas path: open, waits for cornerstone.
+- **State today (task O16, the link `2810086ec`):** fixed in cornerstone `2810086ec` (lane
+  FX14: the planar viewport keeps the `sx` and `sy` of its tile). The same 23 calls of
+  `loadImageToCanvas` as above, one at a time (lane O16 `cases/thumbcalls`, the four studies,
+  `master` on port 3336): every series gives the histogram of `master` but the three
+  explained above (the two CR MONOCHROME1 images, 122.0 and 71.2 against 89.9 and 137.7,
+  and the DS image, 165.4 against 41.0, the values of the branch with `sx` and `sy` set by
+  hand); all at once the same. The study browser of `/viewer/ohif?...` ("LUNG DELAYS",
+  `cases/thumbs/lung-ohif`): PET NAC 2.8, CT 23.1, SCOUT 92.8, PET AC 8.6 on both sides.
+  Closed. (All the calls at once on "LUNG DELAYS" and the MR end the page on both sides;
+  measured one at a time there.)
 
 ## M83. A PET added as a data overlay over a CT shows the wrong slice for about a second
 
@@ -3640,3 +3673,221 @@ part is done.
     for a view reference would close it.
 - **State:** the OHIF part fixed in task O15 (not committed yet); the overlay drawn from
   copies of other slices open, waits for cornerstone.
+
+## M84. The panes of a TMTV sync group open on the slice of the pane that mounts last
+
+- **Seen (the owner, 26 November, Vikunja 55):** the TMTV mode, study "LUNG DELAYS" (CT
+  512 x 512 x 135, PET 128 x 128 x 135): `master` opens the sagittal panes on 257/512 and
+  the coronal on 256/512, the branch on 259 and 254.
+- **Measured (lane O16, `specs/tmtvslices.spec.ts`, `cases/tmtv-before`, five loads on each
+  side, the link `2810086ec`):** every load the same. The branch: every sagittal pane at
+  x = 2.344 (the CT on index 258 of 512, the PET on 64 of 128), every coronal pane at
+  y = -2.344 (CT 257, PET 64), the PET's default slice; the CT sagittal pane had 11
+  `CAMERA_MODIFIED` events and 4 `setViewReference` calls during the load, the PET pane 5
+  calls. `master` (port 3340): CT sagittal 256 (x = 0), coronal 255 (y = 0), PET sagittal
+  63, coronal 64, every pane at the CT's position, 23 to 25 camera events per pane.
+- **Why (OHIF):** the panes of one orientation share a `cameraPosition` synchronizer, and
+  each pane joins it when its element is enabled, before its mount. A mount fires
+  `CAMERA_MODIFIED` on the default slice of its own volume, so the synchronizer takes every
+  pane of the group to the default slice of the pane that mounts last. On `master` the
+  fusion pane mounted the CT and the PET in one `setVolumes`, reset last and so took the
+  group to the CT's middle; on the branch the PET panes mount last (the PET needs its VOI
+  first), so the group follows the PET, and a CT pane sits between two of its slices
+  (258.4). Then `performResize` wrote each pane's stored view reference back: its focal
+  point is the centre of the slice on display, of its own grid, so a pane between two of
+  its slices moved to a centre and the synchronizer carried it to the others (the bounce
+  of 1.953 and 2.344 that lane FX14 recorded on the earlier link; on `2810086ec` the
+  resize came before the PET mounts in every load, so the end state was fixed). A 4D
+  protocol does the same with its `'middle'` preset: each pane jumps to the middle of its
+  own grid and the last jump wins.
+- **Fix, in OHIF (task O16):**
+  - `services/ViewportService/cameraPositionGroups.ts` (new) and `setVolumesForViewport`:
+    a pane does not drive its camera position synchronizers while its volumes mount
+    (`holdCameraPositionSync`: it stays a target), then goes to the one position of its
+    group (`placeInCameraPositionGroups`) and drives it again. The group opens on the
+    initial slice of the pane whose slice grid is the finest along the view (the step of
+    `utilities.getTargetVolumeAndSpacingInNormalDir`: the CT of a PET/CT), the first in the
+    layout among panes of one step; every other pane goes to the point of that slice as a
+    view reference of a point and a plane (`FrameOfReferenceUID`, `viewPlaneNormal`,
+    `cameraFocalPoint`), never a slice index of another grid, while it does not drive the
+    group. A pane that ranks before the panes placed so far takes them to its slice, one
+    move each; a pane restored from its own stored position keeps it. The order of the
+    mounts does not change the result.
+  - `performResize` writes back the framing of each pane (the zoom and the pan against the
+    fit) and no longer its view reference: Cornerstone3D keeps the camera through a resize,
+    so the slice needs nothing, and the view reference moved a pane that sits between two
+    of its slices.
+- **Checks:** jest `cameraPositionGroups.test.ts` (10 tests: four mount orders give every
+  pane the CT's slice; a PET pane after the CT moves once, as a point and a plane; the
+  panes placed before the CT move once and the CT not; a pane does not drive while it is
+  moved; a restored pane keeps its position; the service holds a pane while it mounts:
+  failed first, `jest-failfirst-camerasync.log`), `CornerstoneViewportService.test.ts` "a
+  resize gives each viewport its framing back and leaves its slice to Cornerstone3D"
+  (failed first, `jest-failfirst-resize.log`). Playwright `tests/TMTVCameraSyncPosition.spec.ts`
+  (new, five loads of the TMTV phantom: the CT pane of each group on its first or middle
+  slice and every other pane within half of its slice of the CT's slice; no picture):
+  5 of 5 failed on the committed `3aee48d6fe` served on port 3335 (the CT sagittal pane on
+  257 for 256, `pw-failfirst-tmtvsync.log`), 5 of 5 pass with the fix. In the viewer
+  (`cases/tmtv-after`, five loads, all the same):
+
+  | Pane | `master` | branch before | branch now |
+  |---|---|---|---|
+  | CT sagittal | 257/512 (x 0) | 259/512 (x 2.344) | 257/512 (x 0) |
+  | CT coronal | 256/512 (y 0) | 258/512 (y -2.344) | 257/512 (y -0.977) |
+  | PET sagittal | 64/128 | 65/128 | 64/128 |
+  | PET coronal | 65/128 | 65/128 | 65/128 |
+  | fusion sagittal, coronal | as the CT | as the PET | as the CT |
+  | camera events, CT sagittal pane, load | 23 to 25 | 11 | 2 |
+  | `setViewReference` calls, CT sagittal pane / PET sagittal pane | 1 / 1 | 4 / 5 | 0 / 2 (one placement, one from the synchronizer) |
+
+  The CT coronal pane opens one slice further than on `master`: `master`'s TMTV coronal
+  pane is the volume-order middle of 5.18.3's reset (j = 256); the branch opens on the
+  middle counted along the view, `floor(N / 2)`, the default of Cornerstone3D since
+  `2810086ec` (its row 260, the owner's decision of 26 November), which is also the slice
+  that `master`'s own `'middle'` preset gives (`master`'s MPR layout opens the coronal pane
+  of the same CT on 257/512). The PET panes show the PET slice nearest to the CT's point,
+  the same slices as `master`. The TMTV phantom (`cases/tmtv-phantom*`): CT sagittal 257 on
+  both sides, coronal 257 against `master`'s 256, PET sagittal 97/192 on both, coronal
+  97 against 96. The viewer mode with a PET layer over a CT (one pane, no camera position
+  group; `cases/overlaycount-*`): 3 camera events, 1 `setViewReference`, the pane stays on
+  its slice 40, before and after. The 4D mode opens in its data preparation stage with one
+  pane; its synced panes were not measured in the viewer (the jest cases cover its rule).
+- **Fix, in cornerstone:** the default slice moved to the middle counted along the view in
+  `2810086ec` (lane FX14, row 262 of `v6-open-issues.md` says the rest is OHIF's). What a
+  camera change of a pane does to the others after the load is M85.
+- **State:** fixed in task O16 (not committed yet).
+
+## M85. A zoom or a resize of a PET pane moves the CT panes of its sync group to the centre of the PET slice
+
+- **Seen (lane O16, `specs/synczoom.spec.ts`, `cases/synczoom`):** the TMTV mode after the
+  load, Cornerstone3D calls only: the CT sagittal pane put on its slice 256 (x 0) with
+  `utilities.jumpToSlice` (the PET sagittal pane follows to x 0, its slice 63), then
+  `ptSAGITTAL.setZoom(ptSAGITTAL.getZoom() * 1.5)`: the CT sagittal and the fusion sagittal
+  panes go to slice 254 (x -2.344, the centre of the PET's slice 63). `master` (3340): they
+  stay on 256. A resize of the window after the load (OHIF writes the framing of each pane
+  back, M84) does the same: the CT 256 -> 254 on the branch, 256 on `master`.
+- **Why (Cornerstone3D):** `cameraSyncCallback` (`packages/tools/src/synchronizers/callbacks/cameraSyncCallback.ts`)
+  gives the target `sViewport.getViewReference()`, whose `cameraFocalPoint` is the centre of
+  the source's slice on display (`getPlanarViewReference`), not the focal point of its
+  camera. A pane that sits between two of its slices, as a PET pane on the position of a
+  CT, gives the centre of its nearest slice, up to half a PET slice (2.3 mm, two CT slices)
+  away, at every camera change, also a zoom or a pan. 5.18.3's callback copied the camera
+  (`setCamera`), so every pane kept one focal point.
+- **The smallest case, Cornerstone3D only:** two planar viewports on one rendering engine,
+  sagittal, one with a volume of 512 x 512 x N at 0.977 mm, one with a volume of 128 x 128
+  x N at 4.69 mm, one frame of reference; `createCameraPositionSynchronizer('s')`, both
+  added; `await utilities.jumpToSlice(ct.element, { imageIndex: 256 })` (the PET follows to
+  x 0); `pt.setZoom(pt.getZoom() * 1.5)`: `ct.getSliceIndex()` is 254, 5.18.3 256.
+- **Fix, in OHIF:** none (rule 3). OHIF's load does not trigger it any more (M84): no pane
+  drives its group before it is placed, and the resize no longer writes a view reference;
+  a zoom, a pan or a resize of a PET pane after the load still moves the CT panes.
+- **Fix, in cornerstone:** to do: the camera position sync carries the focal point of the
+  source's camera (its view state point) with the plane, so the target goes to one world
+  point whatever its grid.
+- **State:** open, waits for cornerstone.
+
+## M86. The panes of a camera position sync group show one zoom against the fit, not one scale
+
+- **Seen (lane O16, `cases/synczoom`):** the TMTV mode after the load: the parallel scale of
+  the CT sagittal pane is 246.07, of the fusion sagittal pane 246.86, of the PET sagittal
+  pane 295.28, so the PET pane draws the body about 17% smaller than the CT pane next to
+  it; after a zoom of 1.5 of the PET pane 164.05, 164.57, 196.86. `master`: 246.86 in every
+  pane, 164.57 after the zoom.
+- **Why (Cornerstone3D):** `cameraSyncCallback` copies the zoom and the pan against the fit
+  (`getViewportFraming(sViewport, { pan: true, zoom: true })`); the fit of each pane is the
+  extent of its own volume, so panes of volumes of other extents get other scales. Its
+  comment says the copy keeps the panes "in lockstep like the legacy full-camera copy
+  did"; 5.18.3 copied the parallel scale.
+- **Fix, in OHIF:** none (rule 3).
+- **Fix, in cornerstone:** to decide: the camera position sync carries the scale of the
+  world (the parallel scale) between planar viewports, as 5.x did, or the guide says that
+  panes of other extents show other scales.
+- **State:** open, waits for cornerstone (seen, not part of the task of lane O16; found
+  while measuring M84).
+
+## M87. A click on a segment does not move a stack to it
+
+- **Seen (lane O16, the Playwright suite on the link `2810086ec` before any change):** 21
+  specs fail: the contour segment specs (`ContourSegmentColorChange` x3,
+  `ContourSegmentDelete`, `ContourSegmentDuplicate` x2, `ContourSegmentToggleLock`,
+  `ContourSegmentToggleVisibility` x3, `ContourSegNavigation`, `ContourSmoothOperation` x3,
+  `ContourCombineOperations` x2), `ManuallyDrawnSegmentation` "should jump to the painted
+  slice", `SegmentationPanel` "checks saved segmentations loads and jumps to slices",
+  `LabelMapSegmentationColorChange` x2 and `SegAcrossViewportTypes` "keeps a changed
+  segment color after switching to MPR": a click on a segment leaves the stack on its
+  image, so no contour or the wrong labelmap slice shows.
+- **Why:** `SegmentationService.jumpToSegmentCenter` called
+  `viewport.setViewReference({ cameraFocalPoint: world })`. Since `2810086ec` (lane FX14,
+  rows 191 and 248 of `v6-open-issues.md`, the guide `5-from-a-6-beta.md` item 16) a
+  reference of only a point moves a stack nowhere, as on 5.18.3; `master` used the
+  legacy `jumpToWorld`, which went to the image nearest to the point.
+- **Fix, in OHIF (task O16):** `jumpToSegmentCenter` calls
+  `utilities.navigatePlanarViewportToPoint(viewport, world)` of `@cornerstonejs/tools`
+  (the helper the tools use: the index of the nearest image for a stack, the point for a
+  volume). Check: `SegmentationService.test.ts` "moves a stack to the image nearest to the
+  centre of the segment" (failed first, `jest-failfirst-segjump.log`); the 21 specs pass
+  (`pw-segjump.log`, 83 passed). The other `setViewReference` calls of OHIF were read:
+  each gives an image, a slice of its own display set, or a whole view reference, or is a
+  stored presentation (`commandsModule.ts` jump to a measurement, `NavigationComponent`,
+  `CornerstoneViewportDownloadForm`, `jumpToSegmentNext`); a jump to a measurement from
+  the panel still lands on its slice, in a stack and in an MPR (`JumpToMeasurementMPR`,
+  `MeasurementPanel`, `SRHydrationArrowNavigation` pass).
+- **State:** fixed in task O16 (not committed yet).
+
+## M88. The Reset button keeps the slice of a volume pane
+
+- **Seen (lane O16, `specs/resets.spec.ts`, `cases/resets`):** the MPR layout of "LUNG
+  DELAYS", each pane scrolled by 7 and zoomed, then Reset: `master` takes the pane back to
+  its middle slice (axial 68/135, sagittal 257/512, coronal 256/512); the branch keeps the
+  slice (75, 264, 264) and resets only the zoom. With the crosshairs on, every pane
+  scrolled, Reset of one pane: `master` takes all three to their middle slices and the
+  crosshairs to where they meet (`[0, 0, -141.09]`); the branch moves nothing.
+- **Why:** OHIF's `resetViewport` calls `resetViewState()`, which keeps the slice in
+  Cornerstone3D 6.0 (the owner's decision); 5.18.3's `resetCamera()` of a volume viewport
+  went to the middle of the volume, and its crosshairs reset every view of their tool
+  group the same way. The comment of `_getInitialImageIndex` still said that a reset goes
+  to the middle slice.
+- **Fix, in OHIF (task O16):** `resetViewport` takes a pane that shows a volume to its
+  middle slice after the reset (`viewportOperations.jumpToMiddleSlice`,
+  `floor(N / 2)` counted along the view, `getMiddleSliceIndex`, which the `'middle'` preset
+  of `_getInitialImageIndex` now uses too); when the crosshairs of its tool group are
+  active, passive or enabled (they reset every view of the group), every pane of the group
+  goes to its middle slice, then `resetCrosshairs` puts the centre where those slices
+  meet. A stack keeps its image, as on `master`. Check: `resetViewport.test.ts` (new, 7
+  tests: 512, 135 and 20 slices to 256, 67 and 10; a stack keeps its image; only the active
+  pane without crosshairs; with the crosshairs all panes and `resetCrosshairs`; disabled
+  crosshairs: only the active pane; 6 failed first, `jest-failfirst-reset.log`). In the
+  viewer (`cases/resets-after`, `cases/resets-liver`): Reset takes each pane back to 68/135,
+  257/512, 257/512; with the crosshairs all three and the centre `[0, -0.977, -141.09]`.
+  The middle is the mount's: the `'middle'` preset and the default slice of Cornerstone3D
+  are both `floor(N / 2)` along the view, for an odd count (135, axial, the normal against
+  the volume axis), an even count with the normal along the axis (512, sagittal) and
+  against it (512, coronal; 20, axial of the liver CT). `master`'s Reset goes to the
+  volume-order middle of 5.18.3, one slice before the mount for an even count against the
+  axis: the coronal 256/512 (mounted on 257), the liver's axial 10/20 (mounted on 11/20);
+  the branch comes back to the slice it opened on.
+- **State:** fixed in task O16 (not committed yet).
+
+## M89. Three pictures change on the link `2810086ec` for a reason not found
+
+- **Seen (lane O16, the Playwright suite before any change and after the fixes of M84,
+  M87 and M88):** three pictures differ from their baselines (made on `master`), each with
+  one part that the slice grid explains and one that it does not:
+  - `RTHydrationFromMPR.spec.ts` `mprAfterRTHydratedAfterLayoutChange` (35,583 pixels,
+    7.6%): the axial pane keeps slice 131, where it was before the RTSTRUCT loaded, where
+    `master` moves to 130 at the load (`cases/rtlayout`); the sagittal and coronal panes
+    draw the cuts of the contours (M79; `master` draws none). It passed on `c2f202429`;
+    the view state point of the axial pane is on its slice, so row 259 of FX14 does not
+    explain it.
+  - `SEGDataOverlayForUnreferencedDisplaySetNoHydration.spec.ts` `overlayMiddleImage`: the
+    DWI pane opens one slice further (the default slice of an even count, as the replaced
+    `overlayFirstImage`), and the ADC stack with the unreferenced SEG draws more of segment
+    2 at the lower edge of the gland on image 12 (6,885 pixels).
+  - `SEGHydrationFromMPR.spec.ts` `mprAfterSegHydratedAfterLayoutChange`: the axial and the
+    coronal pane on the oblique grid (as the replaced pictures), and the sagittal pane,
+    on the same slice 64 as `master`, brighter and smoother than in the baseline (2,405
+    pixels).
+- **Fix:** none; the baselines are not replaced. The new pictures, the old ones and the
+  difference images are in lane O16's `cases/rt-candidate`, `cases/unrefseg-candidate` and
+  `cases/seghydration-candidate`.
+- **State:** open, cause not found.

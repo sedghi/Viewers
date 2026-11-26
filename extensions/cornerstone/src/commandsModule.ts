@@ -1364,12 +1364,41 @@ function commandsModule({
       ops.invert(viewport);
       viewport.render();
     },
-    resetViewport: () => {
+    /**
+     * Resets the view of the active viewport and the appearance of its display
+     * sets, and takes a viewport that shows a volume back to the middle slice of
+     * its view, as the Reset of OHIF 3.13 did; `resetViewState` of Cornerstone3D
+     * 6.0 keeps the slice. The crosshairs of its tool group (active, passive or
+     * enabled) reset the views of every viewport of the tool group, so each of
+     * them goes to its middle slice too, and the crosshairs to where those
+     * slices meet.
+     */
+    resetViewport: async () => {
       const viewport = _resolveViewport();
       if (!viewport) {
         return;
       }
       ops.reset(viewport);
+
+      const toolGroup = toolGroupService.getToolGroupForViewport(viewport.id);
+      const crosshairsMode =
+        toolGroup && toolGroup.hasTool('Crosshairs')
+          ? toolGroup.getToolOptions('Crosshairs')?.mode
+          : undefined;
+      const crosshairsReset = [
+        Enums.ToolModes.Active,
+        Enums.ToolModes.Passive,
+        Enums.ToolModes.Enabled,
+      ].includes(crosshairsMode);
+      const viewportIds = toolGroup && crosshairsReset ? toolGroup.getViewportIds() : [viewport.id];
+
+      await Promise.all(
+        viewportIds.map(viewportId => ops.jumpToMiddleSlice(_resolveViewport(viewportId)))
+      );
+
+      if (crosshairsReset) {
+        commandsManager.run('resetCrosshairs', { viewportId: viewport.id });
+      }
       viewport.render();
     },
     scaleViewport: ({ direction }) => {

@@ -16,6 +16,7 @@ import {
   segmentation as cstSegmentation,
   Types as cstTypes,
   annotation as cstAnnotation,
+  utilities as cstUtils,
 } from '@cornerstonejs/tools';
 
 import { PubSubService, Types as OHIFTypes } from '@ohif/core';
@@ -1574,7 +1575,7 @@ class SegmentationService extends PubSubService {
         return;
       }
 
-      viewport.setViewReference({ cameraFocalPoint: world });
+      cstUtils.navigatePlanarViewportToPoint(viewport, world);
       viewport.render();
 
       highlightSegment &&

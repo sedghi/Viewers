@@ -13,6 +13,7 @@ import {
 } from '@cornerstonejs/core';
 
 import { utilities as csToolsUtils, Enums as csToolsEnums } from '@cornerstonejs/tools';
+import type { Synchronizer } from '@cornerstonejs/tools';
 import { IViewportService } from './IViewportService';
 import { RENDERING_ENGINE_ID } from './constants';
 import { VOLUME_LOADER_SCHEME } from '../../constants';
@@ -46,6 +47,14 @@ import { BlendModes } from '@cornerstonejs/core/enums';
 import { isAutoHydrateViewportType } from '../../utils/autoHydrateViewportTypes';
 import { getViewportDataShape } from '../../utils/viewportDataShape';
 import { mountStack, mountVolumes } from './viewportMounts';
+import { viewportOperations } from './viewportOperations';
+import {
+  driveCameraPositionSync,
+  getCameraPositionSyncGroupIds,
+  getViewSliceStep,
+  holdCameraPositionSync,
+  placeInCameraPositionGroups,
+} from './cameraPositionGroups';
 import {
   WITH_ORIENTATION,
   getLutPresentation,
@@ -932,6 +941,14 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     return this._getInitialImageIndex(numberOfSlices, index, preset);
   }
 
+  /**
+   * The initial slice of a hanging protocol: the index, clipped to the
+   * slices, or the slice of the preset. The 'middle' preset is the slice that
+   * Cornerstone3D opens a volume view on, `floor(N / 2)` counted along the
+   * view, and the slice that the Reset button takes a volume view back to
+   * (`viewportOperations.getMiddleSliceIndex`), so a pane that opened on it
+   * comes back to it.
+   */
   _getInitialImageIndex(numberOfSlices: number, imageIndex?: number, preset?: JumpPresets): number {
     const lastSliceIndex = numberOfSlices - 1;
 
@@ -948,13 +965,7 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     }
 
     if (preset === JumpPresets.Middle) {
-      // Note: this is a simple but yet very important formula.
-      // since viewport reset works with the middle slice
-      // if the below formula is not correct, on a viewport reset
-      // it will jump to a different slice than the middle one which
-      // was the initial slice, and we have some tools such as Crosshairs
-      // which rely on a relative camera modifications and those will break.
-      return lastSliceIndex % 2 === 0 ? lastSliceIndex / 2 : (lastSliceIndex + 1) / 2;
+      return viewportOperations.getMiddleSliceIndex(numberOfSlices);
     }
 
     return 0;
@@ -1044,7 +1055,61 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     return this.setVolumesForViewport(viewport, volumeInputArray, presentations);
   }
 
+  /**
+   * Mounts the volumes of a planar or a 3D viewport. A pane of a camera
+   * position sync group does not drive the group while it mounts, and then
+   * goes to the one position of the group (`placeInCameraPositionGroups`), so
+   * the panes open on one slice whatever the order of their mounts.
+   */
   public async setVolumesForViewport(viewport, volumeInputArray, presentations) {
+    const synchronizers = this._getCameraPositionSynchronizers(viewport.id);
+    const held = holdCameraPositionSync(viewport, synchronizers);
+
+    try {
+      await this._mountVolumesForViewport(viewport, volumeInputArray, presentations);
+    } catch (error) {
+      driveCameraPositionSync(viewport, held);
+      throw error;
+    }
+
+    if (this.getCornerstoneViewport(viewport.id) !== viewport) {
+      driveCameraPositionSync(viewport, held);
+      return;
+    }
+
+    placeInCameraPositionGroups(
+      viewport,
+      held,
+      {
+        synchronizers,
+        getViewport: viewportId => this.getCornerstoneViewport(viewportId),
+        getLayoutIndex: viewportId => this._getLayoutIndex(viewportId),
+        getSliceStep: getViewSliceStep,
+      },
+      Boolean(presentations?.positionPresentation)
+    );
+  }
+
+  /** The camera position synchronizers that the sync groups of a pane name. */
+  private _getCameraPositionSynchronizers(viewportId: string): Synchronizer[] {
+    const { syncGroupService } = this.servicesManager.services;
+    const syncGroups = this.getViewportInfo(viewportId)?.getSyncGroups() ?? [];
+
+    return getCameraPositionSyncGroupIds(syncGroups)
+      .map(id => syncGroupService.getSynchronizer(id))
+      .filter(Boolean) as Synchronizer[];
+  }
+
+  /** The place of a pane in the layout of the viewport grid. */
+  private _getLayoutIndex(viewportId: string): number {
+    const { viewportGridService } = this.servicesManager.services;
+    const viewportIds = [...(viewportGridService.getState()?.viewports?.keys() ?? [])];
+    const index = viewportIds.indexOf(viewportId);
+
+    return index === -1 ? viewportIds.length : index;
+  }
+
+  private async _mountVolumesForViewport(viewport, volumeInputArray, presentations) {
     const { displaySetService, viewportGridService } = this.servicesManager.services;
 
     const viewportInfo = this.getViewportInfo(viewport.id);
@@ -1514,21 +1579,26 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     this.resizeQueue = [];
   }
 
+  /**
+   * Resizes the rendering engine and gives each viewport its framing back (the
+   * zoom and the pan against the fit), so a view that fit its pane fits the
+   * pane of the new size. A resize keeps the slice and the orientation of each
+   * viewport (Cornerstone3D keeps the camera), so the view reference is not
+   * written again: it would move a pane that sits between two of its slices,
+   * as a PET pane on the position of a CT, to the centre of its slice.
+   */
   private performResize() {
     const isImmediate = false;
 
     try {
       const viewports = this.getRenderingEngine().getViewports();
 
-      // Store the current position presentations for each viewport.
       viewports.forEach(({ id: viewportId }) => {
         const presentation = this._getPositionPresentation(viewportId);
-
-        // During a resize, the slice index should remain unchanged. This is a temporary fix for
-        // a larger issue regarding the definition of slice index with slab thickness.
-        // We need to revisit this to make it more robust and understandable.
-        delete presentation.viewReference?.sliceIndex;
-        this.beforeResizePositionPresentations.set(viewportId, presentation);
+        this.beforeResizePositionPresentations.set(viewportId, {
+          ...presentation,
+          viewReference: undefined,
+        });
       });
 
       // Resize the rendering engine and render.

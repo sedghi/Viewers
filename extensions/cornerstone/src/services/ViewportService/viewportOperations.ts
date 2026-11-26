@@ -125,6 +125,30 @@ export const viewportOperations = {
   },
 
   /**
+   * The middle slice of a view of `numberOfSlices` slices, `floor(N / 2)`
+   * counted along the view: the slice that Cornerstone3D opens a volume view
+   * on, and the 'middle' preset of a hanging protocol.
+   */
+  getMiddleSliceIndex(numberOfSlices: number): number {
+    return Math.floor(numberOfSlices / 2);
+  },
+
+  /**
+   * Puts a planar viewport that shows a volume on the middle slice of its
+   * view. Returns the jump, or undefined for a viewport that shows a stack or
+   * is not planar, which keeps its image.
+   */
+  jumpToMiddleSlice(viewport: CoreTypes.IViewport): Promise<unknown> | undefined {
+    if (!isPlanarViewport(viewport) || viewport.getCurrentMode() !== 'volume') {
+      return undefined;
+    }
+
+    return csUtils.jumpToSlice(viewport.element, {
+      imageIndex: viewportOperations.getMiddleSliceIndex(viewport.getNumberOfSlices()),
+    });
+  },
+
+  /**
    * Zoom by direction: >0 in, <0 out, 0 = fit-to-window. A step in zooms by
    * 1 / 0.9 and a step out by 1 / 1.1. Fit to window resets pan, zoom,
    * rotation and flip but keeps the orientation: a full resetViewState()

@@ -8,6 +8,7 @@ import {
   imageLoader,
   Types as csTypes,
   metaData,
+  utilities as csUtilities,
 } from '@cornerstonejs/core';
 import { ViewportType } from '@cornerstonejs/core/enums';
 
@@ -23,6 +24,10 @@ import SegmentationServiceClass, { SegmentationRepresentation } from './Segmenta
 
 jest.mock('@cornerstonejs/core', () => ({
   ...jest.requireActual('@cornerstonejs/core'),
+  utilities: {
+    ...jest.requireActual('@cornerstonejs/core').utilities,
+    getClosestStackImageIndexForPoint: jest.fn(),
+  },
   getEnabledElementByViewportId: jest.fn(),
   eventTarget: {
     addEventListener: jest.fn(),
@@ -2888,6 +2893,46 @@ describe('SegmentationService', () => {
       expect(viewport.render).toHaveBeenCalledTimes(1);
       // the recenter happened, so the highlight still runs
       expect(service.highlightSegment).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves a stack to the image nearest to the centre of the segment', () => {
+      const segmentationId = 'segmentationId';
+      const segmentIndex = 1;
+      const viewportId = 'viewportId';
+      const viewport = {
+        getCurrentMode: () => 'stack',
+        getImageIds: () => ['image0', 'image1', 'image2'],
+        getCurrentImageIdIndex: () => 0,
+        setViewReference: jest.fn(),
+        render: jest.fn(),
+      };
+
+      const segmentationWithCenter = {
+        ...mockCornerstoneSegmentation,
+        segments: {
+          ...mockCornerstoneSegmentation.segments,
+          [segmentIndex]: {
+            ...mockCornerstoneSegmentation.segments[segmentIndex],
+            cachedStats: { center: { image: [1, 1, 1], world: [10, 10, 10] } },
+          },
+        },
+      };
+
+      jest.spyOn(cstSegmentation.state, 'getSegmentation').mockReturnValue(segmentationWithCenter);
+      // @ts-expect-error - mock only needed properties
+      getEnabledElementByViewportId.mockReturnValue({ viewport });
+      jest.spyOn(service, 'highlightSegment').mockReturnValue(undefined);
+      (csUtilities.getClosestStackImageIndexForPoint as jest.Mock).mockReturnValue(2);
+
+      service.jumpToSegmentCenter(segmentationId, segmentIndex, viewportId);
+
+      expect(csUtilities.getClosestStackImageIndexForPoint).toHaveBeenCalledWith(
+        [10, 10, 10],
+        viewport
+      );
+      expect(viewport.setViewReference).toHaveBeenCalledTimes(1);
+      expect(viewport.setViewReference).toHaveBeenCalledWith({ sliceIndex: 2 });
+      expect(viewport.render).toHaveBeenCalledTimes(1);
     });
 
     it('should correctly handle custom animation parameters', () => {
