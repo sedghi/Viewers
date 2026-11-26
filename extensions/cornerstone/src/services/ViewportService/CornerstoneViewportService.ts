@@ -1089,6 +1089,7 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
         volumesProperties,
         orientation: viewportInfo.getOrientation(),
         lutPresentation: presentations?.lutPresentation,
+        sourceImageId: getPositionImageId(presentations?.positionPresentation),
       });
       await this._addOverlayRepresentations(overlayProcessingResults);
       viewport.render();
@@ -1656,6 +1657,19 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
       .map(uid => displaySetService.getDisplaySetByUID(uid))
       .filter(Boolean);
   }
+}
+
+/**
+ * The image of the view that a pane had, from which a volume mount starts its
+ * source: the referenced image of the view reference of its position
+ * presentation when that reference names its frame of reference, as every
+ * view reference read from a viewport does. A reference that names only an
+ * image (the first segmented slice that an RT or SEG viewport gives a stack)
+ * is not a view of the pane: a volume viewport does not take it.
+ */
+function getPositionImageId(positionPresentation?: PositionPresentation): string | undefined {
+  const viewReference = positionPresentation?.viewReference;
+  return viewReference?.FrameOfReferenceUID ? viewReference.referencedImageId : undefined;
 }
 
 export default CornerstoneViewportService;

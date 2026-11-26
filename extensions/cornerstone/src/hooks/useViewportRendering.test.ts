@@ -149,6 +149,32 @@ describe('useViewportRendering on a fusion', () => {
   });
 });
 
+describe('the opacity slider of a PET whose ramp carries its shape and opacity its level', () => {
+  const ramp = [
+    { value: 0, opacity: 0 },
+    { value: 0.1, opacity: 0.7285 },
+    { value: 1, opacity: 1 },
+  ];
+
+  it('starts at the opacity that the PET is drawn with, and one step writes the next number', () => {
+    const viewport = makeFusionViewport({
+      ct: { opacity: 1 },
+      pt: { opacity: 0.2501, colormap: { name: 'hsv', opacityMapping: ramp } },
+    });
+    setServices(viewport);
+
+    const { result } = renderHook(() => useViewportRendering('fusion'));
+
+    expect(result.current.opacity).toBe(0.2501);
+
+    act(() => result.current.setOpacity(0.2502));
+
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledTimes(1);
+    expect(viewport.setDisplaySetAppearance).toHaveBeenCalledWith('pt', { opacity: 0.2502 });
+    expect(result.current.opacity).toBe(0.2502);
+  });
+});
+
 describe('the range of the values of the display set of the controls', () => {
   it('is the scalar range that the viewport gives for the PT', () => {
     const viewport = {

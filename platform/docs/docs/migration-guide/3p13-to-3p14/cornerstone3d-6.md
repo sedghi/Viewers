@@ -159,17 +159,28 @@ mapping.
 
 Cornerstone3D 6 draws an opacity as it is given. The legacy volume viewport of
 3.13 drew an opacity `a` of a fusion weaker, as `1 - (1 - a) ** 0.125` for the
-volumes of a PET/CT study. The TMTV mode gives its PET these weaker points
-(`FUSION_PT_OPACITY_MAPPING` in `extensions/tmtv/src/utils/hpViewports.ts`),
-so its fusion looks as in 3.13. A protocol of your own with a PET ramp over a
-CT draws its PET stronger than in 3.13 unless it takes the weaker points the
-same way. A threshold keeps the mapping above it: in 3.13 the opacity rose
-from 0 at the threshold to the next point of the mapping, and a threshold
-above the last point hid the whole PET.
+volumes of a PET/CT study. The TMTV mode keeps the look of 3.13 and splits it in
+two: its ramp keeps the shape of the ramp of 3.13 with its highest point at 1
+(`FUSION_PT_OPACITY_MAPPING` in `extensions/tmtv/src/utils/hpViewports.ts`), and
+the `opacity` of the PET carries the level, 0.2501 (`FUSION_PT_OPACITY`), the
+strongest alpha that 3.13 drew. A protocol of your own with a PET ramp over a CT
+draws its PET stronger than in 3.13 unless it takes the weaker points the same
+way. A threshold keeps the mapping above it: in 3.13 the opacity rose from 0 at
+the threshold to the next point of the mapping, and a threshold above the last
+point hid the whole PET.
 
-The opacity slider of a viewport sets the `opacity` of the display set and
-leaves its `opacityMapping`, so 100% draws the ramp as the protocol gives it
-and 50% each point at half. The threshold menu sets `colormap.threshold`.
+The opacity slider of a viewport (CT ---o PT) reads and sets the `opacity` of the
+display set and leaves its `opacityMapping`, linearly: its position is the
+strongest alpha drawn. The PET of the TMTV fusion panes starts at 25%, and 100%
+draws its ramp as it is, so the PET covers the CT from SUV 1 on. In 3.13 the
+slider of the legacy path started at 100% for this PET, its 100% was the look at
+rest, and it went through a gamma of 1/5 (its 50% wrote 0.87). The threshold
+menu sets `colormap.threshold`.
+
+A display set added over a live viewport from the data overlay menu (a PET over
+a CT) starts at `OVERLAY_OPACITY`, 0.25: 3.13 drew the 0.9 of the menu as
+`1 - (1 - 0.9) ** 0.125`, 0.25, so the first picture is the one of 3.13. Its
+opacity slider starts at 25% (3.13: 59%, the 0.9 through the gamma of 1/5).
 
 ### The display area of a viewport
 
@@ -232,8 +243,8 @@ stretch" in the Cornerstone3D 6 guide.
 | `getViewportAdapter(viewport)` | Removed. Call the viewport: see [The viewport adapter is gone](#the-viewport-adapter-is-gone). |
 | `isVolumeRenderingViewport(viewport)` | Removed: `viewport.getCurrentMode() === 'volume'`, a planar viewport that shows a volume (an MPR pane, a fusion): the viewports that take the threshold and the opacity of a layer. |
 | `getViewportFocalPoint(viewport)` | Removed: `viewport.getViewReference()?.cameraFocalPoint`, the centre of the slice on display. |
-| `NEXT_FUSION_PT_OPACITY` | Removed. Give a PET over a CT an opacity ramp by SUV in `colormap.opacityMapping`, as the TMTV mode does (`FUSION_PT_OPACITY_MAPPING`, not exported); the opacity slider scales the ramp. |
-| `NEXT_OVERLAY_OPACITY` | `OVERLAY_OPACITY`, the same value. |
+| `NEXT_FUSION_PT_OPACITY` | Removed. Give a PET over a CT an opacity ramp by SUV in `colormap.opacityMapping` and its level in `opacity`, as the TMTV mode does (`FUSION_PT_OPACITY_MAPPING` and `FUSION_PT_OPACITY`, not exported); the opacity slider reads and sets `opacity`. |
+| `NEXT_OVERLAY_OPACITY` | `OVERLAY_OPACITY`, 0.25 (was 0.4): the opacity that 3.13 drew the 0.9 of the data overlay menu with. |
 | `getHydrationViewportTypeForModality(modality)` | Removed. Hydrating an RTSTRUCT or a SEG keeps the viewport type and the orientation of every pane: there is no type to pin. |
 | The `viewportType` option of the command `loadSegmentationDisplaySetsForViewport` | Removed: the command keeps the type of each pane. To show a pane as a stack, give it `viewportOptions: { viewportType: 'stack' }` with `setDisplaySetsForViewports`. |
 | `cornerstoneViewportService.EVENTS.VIEWPORT_VOLUMES_CHANGED` | Removed: `Enums.Events.DISPLAY_SETS_CHANGED` of `@cornerstonejs/core` on the element of the viewport, with `detail.viewportId` (see [The events of a viewport](#the-events-of-a-viewport)). |

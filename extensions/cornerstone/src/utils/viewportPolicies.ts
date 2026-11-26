@@ -7,9 +7,11 @@
  */
 
 /**
- * Initial opacity for data overlays (e.g. colormapped foreground layers). A
- * viewport composites an overlay as a 2D image slice with a flat alpha blend
- * and no volume ray-cast opacity attenuation, so a nominal 0.9 would read
- * ~80-90%: an overlay starts at this value.
+ * Initial opacity for data overlays (e.g. colormapped foreground layers, a PET
+ * added over a CT from the data overlay menu). A viewport draws an overlay with
+ * a flat alpha blend at the opacity given, so the nominal 0.9 of the menu would
+ * read 90%. The legacy volume viewport of OHIF 3.13 drew that 0.9 as
+ * `1 - (1 - 0.9) ** 0.125`, 0.25 (measured: a cold pixel of such a PET is 64
+ * of 255): an overlay starts at this value, and its opacity slider there.
  */
-export const OVERLAY_OPACITY = 0.4;
+export const OVERLAY_OPACITY = 0.25;

@@ -97,6 +97,13 @@ export interface VolumeMountContext {
   volumesProperties: Array<{ properties: DisplaySetAppearanceOverrides; volumeId?: string }>;
   orientation?: csEnums.OrientationAxis;
   lutPresentation?: LutPresentation;
+  /**
+   * The image that the pane showed before this mount, the referenced image of
+   * its position presentation. A planar viewport mounts its source volume on
+   * it, so its first draw is at that position and an overlay mounted with it
+   * draws that plane, not the middle of the volume first.
+   */
+  sourceImageId?: string;
 }
 
 /**
@@ -156,24 +163,33 @@ export async function mountStack(
  * the source (the CT of a fusion) and the others are overlays, and a call per
  * volume would drop the source. Each display set is mounted by its UID with
  * the id of its cached volume, a planar one with mode 'volume' and the
- * orientation of the viewport. The appearance of each entry is the stored LUT
- * presentation of its display set (what a user set on it), or else the
- * VOI/invert/colormap/opacity of its display set options, with the blend mode
- * and the slab of a projection (the TMTV MIP) for a planar viewport and the
- * preset for a 3D one.
+ * orientation of the viewport, its source on the image of the position of the
+ * pane (`sourceImageId`) when the volume has it. The appearance of each entry
+ * is the stored LUT presentation of its display set (what a user set on it),
+ * or else the VOI/invert/colormap/opacity of its display set options, with the
+ * blend mode and the slab of a projection (the TMTV MIP) for a planar viewport
+ * and the preset for a 3D one.
  */
 export async function mountVolumes(
   viewport: Types.IViewport,
   context: VolumeMountContext
 ): Promise<void> {
-  const { filteredVolumeInputArray, volumesProperties, orientation, lutPresentation } = context;
+  const {
+    filteredVolumeInputArray,
+    volumesProperties,
+    orientation,
+    lutPresentation,
+    sourceImageId,
+  } = context;
   const is3D = isVolumeViewport3D(viewport);
   const volumeRenderBackend = is3D ? undefined : getMountRenderBackend('orthographic');
 
   const entries = filteredVolumeInputArray.map(({ volumeInput }, index) => {
-    const { volumeId, displaySetInstanceUID, blendMode, slabThickness } = volumeInput;
+    const { volumeId, displaySetInstanceUID, blendMode, slabThickness, imageIds } = volumeInput;
     const properties = volumesProperties[index]?.properties;
     const role = index === 0 ? 'source' : 'overlay';
+    const initialImageIdIndex =
+      role === 'source' && sourceImageId ? (imageIds?.indexOf(sourceImageId) ?? -1) : -1;
     const appearance: DisplaySetAppearanceOverrides = lutPresentation?.appearances?.[
       displaySetInstanceUID
     ] ?? {
@@ -190,6 +206,7 @@ export async function mountVolumes(
           role,
           volumeId,
           appearance,
+          ...(initialImageIdIndex >= 0 ? { initialImageIdIndex } : {}),
           ...(volumeRenderBackend ? { renderBackend: volumeRenderBackend } : {}),
         };
 

@@ -24,7 +24,7 @@ This guide covers changes when upgrading from OHIF version 3.13 to version 3.14.
   `colormap.opacity`. `getViewportAdapter`, `isVolumeRenderingViewport`,
   `getViewportFocalPoint`, `isNextViewportsEnabled`, `isNextViewport`,
   `NEXT_FUSION_PT_OPACITY` and the event `VIEWPORT_VOLUMES_CHANGED` are
-  removed, `NEXT_OVERLAY_OPACITY` is `OVERLAY_OPACITY`, and the LUT and position
+  removed, `NEXT_OVERLAY_OPACITY` is `OVERLAY_OPACITY` (0.25), and the LUT and position
   presentation stores hold `appearances` and `viewFraming`. A runtime plugin
   that imports `@cornerstonejs/core` or `@cornerstonejs/tools` must be rebuilt
   against Cornerstone3D 6.

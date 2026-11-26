@@ -202,6 +202,43 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       expect(utilities.jumpToSlice).not.toHaveBeenCalled();
     });
 
+    it('a volume mount with a position presentation mounts its source on the image of that position', async () => {
+      const { mountVolumes } = await mountVolume(
+        {},
+        {
+          positionPresentation: {
+            viewportType: 'planar',
+            viewReference: {
+              FrameOfReferenceUID: 'frame-of-reference',
+              referencedImageId: imageIds[1],
+            },
+          },
+        }
+      );
+
+      expect(mountVolumes).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ sourceImageId: imageIds[1] })
+      );
+    });
+
+    it('a volume mount does not start on an image that its position presentation names alone (the first segmented slice of an RT or SEG viewport)', async () => {
+      const { mountVolumes } = await mountVolume(
+        {},
+        {
+          positionPresentation: {
+            viewportType: 'stack',
+            viewReference: { referencedImageId: imageIds[1] },
+          },
+        }
+      );
+
+      expect(mountVolumes).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ sourceImageId: undefined })
+      );
+    });
+
     it('a volume mount without initial image options does not jump', async () => {
       await mountVolume({}, {});
 

@@ -14,7 +14,7 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (25 November, tasks O9 to O12)
+## Summary (26 November, tasks O9 to O15)
 
 The state of every entry today, on the branch at `2bbed3c040` (task O11) and the
 Cornerstone3D link at `472d908e8`. Task O9 checked the entries on the Cornerstone3D link
@@ -30,6 +30,12 @@ other planes): M79 was seen fixed in the viewer and closed, and jest, the build 
 Playwright suite ran again on it (task O13). The last move, on 26 November, is to
 `c2f202429` (lane FX13, the follow-ups of M79): the same three checks ran again on it
 (176 suites and 2,016 tests pass; 245 passed, 0 failed, 4 skipped).
+Task O15 (26 November, same link) took the four things the owner found in the viewer
+that day: M80 closed with the owner's choice of 0.25, M81 (the opacity slider of a TMTV
+fusion), M82 (the thumbnails; the owner's are test data, and the canvas helper of
+Cornerstone3D draws black) and M83 (a PET overlay shows another slice first; OHIF's part
+fixed, Cornerstone3D's part open); with it 178 suites and 2,028 tests pass, and the
+Playwright suite gives 247 passed (2 new tests), 0 failed, 4 skipped.
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -49,7 +55,7 @@ not a defect.
 | M11 | A labelmap asked for on a 3D viewport was not made a surface | OHIF + Cornerstone | fixed `e5881fc1a7` and in cornerstone (C5, its row 127) |
 | M12 | The initial image of a protocol was not applied to a volume | OHIF | fixed `8f7232418c` |
 | M13 | The type comparison counted paths of the linked checkout as errors | OHIF method + Cornerstone | fixed: the comparison; the declaration paths in cornerstone (C2, row 114); O9: no such error on the link |
-| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link; O11: 245 passed (2 new tests), 0 failed, 4 skipped (7.6 min), same link; O12: 245 passed, 0 failed, 4 skipped (7.2 min), link `472d908e8`); the run in CI open, waits for the owner (open point 2 of the plan) |
+| M14 | 52 specs failed on the next path of 5.18.3, 37 on 6.0 | OHIF + Cornerstone | fixed on this Mac (O9: 243 passed, 0 failed, 4 skipped, twice (7.4 min each), link `735fc811e`; O9b: 243 passed, 0 failed, 4 skipped (7.1 min), link `28dd3ab33`; O10: 243 passed, 0 failed, 4 skipped (7.6 min), same link; O11: 245 passed (2 new tests), 0 failed, 4 skipped (7.6 min), same link; O12: 245 passed, 0 failed, 4 skipped (7.2 min), link `472d908e8`; O15: 247 passed (2 new tests), 0 failed, 4 skipped (7.4 min), link `c2f202429`); the run in CI open, waits for the owner (open point 2 of the plan) |
 | M15 | An optional call of a legacy member failed without a sign | OHIF | fixed `8f7232418c`; the Cornerstone guide names it (step by step) |
 | M16 | Three places did the same thing twice after the codemod | OHIF + Cornerstone codemod | OHIF fixed `8f7232418c`; open for cornerstone: a report of a rewrite that duplicates a line (small) |
 | M17 | The window level panel had no rows | OHIF | fixed `67ab3444fd` (M61) |
@@ -115,21 +121,26 @@ not a defect.
 | M77 | Hydrating an RTSTRUCT made its pane a stack, also a sagittal or coronal pane of an MPR | OHIF | fixed `2bbed3c040` (O11): the rule of the `?useNextViewports` path is deleted |
 | M78 | A stack with the contours of an RTSTRUCT draws its annotations about 140 ms after each scroll | Cornerstone | fixed in cornerstone `472d908e8` (FX11), checked in O12: 33 ms, as on `master` |
 | M79 | A sagittal or coronal pane draws no cut of the contours of an RTSTRUCT | Cornerstone | fixed in cornerstone `487285b21` (lane FX12), checked in the viewer in task O13 |
-| M80 | A PET added from the data overlay menu tints the pane more than on `master` | OHIF | open: the initial overlay opacity is a policy of OHIF (0.4) that `master`'s legacy path draws at 0.25; a choice for the owner |
+| M80 | A PET added from the data overlay menu tints the pane more than on `master` | OHIF | fixed in task O15 (not committed yet): `OVERLAY_OPACITY` 0.25, the owner's choice; 0.08% of the pixels differ from `master` |
+| M81 | The opacity slider of a TMTV fusion starts at 100% while its PET is drawn at 25% at most | OHIF | fixed in task O15 (not committed yet): the ramp is the shape, `opacity` 0.2501 the level; the slider starts at 25% |
+| M82 | The thumbnails of the CT and the SCOUT are blown out | Cornerstone | the owner's thumbnails: decided, they are JPEG files of the test data, the same on `master`; found on the way: `loadImageToCanvas` draws black on the tiled engine (`sx`, `sy` of a planar viewport), open, waits for cornerstone |
+| M83 | A PET added as a data overlay shows the wrong slice for about a second | OHIF + Cornerstone | OHIF part fixed in task O15 (not committed yet): the source volume mounts on the slice of the pane; open for cornerstone: an overlay is drawn from the copies of other slices while it streams (`master` too, 0.6 s) |
 
-**The count.** 80 entries; 8 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69), so the upgrade met **72 problems**:
+**The count.** 83 entries; 8 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69), so the upgrade met **75 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 31 | 31, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13) | | |
-| OHIF (26 in its code, 6 in its tests) | 32 | 30 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`) | 1: M80, a choice for the owner | 1: M19 |
-| Both | 8 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
+| Cornerstone3D (the library, its codemod or its guide) | 32 | 31, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13) | 1: M82, the canvas helper draws black on the tiled engine (the owner's thumbnails of M82 are test data, the same on `master`) | |
+| OHIF (28 in its code, 6 in its tests) | 34 | 32 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`; M80 and M81 in task O15, not committed yet) | | 1: M19 |
+| Both | 9 | 4 (M11, M13, M42, M43); the OHIF part of M10, M16, M27 and M83 (M83 in task O15, not committed yet) | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) and of M83 (an overlay drawn from the copies of other slices while it streams) | |
 | Cause not found | 1 (M50) | closed by measurement in task O9 | | |
 
-Open today: **M14** (waits for the owner: the Playwright run in CI), **M80** (the initial
-opacity of a data overlay: a choice for the owner), and three small asks of Cornerstone3D in M10, M16 and M27 whose
-OHIF part is done.
+Open today: **M14** (waits for the owner: the Playwright run in CI), two defects of
+Cornerstone3D found in task O15, **M82** (the thumbnails that `loadImageToCanvas` draws
+are black) and the Cornerstone part of **M83** (a streaming overlay drawn from the copies
+of other slices), and three small asks of Cornerstone3D in M10, M16 and M27 whose OHIF
+part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
 
@@ -3402,8 +3413,230 @@ OHIF part is done.
   effective"; measured, it is 25%. Not a change of the commits of the link: the value is
   OHIF's since 3.13 and the guide lists it ("`NEXT_OVERLAY_OPACITY` ->
   `OVERLAY_OPACITY`, the same value").
-- **Fix, in OHIF:** not made: the look of a data overlay is a choice of the product, and
-  task O12 does not change code. With `OVERLAY_OPACITY` at 0.25 the first picture of such
-  a fusion would be the one of `master`.
+- **Fix, in OHIF (task O15, the owner's decision of 26 November, Vikunja 59):**
+  `OVERLAY_OPACITY` is 0.25 (`extensions/cornerstone/src/utils/viewportPolicies.ts`), and
+  its comment says what was measured: `master`'s legacy path drew the 0.9 of the menu as
+  `1 - (1 - 0.9) ** 0.125`, 0.25 (a cold pixel 64 of 255), not "about 40%". The opacity
+  slider of such an overlay starts there: it reads the effective `opacity` of the display
+  set (M81). OHIF's migration guide gives the value.
 - **Fix, in cornerstone:** none.
-- **State:** open, a choice for the owner.
+- **Checks (lane O15, `specs/slider.spec.ts` "overlay slider", `cases/slider/overlay/`,
+  the steps above, the PET AC over the CT IMAGES of the basic viewer):**
+  - the picture at rest against `master`: 0.08% of the pixels of the pane differ by more
+    than 16, 0.31% by more than 3 (before: 88% by more than 16);
+  - the slider at the start: 0.25 (`master`: 0.59, the 0.9 through its gamma of 1/5); the
+    effect of the PET (the mean difference of the pane from the CT alone, of 255) at 0,
+    25, 50, 75 and 100%: 0, 20.2, 40.4, 60.4, 80.6 on the branch, 0, 13.0, 18.3, 24.4,
+    80.3 on `master` (flat from 59% to about 90%, then opaque at once); both draw the PET
+    opaque at 100%;
+  - jest: `extensions/default/src/utils/layerConfigurationUtils.test.ts` (new, failed
+    first: 0.4); Playwright: `tests/FusionOpacitySlider.spec.ts`, "the opacity slider of a
+    PET added from the data overlay menu starts at its opacity" (new, failed first: the
+    slider at 0.4).
+- **State:** fixed in task O15 (not committed yet).
+
+## M81. The opacity slider of a TMTV fusion starts at 100% while its PET is drawn at 25% at most
+
+- **Seen (the owner, 26 November, Vikunja 56):** TMTV mode, the study "LUNG DELAYS"
+  (`1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463`): the fusion looks as
+  on `master`, but the opacity slider of a fusion pane (CT ---o PT, the opacity button of
+  the controls at the bottom of the pane, which show once the colour bar is on) starts
+  pinned at 100% PT, while the PET is drawn partly transparent.
+- **Measured (lane O15, `specs/slider.spec.ts` "tmtv fusion slider", `cases/slider/tmtv/`;
+  the axial fusion pane on its middle slice after both volumes loaded; the slider driven
+  through its menu: Home, End and clicks on its track; the effect of the PET is the mean
+  difference of the pane from the CT alone, of 255):**
+
+  | | `master` (5.18.3) | branch before | branch now |
+  |---|---|---|---|
+  | the slider at the start | 100% | 100% | 25% (0.2501) |
+  | what it sets at 25, 50, 75, 100% | the overall opacity 0.758, 0.871, 0.944, 1 (a gamma of 1/5) of a ramp of 0.9 at most, drawn as `1 - (1 - a) ** 0.125`: the strongest alpha 0.133, 0.174, 0.211, 0.250 | `opacity` 0.25 to 1 of a ramp of 0.2501 at most: 0.063 to 0.250 | `opacity` 0.25 to 1 of a ramp of 1 at most: 0.25 to 1 |
+  | the effect of the PET at 0, 25, 50, 75, 100% | 0, 5.42, 6.93, 8.20, 9.45 | 0, 2.33, 4.68, 7.03, 9.46 | 0, 9.39, 18.83, 28.28, 37.87 |
+  | the picture at rest against `master`: pixels more than 16 (3) away | | 0.00% (0.12%) | 0.00% (0.13%) |
+  | one step (an arrow key) from the start | 1 to 0.9999, no visible change | the same | 0.2501 to 0.2500, no visible change |
+
+  On `master` the slider also starts at 100%: its 100% is the look at rest, the PET can
+  not be made stronger, and 57% of its effect is in the first quarter of the track.
+
+  The three fusion panes at rest, each on its middle slice (lane O3's measure,
+  `specs/fusionrest.spec.ts`, `cases/fusionrest/`), pixels more than 16 (3) away from
+  `master`: axial 0.00% (0.13%), sagittal 0.24% (0.76%), coronal 0.39% (0.79%). With the
+  old ramp on the same link: 0.00%, 0.28% and 0.46%, so the coronal pane was over the
+  0.29% that task O3 measured before this task, and the split brings it closer. In one
+  session the two ramps (the same product) give the same axial pane and differ in one row
+  of the sagittal and the coronal pane, the bottom edge of the PET (row 297 of 314; 0.12%
+  and 0.14% of the pixels, up to 32 levels; the new ramp leaves the grey of the CT there,
+  the old one a tint): the planar slice path draws the edge row of an overlay a little
+  differently when the level is in `opacity` rather than in the points.
+- **Why:** task O3 (M57) gave the PET of the fusion panes the look of 3.13 in the ramp,
+  points from 0 to 0.2501 (`FUSION_PT_OPACITY_MAPPING`), and left the `opacity` of the
+  display set at 1. The slider reads and sets that `opacity` (the alpha of a pixel is
+  `opacity * opacityMapping(value)`), so it said 100% of a PET that is drawn at 25% at most.
+- **Fix, in OHIF (task O15):** the look at rest lives in one number. The ramp keeps the shape
+  of the ramp of 3.13 with its highest point at 1 (each point divided by 0.2501), and the
+  `opacity` of the PET of the three fusion panes is 0.2501 (`FUSION_PT_OPACITY`,
+  `extensions/tmtv/src/utils/hpViewports.ts`), so `opacity * ramp` is the old ramp to 1e-4.
+  The slider is not changed: it reads the effective `opacity`
+  (`getEffectiveDisplaySetAppearance`) and sets it (`setDisplaySetAppearance`), linearly,
+  so its position is the strongest alpha drawn, 100% covers the CT from SUV 1 on, and a
+  step moves the picture by a step. `setViewportColormap` keeps the opacity of a display
+  set whose protocol gives a ramp, so a change of the colour map keeps the slider where it
+  is. A threshold still hides only what is below it (`colormap.threshold`, not changed).
+  The guide of OHIF says it (`cornerstone3d-6.md`, the opacity of a colormap).
+- **Fix, in cornerstone:** none.
+- **Checks:** jest `extensions/tmtv/src/utils/hpViewports.test.ts` (new; the first jest
+  test of the extension, with its `jest.config.js`; 6 tests failed first: the highest
+  point 0.2501, the opacity undefined), `useViewportRendering.test.ts` "starts at the
+  opacity that the PET is drawn with, and one step writes the next number" (new, pins the
+  slider against the appearance); Playwright `tests/FusionOpacitySlider.spec.ts` "the
+  opacity slider of a TMTV fusion pane starts at the opacity of its PET" (new, the
+  uniformity phantom of the TMTV specs; failed first: the slider at 1); the numbers above.
+- **State:** fixed in task O15 (not committed yet).
+
+## M82. The thumbnails of the CT and the SCOUT of the study browser are blown out
+
+- **Seen (the owner, 26 November, Vikunja 57):** the study "LUNG DELAYS", `/viewer?StudyInstanceUIDs=...`:
+  the thumbnails of "CT IMAGES" (S:2, 135 images) and "SCOUT" (S:1, 1 image) are clipped,
+  the air solid white; the PET thumbnails look normal.
+- **Measured (lane O15, `specs/thumbs.spec.ts`, `cases/thumbs/`; the luminance of each
+  thumbnail as drawn):** with the URL of the owner the data source is `e2e`
+  (`thumbnailRendering: 'thumbnail'`, `thumbnailRequestStrategy: 'fetch'`): each thumbnail
+  is a JPEG file of the test data, `testdata/studies/<study>/series/<series>/instances/<sop>/thumbnail`
+  (submodule `bd743ed7` in both checkouts), fetched as it is. The four servers give the same
+  numbers, this branch (port 3335), `master` (3336) and the owner's two (3340 `master`, 3342
+  the branch): CT IMAGES mean 244.5, 90.7% of the pixels 250 or more; SCOUT mean 197.7,
+  48.2% white; PET NAC 3.0, PET AC 1.8. The files are blown out; nothing of the upgrade
+  draws them, and `master` shows the same.
+- **Found on the way: the thumbnails that Cornerstone3D draws are black.** With the `ohif`
+  source (`/viewer/ohif?...`, `thumbnailRendering: 'wadors'`) the study browser draws each
+  thumbnail with `getImageSrcFromImageId` -> `utilities.loadImageToCanvas({ canvas,
+  imageId, thumbnail: true })` (the same OHIF code as `master`). The middle image of each
+  series (`specs/thumbcalls.spec.ts`, `cases/thumbcalls/`): in the study browser the
+  branch draws the CT as `master` (mean 23.1) and the PET NAC, the PET AC and the SCOUT all
+  black (`master`: 2.8, 8.6, 92.8); one call at a time, every series of the four studies
+  checked (LUNG DELAYS, an MR, the CR study of the remote data, a US study with
+  multiframe YBR and RGB images, 20 series) gives an opaque black canvas, mean 0.
+- **Why (Cornerstone3D, measured in the page, `specs/tiled.spec.ts`, `cases/tiled/`):**
+  `renderToCanvasGPU` makes a `TiledRenderingEngine` (`_thumbnails`,
+  `packages/core/src/utilities/renderToCanvasGPU.ts:93`) and a planar viewport on it. The tiled engine draws every viewport into one offscreen canvas and copies the
+  tile of a viewport at `(viewport.sx, viewport.sy)`
+  (`_renderViewportFromVtkCanvasToOnscreenCanvas`, `TiledRenderingEngine.ts:531`, the copy at
+  `:551`). The constructors of `PlanarViewport`
+  (`packages/core/src/RenderingEngine/Viewports/Planar/PlanarViewport.ts:553`) and of the
+  3D viewport (`Viewports/Volume3D/viewport3D.ts:150`) copy `sWidth` and `sHeight` of their
+  input and not `sx` and `sy`; the `Viewport` constructor of 5.18.3 copied all four
+  (`RenderingEngine/Viewport.js:76`). Only `_resize` of the tiled engine
+  (`TiledRenderingEngine.ts:643`) sets them, when another viewport is enabled on the same
+  engine, so a lone viewport copies nothing, and in the study browser a thumbnail draws
+  only when a later one was enabled before its frame. The same steps by hand: the tiled
+  engine gives `sx` and `sy` undefined and a black canvas (mean 0, also after a second
+  render, also with a visible element); with `sx = sy = 0` set, 23.1, as `master`; the
+  default `RenderingEngine` 23.1; `useCPURendering: true` 23.3.
+- **The smallest case, Cornerstone3D only:** `new TiledRenderingEngine('t')`,
+  `enableElement({ viewportId: 'v', type: ViewportType.PLANAR, element })` on a 256 x 256
+  element, `await viewport.renderImageObject(image)` of a cached CT image
+  (`wadors:https://d14fa38qiwhyfd.cloudfront.net/dicomweb/studies/1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463/series/1.3.6.1.4.1.14519.5.2.1.7009.2403.226151125820845824875394858561/instances/1.3.6.1.4.1.14519.5.2.1.7009.2403.315877115167111853865432166987/frames/1`),
+  `render()`, wait for `IMAGE_RENDERED`: `viewport.sx` is undefined and the canvas of the
+  element is all black (red mean 0 of 255); 5.18.3 with a `STACK` viewport: the CT (23.1).
+  Or `utilities.loadImageToCanvas({ canvas, imageId, thumbnail: true })` for that image:
+  6.0 black, 5.18.3 the CT.
+- **The other series, with `sx` and `sy` set in the page (as the fix would):** 17 of the
+  20 series give exactly the histogram of `master` (CT, PET, SCOUT, MR, DR, US multiframe
+  YBR and RGB). Three differ, and none for the thumbnail path: the two CR MONOCHROME1
+  images (the branch's thumbnail is the picture that the main viewport of both sides
+  draws, with metal and contrast white; `master`'s thumbnail of them was the wrong one),
+  and a DS image whose geometry tags are broken (`PixelSpacing` `[0.26, -1]`,
+  `PixelAspectRatio` `[266, 4294966272]`), which the two versions draw with another shape
+  in the main viewport too (mean 171.9 against 56.4).
+- **Fix, in OHIF:** none. The test data's thumbnails are data; the canvas path is a defect
+  of Cornerstone3D (rule 3).
+- **Fix, in cornerstone:** to do: a planar and a 3D viewport keep `sx` and `sy` of their
+  input (or the tiled engine sets them at the enable), with a test that draws a CT image
+  with `loadImageToCanvas` and reads the canvas. Row 210 of `v6-open-issues.md` (the first
+  frame of a planar viewport on the tiled engine is not the frame after a resize) is
+  probably the same cause.
+- **State:** the owner's thumbnails: decided, the test data (the same on `master`); the
+  black thumbnails of the canvas path: open, waits for cornerstone.
+
+## M83. A PET added as a data overlay over a CT shows the wrong slice for about a second
+
+- **Seen (the owner, 26 November, Vikunja 58):** the branch: a CT in a viewport, the PET of
+  the same study added from the data overlay menu: the PET layer first draws a wrong slice
+  for about one second, then the right one.
+- **Recorded (lane O15, `specs/overlayslice.spec.ts`, `cases/overlayslice/`):** the basic
+  viewer, "LUNG DELAYS", the CT IMAGES in the pane on its slice 40 (and on slice 0), the
+  PET AC added with `addDisplaySetAsLayer` (the command of the menu); for 3 s, every 50 ms
+  the viewport of the pane (render plan, display sets, slice, the PET frame on the plane
+  of the source and its quality in the volume), its picture, and the events with their
+  time; each picture against the settled one:
+
+  | ms after the command | branch before | branch now | `master` |
+  |---|---|---|---|
+  | 90 | OHIF disables the viewport and enables a new one | the same | the same |
+  | 107 to 466 | the CT volume mounted at its middle image (index 67, z -141.1) and drawn at 126 ms, the PET still mounting; at 194 ms the PET is mounted and OHIF applies the position (slice 40, z -52.8) | the CT mounted on slice 40 (110 ms), drawn at 129 ms, the PET mounted at 202 ms | the camera to the middle and to slice 40 at 161 to 166 ms; nothing drawn (the pane blank) until 504 to 559 ms |
+  | from about 550 | the PET drawn from a copy of the frame 27 slices away (15.4% of the pixels from the settled picture), then of the frame 2 away (5.9%) | the same | the same |
+  | the PET frame of the plane arrives | 1,373 ms (1,766 ms in another run) | 1,766 ms | 1,161 ms |
+  | settled | 1,600 ms; in one of three runs the copy came back in 3 frames between 1,373 and 1,600 ms | about 1,860 ms | 1,161 to 1,219 ms |
+
+- **Why, two things:**
+  1. **OHIF (the branch only):** `mountVolumes` mounted the source volume without a start,
+     so Cornerstone3D mounted it on its middle slice and drew it before `setDisplaySets`
+     resolved (the PET's mount takes another 70 ms), and OHIF set the position of the pane
+     (`setPresentations`) after the mount. The legacy `setVolumes` of `master` set the
+     camera before its first frame.
+  2. **Cornerstone3D (both sides):** the PET streams with the volume retrieve stages of
+     OHIF (`coarseInterleavedRetrieveStages`, the default since 3.13: every 64th image
+     first, each copied into the empty frames up to 32 away, `nearbyFrames`), and the
+     planar viewport draws the overlay from those copies: until its own frame arrives the
+     PET shows another slice. The branch's PET streams slower (the frame of the plane at
+     1.4 to 1.8 s against 1.2 s; all 135 frames at 2.1 to 2.7 s against 1.8 to 2.5 s), so
+     the wrong PET slice lasts about a second on the branch and about 0.6 s on `master`.
+- **Fix, in OHIF (task O15):** a planar volume mount gives its source the image of the
+  view that the pane had: `mountVolumes` takes `sourceImageId` and mounts the source with
+  `initialImageIdIndex`, its index in the image ids of the display set
+  (`services/ViewportService/viewportMounts.ts`). `sourceImageId` is the referenced image
+  of the view reference of the position presentation when that reference names its frame
+  of reference, as every view reference read from a viewport does
+  (`getPositionImageId`, `CornerstoneViewportService.ts`). A reference that names only an
+  image is not taken: the RT and SEG viewports store one for a stack (the first segmented
+  slice, `viewportType: 'stack'`), which a volume pane never applied
+  (`setPositionPresentation` asks `isReferenceViewable`, which needs the frame of
+  reference). The first version of the fix took it, and the Playwright suite caught it:
+  `RTHydrationFromMPR` (`mprAfterRT`, 9,517 pixels, the axial pane on slice 15 instead of
+  131) and `SEGHydrationFrom3DFourUp` (`threeDFourUpAfterSEG`, 60,412 pixels) failed twice;
+  with the rule both pass and no baseline changes. The first frame is the CT on its slice;
+  no frame of another CT slice (above). Checks: jest `viewportMounts.test.ts` "mounts the
+  source of a planar volume on the image of the position of the pane, an overlay on none"
+  and "mounts the source on its default slice when the image of the position is not one of
+  its images", `CornerstoneViewportService.test.ts` "a volume mount with a position
+  presentation mounts its source on the image of that position" and "a volume mount does
+  not start on an image that its position presentation names alone (the first segmented
+  slice of an RT or SEG viewport)" (3 failed first: `jest-failfirst-D.log`,
+  `jest-failfirst-D2.log`); the recording above (first image at slice 40, 109 ms).
+- **Fix, in cornerstone:** to do. The rule: an overlay never draws a slice other than the
+  one on the plane of the source; until it can, it draws nothing there.
+  - **The smallest case, Cornerstone3D only:**
+    `imageRetrieveMetadataProvider.add('volume', ProgressiveRetrieveImages.coarseInterleavedRetrieveStages)`;
+    a planar viewport; `setDisplaySets({ displaySetId: ct, options: { mode: 'volume',
+    role: 'source', initialImageIdIndex: 40 } }, { displaySetId: pt, options: { mode:
+    'volume', role: 'overlay', appearance: { colormap: { name: 'hsv' }, opacity: 0.25 } } })`
+    with the CT and the PET AC of "LUNG DELAYS", the PET not in the cache; draw each frame
+    for 2 s: while `cachedFrames[94]` of the PET volume (the frame on the plane of slice
+    40) is `FAR_REPLICATE + 1/27`, then `ADJACENT_REPLICATE`, the overlay draws the data of
+    frame 67 then frame 92 or 96 (15.4% then 5.9% of the pixels from the settled frame);
+    5.18.3 the same with a `VolumeViewport` and `setVolumes`. Where: the copies are made by
+    the nearby fill of `BaseStreamingImageVolume` (`cachedFrames`, `ImageQualityStatus`,
+    `packages/core/src/cache/classes/BaseStreamingImageVolume.ts:186` to `:202`), and the
+    planar paths draw an overlay's volume without reading that quality (the CPU slice path
+    `planarCpuSlice.ts` that the plan of this mount names, `overlay:cpu:gpu:slice`). A
+    volume mounted as an overlay could draw nothing on a frame that holds a copy, or
+    stream without copies.
+  - The slower streaming of the PET on 6.0 (above) and the return of the copy after the
+    right frame (one run in three) were seen, their cause not looked for.
+  - A gap read in the code, not measured: `initialImageIdIndex` is taken only in the
+    acquisition orientation (`createInitialVolumeSliceState`, `PlanarViewport.ts:3982`); a mount
+    in another orientation (an overlay given to a sagittal pane of an MPR) has no start,
+    so a position set after the mount shows one frame of the middle first. A mount option
+    for a view reference would close it.
+- **State:** the OHIF part fixed in task O15 (not committed yet); the overlay drawn from
+  copies of other slices open, waits for cornerstone.

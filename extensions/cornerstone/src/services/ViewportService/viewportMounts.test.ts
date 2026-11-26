@@ -191,6 +191,32 @@ describe('the mount of a display set', () => {
     );
   });
 
+  it('mounts the source of a planar volume on the image of the position of the pane, an overlay on none', async () => {
+    const viewport = makeViewport('fusion');
+
+    await mountVolumeOf(viewport, {
+      filteredVolumeInputArray: [
+        { volumeInput: { imageIds, volumeId: 'volumeLoader:ct', displaySetInstanceUID: 'ct' } },
+        { volumeInput: { imageIds, volumeId: 'volumeLoader:pt', displaySetInstanceUID: 'pt' } },
+      ],
+      volumesProperties: [{ properties: {} }, { properties: { opacity: 0.25 } }],
+      sourceImageId: 'image-2',
+    });
+
+    expect(mountOptionsOf(viewport, 0)).toEqual(
+      expect.objectContaining({ role: 'source', initialImageIdIndex: 2 })
+    );
+    expect(mountOptionsOf(viewport, 1).initialImageIdIndex).toBeUndefined();
+  });
+
+  it('mounts the source on its default slice when the image of the position is not one of its images', async () => {
+    const viewport = makeViewport('mpr-axial');
+
+    await mountVolumeOf(viewport, { sourceImageId: 'image-of-another-series' });
+
+    expect(mountOptionsOf(viewport).initialImageIdIndex).toBeUndefined();
+  });
+
   it('keeps the defaults of a display set whose stored appearance has no override, after a reset', async () => {
     const viewport = makeViewport('mpr-axial');
 
