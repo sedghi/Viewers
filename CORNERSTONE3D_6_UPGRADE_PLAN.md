@@ -40,7 +40,9 @@ made their fixes and checks there, and task O12 ran every check again on `472d90
 closed the entries that waited for those five commits. Task O13 moved the link to
 `487285b21` (lane FX12, the cut of a contour segmentation in the other planes), saw M79
 fixed in the viewer, and ran jest (176 suites, 2,016 tests pass), the build and the
-Playwright suite (245 passed, 0 failed, 4 skipped) on it.
+Playwright suite (245 passed, 0 failed, 4 skipped) on it. On 26 November the link moved to
+`c2f202429` (lane FX13: one conversion per structure, the cuts shown as each surface is
+ready), and the same three checks gave the same numbers.
 
 | Step | State | Commit |
 |---|---|---|

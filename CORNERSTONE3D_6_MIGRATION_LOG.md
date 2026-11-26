@@ -27,7 +27,9 @@ FX11); task O12 ran every check on it, measured M41, M46, M48 and M78 in the vie
 closed them, checked the source rules of FX8 and FX10 in OHIF's own flows, and found M80.
 The link then moved to `487285b21` (lane FX12, the cut of a contour segmentation in the
 other planes): M79 was seen fixed in the viewer and closed, and jest, the build and the
-Playwright suite ran again on it (task O13).
+Playwright suite ran again on it (task O13). The last move, on 26 November, is to
+`c2f202429` (lane FX13, the follow-ups of M79): the same three checks ran again on it
+(176 suites and 2,016 tests pass; 245 passed, 0 failed, 4 skipped).
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -3362,12 +3364,19 @@ OHIF part is done.
   from the sagittal pane the axial pane draws 13 contour paths, the sagittal pane 21 cuts
   and the coronal pane 25, each structure in its colour; every pane stays a volume pane in
   its orientation; the cache holds 31 surfaces next to the 31 contour geometries. OHIF
-  changed nothing: it registers the polySeg add-on already. Two things are left in
-  Cornerstone3D (its lane FX13): each structure is converted twice (62
-  `convertContourToSurface` tasks for 31 structures), and the first cut is drawn about
-  15 s after the hydration (its open row 251); the wasm of the conversion also prints
-  `Contour spacing is not consistent` warnings for some structures. `master` never drew a
-  cut (its flat lines came from M31).
+  changed nothing: it registers the polySeg add-on already. On that link each structure
+  was converted twice (62 `convertContourToSurface` tasks for 31 structures) and the first
+  cut was drawn about 15 s after the hydration. `master` never drew a cut (its flat lines
+  came from M31).
+- **Seen again (26 November, link at `c2f202429`, lane FX13 of Cornerstone3D):** the same
+  probe counts 31 conversions for 31 structures (the longest 4.1 s from its start to its
+  end, about 13 s before), 31 surfaces, and the same 13, 21 and 25 paths. Each structure's
+  cut is drawn when its surface is ready; in Cornerstone3D's own measure the first cut of
+  this RTSTRUCT shows 3.0 s after the representation is added (18.6 s before) and the last
+  after 13 s. The conversion runs in two polySeg workers by default; an application sets
+  the number with `polySeg.init({ maxWorkerInstances })` before it registers the add-on.
+  The wasm of the conversion still prints `Contour spacing is not consistent` for the five
+  structures of this RTSTRUCT that have a gap between two parts; their cuts are right.
 - **Seen again (task O12, link at `472d908e8`, lane O12 `cases/m78/rt/`):** the same
   counts: after the hydration from the axial, the sagittal or the coronal pane the branch
   draws 13 contour paths in the axial pane and none in the sagittal and coronal panes;
