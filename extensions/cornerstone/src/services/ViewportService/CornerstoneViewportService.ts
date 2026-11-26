@@ -50,7 +50,9 @@ import { mountStack, mountVolumes } from './viewportMounts';
 import { viewportOperations } from './viewportOperations';
 import {
   driveCameraPositionSync,
+  getCameraPositionGroupStart,
   getCameraPositionSyncGroupIds,
+  getMountSliceStep,
   getViewSliceStep,
   holdCameraPositionSync,
   placeInCameraPositionGroups,
@@ -61,6 +63,7 @@ import {
   getPositionPresentation,
   setLutPresentation,
   setPositionPresentation,
+  withoutShownViewReference,
 } from './viewportPresentations';
 
 const EVENTS = {
@@ -843,7 +846,9 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
    * presentation or the display set options. Then it replays the position and
    * the segmentation presentations: a hydrated overlay (RTSTRUCT contour, SEG
    * labelmap) is no longer in the display sets of the viewport after the
-   * hydration, so without the replay it would vanish on this re-mount.
+   * hydration, so without the replay it would vanish on this re-mount. The
+   * stack starts on the image of its view reference, so the replay gives back
+   * the framing and does not set that view reference a second time.
    */
   async _setStackViewport(
     viewport: Types.IViewport,
@@ -904,7 +909,10 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
 
     if (presentations?.positionPresentation || presentations?.segmentationPresentation) {
       this.setPresentations(viewport.id, {
-        positionPresentation: presentations.positionPresentation,
+        positionPresentation: withoutShownViewReference(
+          viewport,
+          presentations.positionPresentation
+        ),
         segmentationPresentation: presentations.segmentationPresentation,
       });
     }
@@ -1057,16 +1065,36 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
 
   /**
    * Mounts the volumes of a planar or a 3D viewport. A pane of a camera
-   * position sync group does not drive the group while it mounts, and then
-   * goes to the one position of the group (`placeInCameraPositionGroups`), so
-   * the panes open on one slice whatever the order of their mounts.
+   * position sync group does not drive the group while it mounts. A pane
+   * that ranks after the panes of its groups placed so far starts at their
+   * position (`getCameraPositionGroupStart`, the `initialViewReference` of the
+   * mount), so it draws no other slice first; a pane that ranks before them
+   * mounts on its own initial slice and takes them to it
+   * (`placeInCameraPositionGroups`). The panes open on one slice whatever the
+   * order of their mounts.
    */
   public async setVolumesForViewport(viewport, volumeInputArray, presentations) {
     const synchronizers = this._getCameraPositionSynchronizers(viewport.id);
     const held = holdCameraPositionSync(viewport, synchronizers);
+    const groupContext = {
+      synchronizers,
+      getViewport: viewportId => this.getCornerstoneViewport(viewportId),
+      getLayoutIndex: viewportId => this._getLayoutIndex(viewportId),
+      getSliceStep: getViewSliceStep,
+    };
+    const mountedVolumeIds = volumeInputArray
+      .filter(volumeInput => this._isMountedVolumeInput(volumeInput))
+      .map(({ volumeId }) => volumeId);
+    const groupStart = presentations?.positionPresentation
+      ? undefined
+      : getCameraPositionGroupStart(
+          viewport.id,
+          viewPlaneNormal => getMountSliceStep(mountedVolumeIds, viewPlaneNormal),
+          groupContext
+        );
 
     try {
-      await this._mountVolumesForViewport(viewport, volumeInputArray, presentations);
+      await this._mountVolumesForViewport(viewport, volumeInputArray, presentations, groupStart);
     } catch (error) {
       driveCameraPositionSync(viewport, held);
       throw error;
@@ -1080,14 +1108,20 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     placeInCameraPositionGroups(
       viewport,
       held,
-      {
-        synchronizers,
-        getViewport: viewportId => this.getCornerstoneViewport(viewportId),
-        getLayoutIndex: viewportId => this._getLayoutIndex(viewportId),
-        getSliceStep: getViewSliceStep,
-      },
+      groupContext,
       Boolean(presentations?.positionPresentation)
     );
+  }
+
+  /**
+   * Whether a volume input of a mount is mounted as a volume of the viewport:
+   * an overlay display set (a segmentation) is added by the segmentation
+   * service instead.
+   */
+  private _isMountedVolumeInput(volumeInput): boolean {
+    const { displaySetService } = this.servicesManager.services;
+    const displaySet = displaySetService.getDisplaySetByUID(volumeInput.displaySetInstanceUID);
+    return !displaySet?.isOverlayDisplaySet;
   }
 
   /** The camera position synchronizers that the sync groups of a pane name. */
@@ -1109,7 +1143,20 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     return index === -1 ? viewportIds.length : index;
   }
 
-  private async _mountVolumesForViewport(viewport, volumeInputArray, presentations) {
+  /**
+   * Mounts the volumes of a viewport, its source at the view reference of its
+   * position presentation, else at the position of its camera position group
+   * (`groupStart`), else on its initial slice. A stored position gives back
+   * its framing after the mount, and its view reference only when the mount
+   * could not start at it; a pane that starts at the position of its group
+   * does not jump to the initial image of its hanging protocol.
+   */
+  private async _mountVolumesForViewport(
+    viewport,
+    volumeInputArray,
+    presentations,
+    groupStart?: Types.ViewReference
+  ) {
     const { displaySetService, viewportGridService } = this.servicesManager.services;
 
     const viewportInfo = this.getViewportInfo(viewport.id);
@@ -1127,10 +1174,7 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
       .map((volumeInput, index) => {
         return { volumeInput, displaySetOptions: displaySetOptions[index] };
       })
-      .filter(({ volumeInput }) => {
-        const displaySet = displaySetService.getDisplaySetByUID(volumeInput.displaySetInstanceUID);
-        return !displaySet?.isOverlayDisplaySet;
-      });
+      .filter(({ volumeInput }) => this._isMountedVolumeInput(volumeInput));
 
     // Todo: use presentations states
     const volumesProperties = filteredVolumeInputArray.map(({ volumeInput, displaySetOptions }) => {
@@ -1154,19 +1198,25 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
         volumesProperties,
         orientation: viewportInfo.getOrientation(),
         lutPresentation: presentations?.lutPresentation,
-        sourceImageId: getPositionImageId(presentations?.positionPresentation),
+        initialViewReference:
+          getPositionViewReference(presentations?.positionPresentation) ?? groupStart,
       });
       await this._addOverlayRepresentations(overlayProcessingResults);
       viewport.render();
 
       if (presentations?.positionPresentation || presentations?.segmentationPresentation) {
         this.setPresentations(viewport.id, {
-          positionPresentation: presentations.positionPresentation,
+          positionPresentation: withoutShownViewReference(
+            viewport,
+            presentations.positionPresentation
+          ),
           segmentationPresentation: presentations.segmentationPresentation,
         });
       }
 
-      this._jumpToInitialImage(viewport, viewportInfo, presentations);
+      if (!groupStart) {
+        this._jumpToInitialImage(viewport, viewportInfo, presentations);
+      }
       return;
     }
 
@@ -1730,16 +1780,18 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
 }
 
 /**
- * The image of the view that a pane had, from which a volume mount starts its
- * source: the referenced image of the view reference of its position
- * presentation when that reference names its frame of reference, as every
- * view reference read from a viewport does. A reference that names only an
- * image (the first segmented slice that an RT or SEG viewport gives a stack)
- * is not a view of the pane: a volume viewport does not take it.
+ * The view that a pane had, at which a volume mount starts its source: the
+ * view reference of its position presentation when that reference names its
+ * frame of reference, as every view reference read from a viewport does. A
+ * reference that names only an image (the first segmented slice that an RT
+ * or SEG viewport gives a stack) is not a view of the pane: a volume viewport
+ * does not start at it.
  */
-function getPositionImageId(positionPresentation?: PositionPresentation): string | undefined {
+function getPositionViewReference(
+  positionPresentation?: PositionPresentation
+): Types.ViewReference | undefined {
   const viewReference = positionPresentation?.viewReference;
-  return viewReference?.FrameOfReferenceUID ? viewReference.referencedImageId : undefined;
+  return viewReference?.FrameOfReferenceUID ? viewReference : undefined;
 }
 
 export default CornerstoneViewportService;

@@ -126,6 +126,34 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       expect(mountStack.mock.calls[0][1].initialImageIndex).toBe(4);
     });
 
+    it('a stack mount on the image of its position does not set that view reference again, and gives the framing back', async () => {
+      const { service, viewportInfo, viewportData } = makeServiceWithViewport('stack', {});
+      const mountStack = jest.spyOn(viewportMounts, 'mountStack').mockResolvedValue(undefined);
+      const viewport = {
+        id: 'viewport-1',
+        type: ViewportType.PLANAR,
+        element: { addEventListener: jest.fn() },
+        isReferenceViewable: jest.fn().mockReturnValue(true),
+        setViewReference: jest.fn(),
+        setViewFraming: jest.fn(),
+        getDisplaySets: () => [],
+      } as unknown as PlanarViewport;
+      jest.spyOn(service, 'getCornerstoneViewport').mockReturnValue(viewport);
+      const viewReference = {
+        FrameOfReferenceUID: 'frame-of-reference',
+        referencedImageId: imageIds[3],
+      };
+      const viewFraming = { zoom: 1.5 };
+
+      await service._setStackViewport(viewport, viewportData as StackViewportData, viewportInfo, {
+        positionPresentation: { viewportType: 'stack', viewReference, viewFraming },
+      } as never);
+
+      expect(mountStack.mock.calls[0][1].initialImageIndex).toBe(3);
+      expect(viewport.setViewReference).not.toHaveBeenCalled();
+      expect(viewport.setViewFraming).toHaveBeenCalledWith(viewFraming);
+    });
+
     it('a volume takes the preset from the number of slices of its viewport', () => {
       const { service, viewportInfo } = makeServiceWithViewport('volume', {
         viewportType: 'volume',
@@ -148,7 +176,11 @@ describe('CornerstoneViewportService and the shape of the data', () => {
     });
 
     /** Mounts a volume of 11 slices on the viewport of a service, the mount itself stubbed. */
-    const mountVolume = async (viewportOptions: object, presentations: object) => {
+    const mountVolume = async (
+      viewportOptions: object,
+      presentations: object,
+      viewportProps: object = {}
+    ) => {
       const { service } = makeServiceWithViewport('volume', {
         viewportType: 'volume',
         ...viewportOptions,
@@ -159,6 +191,7 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         getNumberOfSlices: () => 11,
         isReferenceViewable: () => false,
         render: jest.fn(),
+        ...viewportProps,
       } as unknown as PlanarViewport;
       const internals = service as unknown as {
         _processExtraDisplaySetsForViewport: () => unknown[];
@@ -202,27 +235,22 @@ describe('CornerstoneViewportService and the shape of the data', () => {
       expect(utilities.jumpToSlice).not.toHaveBeenCalled();
     });
 
-    it('a volume mount with a position presentation mounts its source on the image of that position', async () => {
+    it('a volume mount with a position presentation starts its source at the view reference of that position', async () => {
+      const viewReference = {
+        FrameOfReferenceUID: 'frame-of-reference',
+        viewPlaneNormal: [1, 0, 0],
+        cameraFocalPoint: [12, 0, 0],
+        referencedImageId: imageIds[1],
+      };
       const { mountVolumes } = await mountVolume(
-        {},
-        {
-          positionPresentation: {
-            viewportType: 'planar',
-            viewReference: {
-              FrameOfReferenceUID: 'frame-of-reference',
-              referencedImageId: imageIds[1],
-            },
-          },
-        }
+        { orientation: 'sagittal' },
+        { positionPresentation: { viewportType: 'planar', viewReference } }
       );
 
-      expect(mountVolumes).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ sourceImageId: imageIds[1] })
-      );
+      expect(mountVolumes.mock.calls[0][1].initialViewReference).toEqual(viewReference);
     });
 
-    it('a volume mount does not start on an image that its position presentation names alone (the first segmented slice of an RT or SEG viewport)', async () => {
+    it('a volume mount does not start at a reference that its position presentation names by an image alone (the first segmented slice of an RT or SEG viewport)', async () => {
       const { mountVolumes } = await mountVolume(
         {},
         {
@@ -233,10 +261,52 @@ describe('CornerstoneViewportService and the shape of the data', () => {
         }
       );
 
-      expect(mountVolumes).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ sourceImageId: undefined })
+      expect(mountVolumes).toHaveBeenCalledTimes(1);
+      expect(mountVolumes.mock.calls[0][1].initialViewReference).toBeUndefined();
+    });
+
+    it('a volume mount that started at the view reference of its position does not set it again, and gives the framing back', async () => {
+      const viewReference = {
+        FrameOfReferenceUID: 'frame-of-reference',
+        viewPlaneNormal: [0, -1, 0],
+        cameraFocalPoint: [0, 40, 0],
+      };
+      const viewFraming = { zoom: 2 };
+      const { viewport } = await mountVolume(
+        { orientation: 'coronal' },
+        { positionPresentation: { viewportType: 'planar', viewReference, viewFraming } },
+        {
+          type: ViewportType.PLANAR,
+          isReferenceViewable: jest.fn().mockReturnValue(true),
+          setViewReference: jest.fn(),
+          setViewFraming: jest.fn(),
+          getDisplaySets: () => [],
+        }
       );
+
+      expect(viewport.setViewReference).not.toHaveBeenCalled();
+      expect(viewport.setViewFraming).toHaveBeenCalledWith(viewFraming);
+    });
+
+    it('a volume mount that could not start at the view reference of its position sets it after the mount', async () => {
+      const viewReference = {
+        FrameOfReferenceUID: 'frame-of-reference',
+        viewPlaneNormal: [0, 0, -1],
+        cameraFocalPoint: [0, 0, 7],
+      };
+      const { viewport } = await mountVolume(
+        { orientation: 'coronal' },
+        { positionPresentation: { viewportType: 'planar', viewReference } },
+        {
+          type: ViewportType.PLANAR,
+          isReferenceViewable: jest.fn((_ref, options) => Boolean(options?.withOrientation)),
+          setViewReference: jest.fn(),
+          setViewFraming: jest.fn(),
+          getDisplaySets: () => [],
+        }
+      );
+
+      expect(viewport.setViewReference).toHaveBeenCalledWith(viewReference);
     });
 
     it('a volume mount without initial image options does not jump', async () => {

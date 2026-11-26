@@ -191,30 +191,55 @@ describe('the mount of a display set', () => {
     );
   });
 
-  it('mounts the source of a planar volume on the image of the position of the pane, an overlay on none', async () => {
-    const viewport = makeViewport('fusion');
+  it.each([
+    Enums.OrientationAxis.AXIAL,
+    Enums.OrientationAxis.SAGITTAL,
+    Enums.OrientationAxis.CORONAL,
+  ])(
+    'starts the source of a %s planar volume at the view reference of the pane, an overlay at none',
+    async orientation => {
+      const viewport = makeViewport('fusion');
+      const initialViewReference = {
+        FrameOfReferenceUID: 'frame-of-reference',
+        viewPlaneNormal: [1, 0, 0] as Types.Point3,
+        cameraFocalPoint: [12, 0, 0] as Types.Point3,
+      };
 
-    await mountVolumeOf(viewport, {
-      filteredVolumeInputArray: [
-        { volumeInput: { imageIds, volumeId: 'volumeLoader:ct', displaySetInstanceUID: 'ct' } },
-        { volumeInput: { imageIds, volumeId: 'volumeLoader:pt', displaySetInstanceUID: 'pt' } },
-      ],
-      volumesProperties: [{ properties: {} }, { properties: { opacity: 0.25 } }],
-      sourceImageId: 'image-2',
-    });
+      await mountVolumeOf(viewport, {
+        filteredVolumeInputArray: [
+          { volumeInput: { imageIds, volumeId: 'volumeLoader:ct', displaySetInstanceUID: 'ct' } },
+          { volumeInput: { imageIds, volumeId: 'volumeLoader:pt', displaySetInstanceUID: 'pt' } },
+        ],
+        volumesProperties: [{ properties: {} }, { properties: { opacity: 0.25 } }],
+        orientation,
+        initialViewReference,
+      });
 
-    expect(mountOptionsOf(viewport, 0)).toEqual(
-      expect.objectContaining({ role: 'source', initialImageIdIndex: 2 })
-    );
-    expect(mountOptionsOf(viewport, 1).initialImageIdIndex).toBeUndefined();
-  });
+      expect(mountOptionsOf(viewport, 0)).toEqual(
+        expect.objectContaining({ role: 'source', orientation, initialViewReference })
+      );
+      expect(mountOptionsOf(viewport, 0).initialImageIdIndex).toBeUndefined();
+      expect(mountOptionsOf(viewport, 1).initialViewReference).toBeUndefined();
+    }
+  );
 
-  it('mounts the source on its default slice when the image of the position is not one of its images', async () => {
+  it('mounts the source of a planar volume on its default slice without a view reference', async () => {
     const viewport = makeViewport('mpr-axial');
 
-    await mountVolumeOf(viewport, { sourceImageId: 'image-of-another-series' });
+    await mountVolumeOf(viewport);
 
+    expect(mountOptionsOf(viewport).initialViewReference).toBeUndefined();
     expect(mountOptionsOf(viewport).initialImageIdIndex).toBeUndefined();
+  });
+
+  it('gives a 3D mount no view reference to start at', async () => {
+    const viewport = makeViewport('volume3d', Enums.ViewportType.VOLUME_3D);
+
+    await mountVolumeOf(viewport, {
+      initialViewReference: { FrameOfReferenceUID: 'frame-of-reference' },
+    });
+
+    expect(mountOptionsOf(viewport).initialViewReference).toBeUndefined();
   });
 
   it('keeps the defaults of a display set whose stored appearance has no override, after a reset', async () => {

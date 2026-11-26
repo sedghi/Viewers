@@ -51,6 +51,29 @@ export function setPositionPresentation(
 }
 
 /**
+ * A stored position without its view reference when the viewport shows that
+ * reference already, as after a mount that started at it: only the framing
+ * is left to give back, and the view is not set a second time. A reference
+ * that the viewport does not show stays, so that `setPositionPresentation`
+ * applies it as before (a mount that could not start at it).
+ */
+export function withoutShownViewReference(
+  viewport: Types.IViewport,
+  positionPresentation?: PositionPresentation
+): PositionPresentation | undefined {
+  const viewRef = positionPresentation?.viewReference;
+  if (
+    !viewRef ||
+    viewport.type === csEnums.ViewportType.VOLUME_3D ||
+    !viewport.isReferenceViewable(viewRef)
+  ) {
+    return positionPresentation;
+  }
+
+  return { ...positionPresentation, viewReference: undefined };
+}
+
+/**
  * What a user set on the appearance of each display set that the viewport
  * shows (the overrides of `getDisplaySetAppearance`), by its UID. A window
  * that comes from the data is not an override, so it is not stored and a

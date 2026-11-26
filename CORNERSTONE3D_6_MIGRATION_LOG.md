@@ -14,7 +14,7 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (26 November, tasks O9 to O16)
+## Summary (26 November, tasks O9 to O17)
 
 The state of every entry today, on the branch at `2bbed3c040` (task O11) and the
 Cornerstone3D link at `472d908e8`. Task O9 checked the entries on the Cornerstone3D link
@@ -51,6 +51,20 @@ camera of a video and an ECG through a panel and a layout change, the CPU canvas
 panel drag (no blank frame), the cuts of an RTSTRUCT with one worker, the scroll of a stack
 with a SEG, a tilted series and the 3D points of an SR, and found M85 and M86 in
 Cornerstone3D.
+Task O17 (26 November) moved the link to `610c47210` (lane FX17: an overlay of a streaming
+volume shows no copy of another slice, the mount option `initialViewReference`, six small
+rows; and the offset of a 3D tile). Before any edit jest (180 suites, 2,047 tests), the
+type check (no new error), the build and the lint budget passed, and the Playwright suite
+gave 249 passed, 3 failed (the three pictures of M89, nothing else), 4 skipped. It named
+every part of the three pictures of M89 and replaced their baselines (two parts are the
+slice grid of FX14, one the cuts of M79, two are pictures where the branch is right and
+the old baseline wrong), checked M83 in the viewer against `master` and closed it, started
+the source of every volume mount at its stored view reference with the new option, and
+the panes that mount into a placed camera position group at the position of the group
+(M93), and found M90 (a gap: nothing to wait on for the cuts of an RTSTRUCT), M91 (a
+Cornerstone3D defect: a mount refuses a reference beyond the slices of the acquisition
+plane) and M92 (an OHIF behaviour, also on `master`: loading an RTSTRUCT into an MPR pane
+takes it to its default slice).
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -139,31 +153,37 @@ not a defect.
 | M80 | A PET added from the data overlay menu tints the pane more than on `master` | OHIF | fixed in task O15 (`3aee48d6fe`): `OVERLAY_OPACITY` 0.25, the owner's choice; 0.08% of the pixels differ from `master` |
 | M81 | The opacity slider of a TMTV fusion starts at 100% while its PET is drawn at 25% at most | OHIF | fixed in task O15 (`3aee48d6fe`): the ramp is the shape, `opacity` 0.2501 the level; the slider starts at 25% |
 | M82 | The thumbnails of the CT and the SCOUT are blown out | Cornerstone | the owner's thumbnails: decided, they are JPEG files of the test data, the same on `master`; found on the way: `loadImageToCanvas` drew black on the tiled engine (`sx`, `sy` of a planar viewport): fixed in cornerstone `2810086ec` (FX14), checked in task O16 (the 23 series as `master`) |
-| M83 | A PET added as a data overlay shows the wrong slice for about a second | OHIF + Cornerstone | OHIF part fixed in task O15 (`3aee48d6fe`): the source volume mounts on the slice of the pane; open for cornerstone: an overlay is drawn from the copies of other slices while it streams (`master` too, 0.6 s) |
+| M83 | A PET added as a data overlay shows the wrong slice for about a second | OHIF + Cornerstone | fixed: OHIF part in task O15 (`3aee48d6fe`), its start moved to `initialViewReference` in task O17 (not committed yet); Cornerstone part in `9a329a5fa` (FX17), checked in task O17: the PET layer is empty until its own frame, then the right slice, never another (three runs; `master` shows a copy from 27 slices away for 0.5 to 1.0 s) |
 | M84 | The panes of a TMTV sync group open on the slice of the pane that mounts last | OHIF + Cornerstone | Cornerstone part (the default slice) in `2810086ec` (FX14); OHIF part fixed in task O16 (not committed yet): a pane does not drive its group while it mounts and goes to the slice of the finest grid; the resize writes only the framing |
 | M85 | A zoom or a resize of a PET pane moves the CT panes of its sync group to the centre of the PET slice | Cornerstone | open, waits for cornerstone: the camera sync carries the centre of the source's slice |
 | M86 | The panes of a camera position sync group show one zoom against the fit, not one scale | Cornerstone | open, waits for cornerstone (to decide): the PET pane of TMTV draws the body 17% smaller than the CT pane |
 | M87 | A click on a segment does not move a stack to it | OHIF | fixed in task O16 (not committed yet): `navigatePlanarViewportToPoint` |
 | M88 | The Reset button keeps the slice of a volume pane | OHIF | fixed in task O16 (not committed yet): the middle slice, all panes of the crosshairs |
-| M89 | Three pictures change on the link `2810086ec` for a reason not found | Cause not found | open: the baselines are not replaced |
+| M89 | Three pictures change on the link `2810086ec` for a reason not found | Cause not found | closed in task O17 (not committed yet): every part named (the slice grid of FX14, the cuts of M79, two pictures where the branch is right and the baseline wrong); the baselines replaced |
+| M90 | A test cannot wait for the cuts of an RTSTRUCT in the other MPR planes | Cornerstone | open, waits for cornerstone (a gap): `contourDisplay` drops the promise of `updateContourCuts`, no event says the cut is complete |
+| M91 | A sagittal or coronal mount refuses an `initialViewReference` beyond the slices of the acquisition plane | Cornerstone | open, waits for cornerstone: the slice index is checked against the 262 axial slices, not the 512 of the view |
+| M92 | Loading an RTSTRUCT into an MPR pane takes the pane to its default slice, on `master` too | OHIF | open (also on `master`): the RT viewport's position is a stack hint, the pane's own position is not kept |
+| M93 | A pane mounts at its position: `initialViewReference` in the mounts | work | done in task O17 (not committed yet): every volume mount starts at its stored view reference, a pane mounting into a placed camera group at the group's position |
 
-**The count.** 89 entries; 8 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69), so the upgrade met **81 problems**:
+**The count.** 93 entries; 9 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69, M93), so the upgrade met **84 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 34 | 32, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13; M82 in `2810086ec`, checked in task O16) | 2: M85 (the camera sync carries the centre of the source's slice), M86 (the camera sync carries the zoom against the fit, not the scale) | |
-| OHIF (30 in its code, 6 in its tests) | 36 | 34 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`; M80 and M81 in `3aee48d6fe`; M87 and M88 in task O16, not committed yet) | | 1: M19 |
-| Both | 10 | 5 (M11, M13, M42, M43; M84: the Cornerstone part in `2810086ec`, the OHIF part in task O16, not committed yet); the OHIF part of M10, M16, M27 and M83 (M83 in `3aee48d6fe`) | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) and of M83 (an overlay drawn from the copies of other slices while it streams) | |
-| Cause not found | 2 (M50, M89) | M50 closed by measurement in task O9 | M89: three pictures (task O16) | |
+| Cornerstone3D (the library, its codemod or its guide) | 36 | 32, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13; M82 in `2810086ec`, checked in task O16) | 4: M85 (the camera sync carries the centre of the source's slice), M86 (the camera sync carries the zoom against the fit, not the scale), M90 (nothing to wait on for the cuts of a contour segmentation), M91 (a mount refuses a reference beyond the slices of the acquisition plane) | |
+| OHIF (30 in its code, 6 in its tests) | 36 | 34 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`; M80 and M81 in `3aee48d6fe`; M87 and M88 in task O16, not committed yet) | 1: M92 (an RTSTRUCT load takes an MPR pane to its default slice, also on `master`) | 1: M19 |
+| Both | 10 | 6 (M11, M13, M42, M43; M84: the Cornerstone part in `2810086ec`, the OHIF part in task O16, not committed yet; M83: the OHIF part in `3aee48d6fe` and task O17, the Cornerstone part in `9a329a5fa`, checked in task O17); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
+| Cause not found | 2 (M50, M89) | M50 closed by measurement in task O9; M89 closed in task O17 (every part named) | | |
 
-Open today: **M14** (waits for the owner: the Playwright run in CI), the Cornerstone part
-of **M83** (a streaming overlay drawn from the copies of other slices), two defects of
+Open today: **M14** (waits for the owner: the Playwright run in CI), two defects of
 Cornerstone3D found in task O16, **M85** (a camera change of a PET pane moves the CT panes
 of its sync group to the centre of the PET slice) and **M86** (the panes of a sync group
-show one zoom against the fit, not one scale), **M89** (three pictures whose change has a
-part without a named cause), and three small asks of Cornerstone3D in M10, M16 and M27
-whose OHIF part is done.
+show one zoom against the fit, not one scale), two found in task O17, **M90** (a gap:
+nothing says that the cuts of a contour segmentation are drawn) and **M91** (a sagittal or
+coronal mount refuses a stored reference beyond the slices of the acquisition plane), one
+of OHIF found in task O17 and present on `master`, **M92** (loading an RTSTRUCT into an MPR
+pane takes it to its default slice), and three small asks of Cornerstone3D in M10, M16 and
+M27 whose OHIF part is done.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
 
@@ -635,6 +655,7 @@ whose OHIF part is done.
 | `ZoomIn.spec.ts` | should render the magnified region with the same horizontal flip as the source viewport | passes (M25) | picture differs (0.94) | picture differs (0.94) | throws: Unsupported viewport type |
 - **State today (task O9):** on this Mac every spec passes on the link at `735fc811e` (task O9); the run in CI is open, waits for the owner (open point 2 of the plan).
 - **Task O12, link at `472d908e8`:** 245 passed, 0 failed, 0 flaky, 4 skipped (7.2 min, 6 workers, `TEST_ENV=true`); the two expected failures (`test.fail`) failed as expected; no baseline changed. The two whole slide specs do not wait for `rendered` (their `visitStudy` waits for the network), so M48 does not change their time: `WSI` 8.0 s on the old link, 7.8 s now; `MicroscopyPanel` 8.1 s, 8.6 s.
+- **Task O17, link at `610c47210`:** before its changes 249 passed, 3 failed (the three pictures of M89), 4 skipped (7.5 min); after them 254 passed, 0 failed, 0 flaky, 4 skipped (7.5 min, 6 workers, `TEST_ENV=true`, 258 tests with the 2 of `MPRPaneMountsAtStoredPosition.spec.ts`); the three expected failures (`test.fail`: `ContourSegmentRename`, `UndoRedoSegmentation`, and the M91 case of the new spec) failed as expected; 3 baselines replaced by the owner's exception (M89, lane O17 `baselines/LIST.md`).
 
 ## M15. An optional call of a legacy member fails without a sign
 
@@ -3671,8 +3692,30 @@ whose OHIF part is done.
     in another orientation (an overlay given to a sagittal pane of an MPR) has no start,
     so a position set after the mount shows one frame of the middle first. A mount option
     for a view reference would close it.
-- **State:** the OHIF part fixed in task O15 (not committed yet); the overlay drawn from
-  copies of other slices open, waits for cornerstone.
+- **Fix, in cornerstone (done):** `9a329a5fa` (lane FX17): an overlay of a streaming
+  volume draws nothing where its plane reads a frame that holds a copy of another frame,
+  until the frame of its own position arrives; a source keeps the copies as its coarse
+  preview (`2-rendering-changes.md`, "An overlay of a streaming volume shows no copy of
+  another slice"). The same commit added the mount option `initialViewReference`, which
+  now starts the source of OHIF's volume mounts in any orientation (M93).
+- **Checked (lane O17, the link `610c47210`, O15's recording, `cases/overlayslice/jump40`,
+  three runs on each side, `master` served on port 3336):**
+
+  | | branch | `master` |
+  |---|---|---|
+  | the CT | on slice 40 in every state, never another slice | on slice 40; the pane blank at about 150 ms (the remount) |
+  | the PET layer until its own frame | nothing: the picture is the CT alone until 673, 692, 694 ms | a copy of the frame 27 slices away from 558, 551, 526 ms (15.4% of the pixels off the settled picture), then of a frame 2 away (5.9%) |
+  | first picture of the PET on the right slice | 991, 956, 984 ms (the settled picture; the page's poll is blocked between about 690 and 960 ms, so the moment lies in that span) | 1,552, 1,379, 997 ms |
+  | pictures of another PET slice | 0 | 12, 11, 5 |
+  | all 135 frames of the PET, as this overlay (the CT volume loads with it) | 2,084, 1,579, 1,894 ms | 2,226, 1,926, 1,519 ms |
+  | all 135 frames of the PET as the source of a volume pane (`cases/petsource`) | first frame 188, 168, 190 ms; all 551, 553, 501 ms | 137, 138, 142 ms; all 851, 745, 809 ms |
+
+  OHIF's interleaved retrieve stages still copy each loaded frame into its neighbours
+  (lane FX18 measures that cost in Cornerstone3D); this task changed no stage.
+- **State:** fixed: the Cornerstone part in `9a329a5fa` (FX17), checked in task O17; the
+  OHIF part in task O15 (`3aee48d6fe`), its mount start moved to `initialViewReference` in
+  task O17 (M93, not committed yet). Vikunja 58: the overlay part is done; the mount at a
+  stored position beyond the slices of the acquisition plane waits for M91.
 
 ## M84. The panes of a TMTV sync group open on the slice of the pane that mounts last
 
@@ -3890,4 +3933,203 @@ whose OHIF part is done.
 - **Fix:** none; the baselines are not replaced. The new pictures, the old ones and the
   difference images are in lane O16's `cases/rt-candidate`, `cases/unrefseg-candidate` and
   `cases/seghydration-candidate`.
-- **State:** open, cause not found.
+- **Every part named (lane O17, the link `610c47210`; the pictures of the branch are byte
+  for byte those of O16's candidates):**
+  - `RTHydrationFromMPR` (`cases/rtload`): the axial pane is 20,006 of the 24,538 pixels.
+    At the RTSTRUCT load both sides mount the pane again without its position (M92: a pane
+    scrolled to slice 100 jumps to the middle on both sides), so each lands on its library's
+    default slice: `master` on the volume-order middle of 5.18.3 (z -52, view slice 130), the
+    branch on the view-order middle of 6.0 (z -53, slice 131), the slice grid of FX14 (row
+    260); the old link had the volume-order middle as its default, so its picture matched.
+    The view reference of the pane named `.136` (z -53) before the load on both sides, so
+    `master`'s move is no reference to a wrong image, and slices 130 and 131 hold contours of
+    the same 10 structures, so it is no move to a slice with contours. The sagittal and
+    coronal panes are the cuts of M79 (4,532 pixels, 1.0%, under the 2% of the compare: not
+    why the spec failed; FX16's single worker changed nothing here). A test has nothing to
+    wait on for the cuts: M90.
+  - `SEGDataOverlayForUnreferencedDisplaySetNoHydration` (`cases/unrefframe`,
+    `cases/unreflayers`): the top right pane (30,120 pixels) is the default slice of FX14;
+    the top left (404 pixels at the threshold of the test, 4,469 with a channel off by more
+    than 16) is no choice of a labelmap image: the ADC pane is a volume pane on both sides
+    (the stack map of FX16 and the pairing of FX17 do not take part), and both draw the
+    labelmap plane nearest to the ADC slice (k = 14 of the T2 grid, 1.30 mm from the focal
+    point, within half of its 3.5 mm). On that plane segment 2 (peripheral zone) has 1,922
+    voxels, 1,544 of them inside segment 4 (prostate): the branch keeps overlapping segments
+    in three labelmap layers and draws all 1,922; `master` merges them into one labelmap
+    volume in which segment 4 overwrote the overlap and draws 378. The branch is right.
+  - `SEGHydrationFromMPR` (`cases/seghydr`, `cases/seghydr-baselines`): the axial and the
+    coronal pane are the oblique grid of FX14. The old baseline was not `master`'s: it is
+    the branch's own picture of 21 November (M36, package U4, `e5881fc1a7`), whose sagittal
+    pane has a sampling artefact (dark speckles, mean 22.27). Today's sagittal pane matches
+    `master`'s original baseline to 183 pixels (mean 24.19 against 24.16) and live `master`
+    to 44; its render plan (the CPU cuts the slice, the GPU draws it, linear), its window
+    ([-29.5, 658.5]) and its view (view up [0, 0, 1], rotation 0) do not change through the
+    SEG hydration and the layout change. The branch is right.
+- **Fix (task O17):** the three baselines are replaced under the owner's exception (lane
+  O17 `baselines/LIST.md`, old, new, difference and side by side); the three specs pass
+  twice each.
+- **State:** closed in task O17 (not committed yet): every part has a named cause.
+
+## M90. A test cannot wait for the cuts of an RTSTRUCT in the other MPR planes
+
+- **Seen (lane O17, Part 2 of its task):** `RTHydrationFromMPR.spec.ts` takes its last
+  picture (`mprAfterRTHydratedAfterLayoutChange`) while the sagittal and the coronal panes
+  may still be receiving the cuts of the contours (M79: one polySeg worker since FX16, the
+  first cut about 2.6 s and the last about 6.3 s after the hydration in O16's measure). The
+  spec waits for fixed times and for the retries of the picture compare.
+- **Measured:** the cuts are not why the spec failed on the link `2810086ec`: in the failing
+  picture they make 4,532 of its 24,538 differing pixels (sagittal 2,221, coronal 2,311,
+  1.0% of the picture, under the 2% that the compare allows); the axial pane makes 20,006
+  (M89). The picture of the last attempt of the compare has every cut: two runs of two
+  lanes give the same 24,538 pixels, byte for byte.
+- **What a test could wait on, read in Cornerstone3D (`610c47210`):** nothing.
+  `updateContourCuts` (`tools/displayTools/Contour/contourCuts.ts`) returns a promise that
+  resolves when the cut of the plane of a viewport is drawn, and `contourDisplay.ts`
+  drops it (`updateContourCuts(viewport, segmentationId);`, line 114).
+  `SEGMENTATION_RENDERED` fires when the render function of the representation resolves,
+  before the cuts. `ANNOTATION_RENDERED` fires after each batch of cuts (FX16), so no one
+  of them says that it is the last. The surfaces of the segments go into the cache of
+  geometries only, not into the `representationData` of the segmentation, and the web
+  worker manager has no state of its queue.
+- **Fix, in OHIF:** none (rule 3); the spec keeps its waits. Its picture does not depend
+  on how many cuts are drawn when it is taken (1.0% for all of them).
+- **Fix, in cornerstone (proposal):** `contourDisplay` keeps the promise of
+  `updateContourCuts` and fires an event when the cut of the plane of a viewport has every
+  segment, for example `SEGMENTATION_RENDERED` again with `{ viewportId, segmentationId,
+  type: 'Contour', contourCutsComplete: true }`, or a new `CONTOUR_CUTS_RENDERED` with the
+  same detail; or a public `segmentation.getContourCutsReady(viewportId, segmentationId):
+  Promise<void>` over the same promise. A test (and an application that shows a progress
+  bar) then waits for the state, not for a time.
+- **State:** open, waits for cornerstone (a gap, not a defect).
+
+## M91. A sagittal or coronal mount refuses an `initialViewReference` whose slice index is beyond the slices of the acquisition plane
+
+- **Seen (lane O17, the state test of Part 3, `tests/MPRPaneMountsAtStoredPosition.spec.ts`):**
+  the MPR layout of the CT of study `...1493322302363.3.0` (512 x 512 x 262, axial), the
+  sagittal and the coronal pane put on a slice, the layout left (1 x 1) and taken again:
+  each pane mounts with `initialViewReference` set to its stored view reference
+  (M93). A sagittal pane stored on slice 100 and a coronal pane on slice 200 start there (one
+  `NEW_IMAGE` of that slice, no other). A sagittal pane on slice 300 and a coronal pane on
+  400 do not: Cornerstone3D logs `[PlanarViewport] The initialViewReference of the mount is
+  not viewable in this viewport, so the mount shows its default slice`, the pane reports
+  `NEW_IMAGE` of slice 256 and then OHIF's replay of the position after the mount takes it
+  to 300 and 400 (`cases/storedmount/branch/run-after1.json`, `run-sag300cor200.json`). The
+  same reference is viewable with navigation on the mounted pane
+  (`isReferenceViewable(ref, { withNavigation: true })` is true on slices 100, 300 and 400,
+  `cases/refviewable`).
+- **Why (Cornerstone3D, read at `610c47210`):** `PlanarViewport.applyInitialViewReference`
+  (`beforeFirstViewState`) asks `isReferenceViewable(viewRef, { withNavigation: true })`
+  before the view state of the mount is in place; `isSliceIndexCompatible`
+  (`viewReferenceCompatibility.ts`) then checks the `sliceIndex` of the reference against
+  `context.numberOfSlices`, which at that moment counts the slices of the acquisition plane
+  (262), not those of the orientation of the mount (512). Every view reference read from a
+  volume pane carries its `sliceIndex`, so a stored position beyond slice 261 of a sagittal
+  or coronal pane of this CT starts on the default slice first.
+- **The smallest case, Cornerstone3D only:** a planar viewport, a CT volume of 512 x 512 x
+  262 axial slices, mounted sagittal; `utilities.jumpToSlice(element, { imageIndex: 300 })`;
+  `const ref = viewport.getViewReference()`; a second planar viewport:
+  `setDisplaySets({ displaySetId: ct, options: { mode: 'volume', orientation: 'sagittal',
+  initialViewReference: ref } })`. Expected: the first `NEW_IMAGE` and the first frame are
+  of slice 300. Actual: the warning, `NEW_IMAGE` of 256. With slice 100 it starts on 100.
+- **Fix, in OHIF:** none (rule 3); OHIF gives the stored reference as it is and, after the
+  mount, sets it again only when the pane does not show it (so the pane still ends on its
+  slice, one frame late). The case beyond the acquisition count is in the Playwright test
+  as `test.fail` (`... beyond the slices of the acquisition plane (M91)`).
+- **Fix, in cornerstone:** to do: check the reference against the slices of the
+  orientation that the mount shows (the view state of the mount in place, or the slice
+  basis of its orientation), as `isReferenceViewable` does on the mounted viewport.
+- **State:** open, waits for cornerstone.
+
+## M92. Loading an RTSTRUCT into an MPR pane takes the pane to its default slice, on `master` too
+
+- **Seen (lane O17, Part 2, `cases/rtload`):** the MPR layout of study
+  `...1493322302363.3.0`, the axial pane on slice 131 (the `'middle'` preset of OHIF's MPR
+  protocol, z -53, image `.136`), the RTSTRUCT loaded from the study browser: `master` goes
+  to slice 130 (z -52, image `.135`), the branch stays on 131. With the axial pane scrolled
+  to slice 100 first (z -22), `master` goes to 130 and the branch to 131: both sides drop
+  the slice the user was on (`run-scroll100.json`). Slices 130 and 131 hold contours of the
+  same 10 structures (BODY, Brain, Brain Stem, EVAL50, INNER, MID, OUTER, PRV5mm-Neural,
+  Skin, optBRAIN; the structures on z -50 to -55).
+- **Why (OHIF, both sides):** the load mounts the pane again with the RTSTRUCT viewport,
+  whose position presentation is `{ viewportType: 'stack', viewReference: {
+  referencedImageId: <first segmented slice> } }` (`OHIFCornerstoneRTViewport.tsx`), meant
+  for a stack. A volume pane does not take a reference that names only an image (M30, and
+  O15's rule for the mount start), and the position of the pane before the load is stored
+  under another presentation id (its display sets change), so the pane lands on the default
+  slice of the library: on `master` the new `VolumeViewport` resets to the volume-order
+  middle of 5.18.3 (k = 131 of 262, z -52, view slice 130; the hooks show `resetCamera` from
+  `setVolumes` and no `setViewReference`), on the branch the view-order middle of 6.0 (131,
+  z -53). The branch's 131 is the slice of the `'middle'` preset only by coincidence. The
+  move on `master` is therefore neither a move to a slice with contours nor a reference to
+  a wrong image: it is the reset of a re-created viewport.
+- **Fix, in OHIF:** to do (not in the task of lane O17; the same on `master`): the RT and
+  SEG viewports of a volume pane keep the position of the pane they replace (the view
+  reference of the referenced display set's position, as `updateStoredPositionPresentation`
+  stores it for a hydration), and give the first segmented slice only to a stack.
+- **State:** open (OHIF, also on `master`).
+
+## M93. A pane mounts at its position: `initialViewReference` in the mounts (task O17, Vikunja 58)
+
+- **What:** Cornerstone3D `9a329a5fa` (lane FX17) added the planar mount option
+  `initialViewReference`: the source starts at a view reference in any orientation, before
+  its first frame and its first `NEW_IMAGE`. Task O15 had started the source of a volume
+  mount at the image of the stored position with `initialImageIdIndex` (M83), which
+  Cornerstone3D reads only in the acquisition plane, so a sagittal or coronal pane coming
+  back to a stored position reported its middle slice first and was then moved there
+  (`NEW_IMAGE` 256, then 100 and 400 in the state test below on the committed `080428db4f`).
+- **Change, in OHIF:**
+  - `viewportMounts.ts`: `VolumeMountContext.initialViewReference` replaces `sourceImageId`;
+    `mountVolumes` gives it to the source entry as `initialViewReference` (no more
+    `initialImageIdIndex` from the image ids), in every orientation; a 3D mount takes none.
+  - `CornerstoneViewportService.ts`: `getPositionViewReference` (was
+    `getPositionImageId`) gives the whole view reference of the position presentation, with
+    O15's guard: only a reference that names its `FrameOfReferenceUID`. The guard stays
+    needed: the bare `{ referencedImageId }` of the RT and SEG viewports names an image of
+    the volume, which a mount with navigation would take (slice 15 of the RTSTRUCT's CT, as
+    O15 saw); it is the stack hint of M92, not a view of the pane.
+  - The replay after the mount: `withoutShownViewReference` (`viewportPresentations.ts`)
+    drops the view reference of a stored position when the pane already shows it (the mount
+    started at it), so only the framing (and the segmentation presentation) is given back;
+    a reference the mount could not take is set as before. This holds for stack mounts too,
+    whose start was already the image of the reference (OHIF's own index, kept: a stack
+    has no orientation, and passing the reference as well would move the index lookup into
+    Cornerstone3D and add its warning for references of other data).
+  - Camera position groups (`cameraPositionGroups.ts`): a pane that mounts into a group
+    whose panes are placed, and ranks after them, starts at the point and the plane of the
+    group (`getCameraPositionGroupStart`, the step of its grid from its volumes before the
+    mount, `getMountSliceStep`, the l1 voxel thickness of
+    `utilities.voxelSlab.getVoxelThicknessAlongNormal`, Cornerstone3D's default
+    `sliceStepMeasure`, which OHIF keeps) and skips the jump to the initial image of its
+    hanging protocol; a placed pane already on the plane of the group is not moved again.
+- **What the group start cannot do:** the load of a mode. The panes of a group mount at the
+  same time: each `setVolumesForViewport` starts before any pane of its group is placed, so
+  at the start of the PET's mount there is no position of the group yet (TMTV, three loads
+  before and after, `cases/tmtvframes-{before,after}`: the same sequences, `ptSAGITTAL`
+  reports its slice 64 and then 63, `fusionAXIAL` draws 67 and then 0, `ctAXIAL` and
+  `ptAXIAL` report 67 before their `'first'` preset; 82 to 141 frames per pane, no
+  difference). Starting every pane of a load at the position of its group would need the
+  initial slice of the finest pane before its mount (its default slice point: the slice
+  grid of `utilities/volumeSliceGrid.ts` is not exported, nor `getSliceStepAlongNormal`,
+  which picks the configured measure), or mounts of a group in series. Where a pane mounts
+  into a placed group (a PET NAC dropped into the PET sagittal pane after the load,
+  `cases/tmtvdrop-{before,after}`, three runs each): before, `NEW_IMAGE` of 64 (x 2.344)
+  then 63 (x 0); now only 63. A volume mount still jumps to the initial image of its hanging
+  protocol after the mount when it does not start at a position (a slice index reference of
+  a volume needs its volume id and the normal of its view, and `'last'` the slice count).
+- **Checks:** jest: `viewportMounts.test.ts` (the source of an axial, a sagittal and a
+  coronal mount starts at the reference, an overlay at none; no reference, no start; a 3D
+  mount takes none), `CornerstoneViewportService.test.ts` (the mount gets the whole
+  reference; not the bare image; no second `setViewReference` after a mount that started at
+  it, the framing given back; a reference the mount could not take is set after it; the same
+  for a stack), `cameraPositionGroups.test.ts` (the start of a coarser pane and of a pane of
+  the same grid later in the layout is the CT's point and plane; none for the first pane or
+  a finer one; four mount orders put every pane on the CT's slice with no move after the
+  mount, except the PET placed before the CT; the service starts the PET at the group and
+  neither jumps nor moves it): 15 failed on the base (`jest-failfirst-part3.log`), the 6
+  suites of `ViewportService` pass after (96 tests). Playwright
+  `tests/MPRPaneMountsAtStoredPosition.spec.ts` (new): every `NEW_IMAGE` and drawn frame of
+  the sagittal and the coronal pane, from their mount at a stored position, is of the stored
+  slice; it failed on the committed `080428db4f` served on port 3335 (`NEW_IMAGE` 256 first,
+  `pw-failfirst-stored.log`) and passes now; its second case (slices beyond the axial count)
+  is `test.fail` for M91.
+- **State:** done in task O17 (not committed yet).

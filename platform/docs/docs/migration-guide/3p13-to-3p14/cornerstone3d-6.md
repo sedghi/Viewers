@@ -103,7 +103,13 @@ guide.
 - The panes of one camera position sync group (the axial, the sagittal and the
   coronal panes of TMTV) open on the slice of the CT, whatever the order in
   which their volumes load; a PET pane shows its slice nearest to it, as in
-  3.13.
+  3.13. A series dropped into one pane of a group whose panes already show a
+  slice opens on the slice of the group, with no other slice first.
+- A PET (or another volume) added over a pane from the data overlay menu shows
+  nothing on the slice of the pane until its own image of that slice has
+  loaded, and then that image. 3.13 first showed a copy of another slice of the
+  PET (up to 27 slices away, then a neighbour) for half a second to a second
+  while the PET loaded.
 - A 3D point of an SR (`SCOORD3D`) shows on no image of a stack, as in 3.13; a
   jump to it from the measurement panel shows it in a volume.
 
@@ -443,6 +449,24 @@ its direction, zoom and pan. The stores are kept in memory only; nothing
 stored by 3.13 is read. Code that writes a position presentation, as the SEG,
 RTSTRUCT and SR viewports do, gives `viewReference` and, if it wants a framing,
 `viewFraming`; drop `viewPresentation`.
+
+A volume viewport that comes back with a stored position starts its source at
+the stored view reference (the mount option `initialViewReference` of
+Cornerstone3D), in any orientation: its first frame and its first `NEW_IMAGE`
+are of that slice, not of the middle slice, and after the mount only the
+framing is given back, so no second `setViewReference` (and no
+`CAMERA_MODIFIED` of it) follows. A stack starts on the image of the view
+reference, as before, with the same single replay of the framing. A reference
+that names only an image, such as the first segmented slice that an RTSTRUCT
+or SEG viewport stores for a stack, does not start a volume. Code that mounts a
+volume itself can do the same:
+
+```js
+await viewport.setDisplaySets({
+  displaySetId: displaySet.displaySetInstanceUID,
+  options: { mode: 'volume', orientation, role: 'source', initialViewReference: viewReference },
+});
+```
 
 A resize (a panel that opens or closes, the window, a layout change of the
 same viewport) writes back only the framing: the slice and the orientation
