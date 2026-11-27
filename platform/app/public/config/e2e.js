@@ -31,6 +31,15 @@ window.config = {
   showWarningMessageForCrossOrigin: false,
   showCPUFallbackMessage: false,
   strictZSpacingForVolumeViewport: true,
+  // The deployed viewer's limits (config/default.js). With the default of 5
+  // prefetch requests a volume from the remote `ohif` source (HTTP/2) loads
+  // at 5 frames per round trip; the local static source is bound by the
+  // decode workers either way.
+  maxNumRequests: {
+    interaction: 100,
+    thumbnail: 5,
+    prefetch: 25,
+  },
   // Lossy downsampling for the tests and the deploy previews. `final` reduces
   // a volume texture to fit the `cornerstone.gpuSettingsPreset` below.
   // config/default.js keeps final downsampling off.
@@ -206,6 +215,9 @@ window.config = {
           relativeResolution: 'studies',
           transform: url => url.replace('/pixeldata.mp4', '/rendered'),
         },
+        // A quoted Accept header is not CORS-safelisted: every frame from this
+        // other origin would wait for its own preflight round trip.
+        omitQuotationForMultipartRequest: true,
       },
     },
 

@@ -113,6 +113,16 @@ guide.
   than the fit of the fusion pane that 3.13 gave the group. A zoom, a pan or a
   resize of one pane moves no slice of another pane; a scroll moves the panes
   of the group to their slice nearest to the new position.
+- While the series of the TMTV panes load, a pane draws what has arrived at
+  most every 100 ms, and only when its own picture changed: an axial pane draws
+  its slice once that image has arrived (3 or 4 draws in the whole load), a
+  sagittal or coronal pane fills band by band at that pace, and the MIP fills as
+  the PET arrives; about 60 draws for the ten panes where 3.13 made about 670.
+  The first rows of a sagittal or coronal pane show about 0.2 s later than in
+  3.13; the load ends sooner. Only the MIP keeps a volume on the GPU (the PET,
+  as a 3D texture); the other nine panes draw a 2D picture of their slice, taken
+  from the images that have arrived. On the study "LUNG DELAYS" the panes hold
+  16 MB of textures, where 3.13 kept the CT and the PET as 3D textures (81 MB).
 - An RTSTRUCT or a SEG loaded into a pane of an MPR keeps the slice, the zoom
   and the pan of the pane, through the load and through its hydration. 3.13
   took the pane to the middle of the volume at the load. Loaded into a stack,
