@@ -102,6 +102,16 @@ against 81 MB on `master`. Jest gives 181 suites and 2,086 tests passed, the typ
 new error outside the test-runner globals of its new test file, the build and the lint
 budget pass, and the Playwright suite 257 passed, 0 failed, 4 skipped (6.5 min, from
 7.8: the studies of the fixtures load from the `ohif` source); no baseline is replaced.
+Task O23 (27 November, the orchestrator) moved the link to `7d88798af` (lanes FX26 and
+FX27: a point is near the image of a stack up to half the distance to the next image,
+one size rule for every canvas of a pane, a pane that mounts into a zoom and pan group
+takes the group's zoom and pan, nothing is compiled at the first slice of a volume pane)
+and ran jest (182 suites, 2,096 tests), the lint budget and the Playwright suite (257
+passed, 0 failed, 4 skipped) on it with no change in OHIF, and the TMTV benchmark on
+production builds (20 loads each, medians): every volume loaded at 1,526 ms against
+`master`'s 1,663 and 1,550 on the link before; the first picture at 1,030 ms against
+1,032 and 1,028; 58 frames drawn against 278 and 64; long tasks 417 ms against 392 and
+379 (means 405, 386 and 399).
 Task O22 (27 November, the orchestrator) moved the link to `5fdf0caf3` (lane FX25: a pane
 samples nothing until a frame of its plane has arrived, `init()` opens one WebGL context)
 and ran jest (182 suites, 2,096 tests), the lint budget and the Playwright suite (257
