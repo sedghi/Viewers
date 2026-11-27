@@ -4417,10 +4417,10 @@ decision of task O18 that the owner may want to take otherwise.
   against 716 ms. The first render after the first frame arrived: 1,169 against 1,124
   ms in production (the first frame is in the cache 23 ms later, the branch draws it at
   the next frame).
-- **State:** open, waits for cornerstone: the first picture is 18 ms later in production
-  and 39 ms in dev, held by the mount of Cornerstone3D (M99) and its init (M100), and by
-  `master` drawing before seven of its ten panes have a volume. Every other number of the
-  load is equal to or better than `master`'s.
+- **State after task O21:** the first picture 18 ms later in production and 39 ms in dev,
+  held by the mount of Cornerstone3D (M99) and its init (M100), and by `master` drawing
+  before seven of its ten panes have a volume; every other number of the load equal to or
+  better than `master`'s. Closed in task O22, see above.
 
 ## M95. The resize keeps its replay of the framing (task O18)
 
