@@ -1,4 +1,4 @@
-import { utilities } from '@cornerstonejs/core';
+import { cache, getConfiguration, setConfiguration, utilities } from '@cornerstonejs/core';
 import type { PlanarViewport } from '@cornerstonejs/core';
 import type { Synchronizer } from '@cornerstonejs/tools';
 import CornerstoneViewportService from './CornerstoneViewportService';
@@ -588,6 +588,58 @@ describe('the panes of a camera position group that mount together start before 
       GRIDS['ct-image'].getViewReference(256)
     );
     expect(getCameraPositionGroupInitialStart('unknown', members)).toBeUndefined();
+  });
+
+  describe('with the volumes in the cache', () => {
+    let volumes: Record<string, object>;
+
+    beforeEach(() => {
+      volumes = { 'volume-ct-image': {}, 'volume-pt-image': {} };
+      jest.spyOn(cache, 'getVolume').mockImplementation(volumeId => volumes[volumeId] as never);
+      (utilities.getVolumeSliceGrid as jest.Mock).mockImplementation(({ volumeId }) => {
+        return GRIDS[volumeId.replace('volume-', '')];
+      });
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+      setConfiguration({
+        ...getConfiguration(),
+        rendering: { ...getConfiguration().rendering, sliceStepMeasure: 'l1' },
+      });
+    });
+
+    /** The panes of the group start one after the other, each asking for the grids of all. */
+    const mountAll = () =>
+      tmtvSagittal().map(({ viewportId, volumes: paneVolumes }, _index, members) => [
+        getMountSliceStep(paneVolumes, 'sagittal' as never),
+        getCameraPositionGroupInitialStart(viewportId, members),
+      ]);
+
+    it('computes the slice grid of a volume once per orientation, whichever pane asks', () => {
+      const starts = mountAll();
+
+      starts.forEach(([step, start]) => {
+        expect(step).toBeLessThanOrEqual(4.6875);
+        expect(start).toEqual(GRIDS['ct-image'].getViewReference(256));
+      });
+      expect(utilities.getVolumeSliceGrid).toHaveBeenCalledTimes(2);
+      expect(getMountSliceStep([{ volumeId: 'volume-ct-image' }], 'axial' as never)).toBe(0.977);
+      expect(utilities.getVolumeSliceGrid).toHaveBeenCalledTimes(3);
+    });
+
+    it('computes the grid again for a volume made again and for another slice step measure', () => {
+      mountAll();
+      volumes['volume-ct-image'] = {};
+      mountAll();
+      expect(utilities.getVolumeSliceGrid).toHaveBeenCalledTimes(3);
+
+      setConfiguration({
+        ...getConfiguration(),
+        rendering: { ...getConfiguration().rendering, sliceStepMeasure: 'l2' },
+      });
+      mountAll();
+      expect(utilities.getVolumeSliceGrid).toHaveBeenCalledTimes(5);
+    });
   });
 });
 

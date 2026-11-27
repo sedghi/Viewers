@@ -14,7 +14,7 @@ failed first, a build, or a run that is named).
 | open | seen and understood, not fixed yet; the step of the plan that fixes it is named |
 | decided | left as it is on purpose, with the reason |
 
-## Summary (26 November, tasks O9 to O20)
+## Summary (27 November, tasks O9 to O21)
 
 The state of every entry today, on the branch at `2bbed3c040` (task O11) and the
 Cornerstone3D link at `472d908e8`. Task O9 checked the entries on the Cornerstone3D link
@@ -102,6 +102,25 @@ against 81 MB on `master`. Jest gives 181 suites and 2,086 tests passed, the typ
 new error outside the test-runner globals of its new test file, the build and the lint
 budget pass, and the Playwright suite 257 passed, 0 failed, 4 skipped (6.5 min, from
 7.8: the studies of the fixtures load from the `ohif` source); no baseline is replaced.
+Task O21 (27 November) moved the link to `bda7dafac` (lane FX24: the decode workers start
+when the page is idle, the first delivery into an empty pane draws at the next frame, the
+CPU slice path takes the frame's own array and one row per arriving frame) and timed the
+first picture of the TMTV load stage by stage on both sides, five alternating loads each,
+in the dev build and in production (M94). The 110 ms of the orchestrator's dev benchmark
+were the start of the page (OHIF's bundle took a second copy of dcmjs and seven other
+libraries from the linked checkout: M101, fixed; the orchestrator's dev server of the
+branch serves an export whose long module ids cost about 40 ms more), the init of
+Cornerstone3D (3 ms: M100) and the mount, where `master` draws its first picture with
+three of its ten panes mounted and the branch with all ten (every pane mounted and drawn
+191 ms sooner in production), and Cornerstone3D samples the first slice of volumes that
+have no frame yet (M99). OHIF's group start computed the same slice grids about fifty
+times (M102, fixed). M97 and M98 are checked fixed in OHIF's page. With the orchestrator's
+script after the fixes, production: loaded 1,531 against 1,658 ms, 61 frames against
+283, the first picture 1,030 against 1,012 ms, long tasks 440 against 404 ms; dev:
+1,934 against 2,036 ms, 60 frames against 280, 1,397 against 1,358 ms, 762 against
+716 ms. Jest gives 182 suites and 2,096 tests passed, the type check no new error outside
+the test-runner globals of its tests, the build and the lint budget pass, and the
+Playwright suite 257 passed, 0 failed, 4 skipped (6.5 min); no baseline is replaced.
 "Whose" says where the problem was: in OHIF, in Cornerstone3D (the library, its codemod
 or its guide), in a test of OHIF, or "work" for an entry that records a planned task and
 not a defect.
@@ -201,31 +220,36 @@ not a defect.
 | M91 | A sagittal or coronal mount refuses an `initialViewReference` beyond the slices of the acquisition plane | Cornerstone | fixed in cornerstone `be7cbd1c8` (FX21), checked in task O18: the `test.fail` removed, the case passes |
 | M92 | Loading an RTSTRUCT into an MPR pane takes the pane to its default slice, on `master` too | OHIF | fixed in task O18 (`2746e912d9`): a pane that mounts again the display set it shows keeps its position, through the load and the hydration of an RTSTRUCT or a SEG |
 | M93 | A pane mounts at its position: `initialViewReference` in the mounts | work | done in task O17 (`3728bdd459`): every volume mount starts at its stored view reference, a pane mounting into a placed camera group at the group's position |
-| M94 | The TMTV load takes about 2 s longer than on `master` | Cornerstone | the load fixed in cornerstone `8333d7dba` (FX23) and measured in task O20: with M96, every volume at 1,995 ms on the branch against 2,019 ms on `master` with the same settings (5,985 ms on `master` today), 58 frames drawn against 295, less main thread time; open, waits for cornerstone, for the first picture after the mount (48 ms later in production, 84 ms in the dev build) and M97, M98 |
+| M94 | The TMTV load takes about 2 s longer than on `master` | Cornerstone | the load fixed in cornerstone `8333d7dba` (FX23) and measured in task O20: with M96, every volume at 1,995 ms on the branch against 2,019 ms on `master` with the same settings (5,985 ms on `master` today), 58 frames drawn against 295, less main thread time; task O21 on `bda7dafac` with M101 and M102: loaded 1,531 against 1,658 ms in production, 1,934 against 2,036 ms in dev, every pane mounted and drawn 191 ms sooner; open, waits for cornerstone, for the first picture (18 ms later in production, 39 ms in dev: M99, M100, and `master` draws before seven of its ten panes have a volume) |
 | M95 | The resize keeps its replay of the framing, which FX19 said to drop | OHIF | decided in task O18: without it no pane refits a pane of another size (`mpr2` 39% of its pixels, cropped), with it a group keeps one scale and `master`'s numbers |
-| M96 | The TMTV load from the `ohif` source of `config/e2e.js` is paced at 5 frames per round trip and a CORS preflight per frame, on `master` too | OHIF | fixed in task O20 (not committed yet): `e2e.js` takes the pool limits of `default.js` and an unquoted `Accept` header for that source; the load ends 4 s sooner on both sides |
-| M97 | The decode workers start at the first frame the viewer decodes (5.18.3 made them at registration), about 90 ms on the first frames | Cornerstone | open, waits for cornerstone (likely row 340, lane FX24) |
-| M98 | A sagittal or coronal pane of TMTV shows its first rows on the next 100 ms tick, about 0.2 s after `master` with M97 | Cornerstone | open, waits for cornerstone (small; proposal: draw the first delivery into an empty pane at once) |
+| M96 | The TMTV load from the `ohif` source of `config/e2e.js` is paced at 5 frames per round trip and a CORS preflight per frame, on `master` too | OHIF | fixed in task O20 (`7d7b04e53c`): `e2e.js` takes the pool limits of `default.js` and an unquoted `Accept` header for that source; the load ends 4 s sooner on both sides |
+| M97 | The decode workers start at the first frame the viewer decodes (5.18.3 made them at registration), about 90 ms on the first frames | Cornerstone | fixed in cornerstone `bda7dafac` (FX24, workers made when idle), checked in task O21: made at 280 ms, ready by 380 ms, about 700 ms before the first decode |
+| M98 | A sagittal or coronal pane of TMTV shows its first rows on the next 100 ms tick, about 0.2 s after `master` with M97 | Cornerstone | fixed in cornerstone `bda7dafac` (FX24, the first delivery into an empty pane at the next frame), checked in task O21: every pane draws 26 ms after the first frame (`master` 3 ms), no 100 ms tick |
+| M99 | A planar pane of a volume samples its first slice at the mount, before any frame of the volume has arrived (18 ms of the TMTV mount in production) | Cornerstone | open, waits for cornerstone (proposal: skip the rows of frames that have not arrived) |
+| M100 | `init()` of Cornerstone3D takes about 3 ms longer: the probe of the rendering capabilities | Cornerstone | open, waits for cornerstone (small) |
+| M101 | The viewer ships a second copy of dcmjs and seven other libraries with a linked Cornerstone3D (1.03 MB before the first picture in production) | OHIF | fixed in task O21 (not committed yet): `dedupeAlias` in `.rspack/resolveConfig.js` |
+| M102 | The panes of a camera position group computed the slice grid of every member at each mount (about 50 grids for 6) | OHIF | fixed in task O21 (not committed yet): one grid per volume of the cache, orientation and slice step measure |
 
-**The count.** 98 entries; 9 of them record a planned task ("work": M54, M56 to M58,
-M60, M61, M68, M69, M93), so the upgrade met **89 problems**:
+**The count.** 102 entries; 9 of them record a planned task ("work": M54, M56 to M58,
+M60, M61, M68, M69, M93), so the upgrade met **93 problems**:
 
 | Whose | Problems | Fixed | Open | Decided |
 |---|---|---|---|---|
-| Cornerstone3D (the library, its codemod or its guide) | 39 | 36, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13; M82 in `2810086ec`, checked in task O16; M85 and M86 in `9642ce820`, M90 and M91 in `be7cbd1c8`, checked in task O18) | 3: M94 (the first picture of the TMTV load, 48 ms after `master`'s in production), M97 (the decode workers start at the first frame), M98 (the first rows of a sagittal or coronal pane wait for the 100 ms tick) | |
-| OHIF (32 in its code, 6 in its tests) | 38 | 36 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`; M80 and M81 in `3aee48d6fe`; M87 and M88 in `080428db4f`; M92 in `2746e912d9`; M96 in task O20, not committed yet) | | 2: M19, M95 |
+| Cornerstone3D (the library, its codemod or its guide) | 41 | 38, all in Cornerstone3D (M71 in `28dd3ab33`, checked in task O9b; M41, M46 and M48 in `ccb599e2a` and M78 in `472d908e8`, checked in task O12; M79 in `487285b21`, checked in task O13; M82 in `2810086ec`, checked in task O16; M85 and M86 in `9642ce820`, M90 and M91 in `be7cbd1c8`, checked in task O18; M97 and M98 in `bda7dafac`, checked in task O21) | 3: M94 (the first picture of the TMTV load, 18 ms after `master`'s in production), M99 (a planar pane samples its slice at the mount before any frame arrived), M100 (the probe of the rendering capabilities in `init()`) | |
+| OHIF (34 in its code, 6 in its tests) | 40 | 38 in OHIF (M74 and M75 in `2e5ecdd662`; M76 and M77 in `2bbed3c040`; M80 and M81 in `3aee48d6fe`; M87 and M88 in `080428db4f`; M92 in `2746e912d9`; M96 in `7d7b04e53c`; M101 and M102 in task O21, not committed yet) | | 2: M19, M95 |
 | Both | 10 | 6 (M11, M13, M42, M43; M84: the Cornerstone part in `2810086ec`, the OHIF part in `080428db4f` and task O18; M83: the OHIF part in `3aee48d6fe` and `3728bdd459`, the Cornerstone part in `9a329a5fa`, checked in task O17); the OHIF part of M10, M16 and M27 | M14 waits for the owner (the run in CI); the Cornerstone part of M10, M16 and M27 (two guide notes and a codemod report, small) | |
 | Cause not found | 2 (M50, M89) | M50 closed by measurement in task O9; M89 closed in task O17 (every part named) | | |
 
 Open today: **M14** (waits for the owner: the Playwright run in CI); three of
-Cornerstone3D about the TMTV load: **M94**, now only the first picture after the mount
-(48 ms after `master`'s in a production build; the load itself ends sooner than on
-`master`, task O20), **M97** (the decode workers start at the first frame, about 90 ms)
-and **M98** (the first rows of a sagittal or coronal pane wait for the 100 ms tick); and
-three small asks of Cornerstone3D in M10, M16 and M27 whose OHIF part is done. M85, M86,
-M90 and M91 are fixed in Cornerstone3D and checked in task O18; M92 is fixed in OHIF in
-task O18 and M96 in task O20. M95 records a decision of task O18 that the owner may want
-to take otherwise.
+Cornerstone3D about the TMTV load: **M94**, now only the first picture (18 ms after
+`master`'s in a production build, 39 ms in dev; every pane is mounted and drawn 191 ms
+sooner and the load ends 127 ms sooner than on `master`, task O21), **M99** (a planar pane
+samples its first slice at the mount before any frame has arrived, 18 ms of the mount) and
+**M100** (the probe of the rendering capabilities in `init()`, about 3 ms); and three
+small asks of Cornerstone3D in M10, M16 and M27 whose OHIF part is done. M85, M86, M90 and
+M91 are fixed in Cornerstone3D and checked in task O18, M97 and M98 in task O21; M92 is
+fixed in OHIF in task O18, M96 in task O20, M101 and M102 in task O21. M95 records a
+decision of task O18 that the owner may want to take otherwise.
 
 ## M1. OHIF's jest could not load `@cornerstonejs/core` 6.0.0-beta.1
 
@@ -4342,6 +4366,56 @@ to take otherwise.
   before the chain of mounts ends.
 - **State:** open, waits for cornerstone: the first picture (48 ms in production) and
   M97, M98. Every other number of the load is equal to or better than `master`'s.
+- **Measured again in task O21 (link `bda7dafac`, lane FX24: the decode workers start when
+  the page is idle, the first delivery into an empty pane draws at the next frame, rows
+  340 to 342; installed Chrome on the GPU, ANGLE Metal Renderer: Apple M2 Ultra; lane O21
+  `measure/`, `traces/`, `bench/`):** the orchestrator's benchmark on this link gave the
+  first picture 1,446 ms against 1,337 ms in the dev build (+110), and lane O20 1,067
+  against 1,019 ms in production. A timeline of five alternating loads per side, stage by
+  stage (the init script marks `window.cornerstone`, `window.services`, the mode entry,
+  the protocol run, each `enableViewport`, `setViewportData`, `VIEWPORT_DATA_CHANGED`, the
+  first `IMAGE_RENDERED`; module evaluation through the module interceptor of the dev
+  runtime; the DevTools traces with JS samples, read through the source maps):
+  - the start (to `DOMContentLoaded`) was 51 ms later in the dev build and 13 ms in
+    production: OHIF's bundle took a second copy of dcmjs and seven other libraries from
+    the linked checkout (M101, OHIF, fixed); after the fix +19 ms in dev (the dev runtime,
+    module evaluation +6.8 ms of which Cornerstone3D's modules +2.4 ms) and +2 ms in
+    production, with the same JavaScript before the start (7.39 against 7.40 MB);
+  - the dev server of the orchestrator's branch (port 3344) serves an export under `/tmp`,
+    whose module ids are long relative paths (1.2 MB more of dev JavaScript before the
+    first picture than from the checkout): about 40 ms of the 110 ms (the same loads from
+    the checkout and from that export: 1,456 against 1,533 ms, `master` 1,372 against
+    1,409 ms on its two servers), a property of that server, not of the code;
+  - the Cornerstone3D init is 3 ms later in production (M100);
+  - the ten mounts and the first draw are 25 to 33 ms later in both builds, and they are
+    not the same work: at `master`'s first `IMAGE_RENDERED` only its three CT panes have
+    a volume (`getActors()` of each pane at that event: 1, 1, 1 and seven 0), its PET,
+    fusion and MIP panes mount 180 to 270 ms later in short tasks; at the branch's first
+    picture all ten panes are mounted (the fusion panes with both volumes). Every pane
+    mounted and drawn: 1,056 ms against 1,247 ms in production (191 ms sooner), 1,426
+    against 1,680 ms in dev. In the mount Cornerstone3D's core takes 58.7 ms of main
+    thread against 22.2 ms, 18.2 ms of it sampling the first slice of volumes that have
+    no frame yet (M99); OHIF's own mount code is about 5 ms (its group start 3 to 4 ms,
+    M102, fixed);
+  - the study metadata, the hanging protocol, the React commits (16 or 17 before the
+    first picture on both sides, the same render time) and the creation of the panes are
+    equal within the noise of the CloudFront requests.
+- **After task O21 (M101, M102; the orchestrator's script, six loads each, lane O21
+  `bench/`):** production builds (`config/default.js`, static server): every volume
+  loaded and every pane rendered at 1,531 ms against 1,658 ms (127 ms sooner), 61 frames
+  drawn against 283, the first picture at 1,030 ms against 1,012 ms (18 ms later), long
+  tasks 440 against 404 ms (the branch mounts its ten panes in one task; the main thread
+  is busy 114 ms less than `master`'s to the end of the load, 1,091 against 1,205 ms, and
+  49 ms more to the first picture, 689 against 640 ms). Dev servers (3335 from the
+  checkout, 3336 `master` with the same two settings): 1,934 against 2,036 ms, 60 frames
+  against 280, the first picture 1,397 against 1,358 ms (39 ms later), long tasks 762
+  against 716 ms. The first render after the first frame arrived: 1,169 against 1,124
+  ms in production (the first frame is in the cache 23 ms later, the branch draws it at
+  the next frame).
+- **State:** open, waits for cornerstone: the first picture is 18 ms later in production
+  and 39 ms in dev, held by the mount of Cornerstone3D (M99) and its init (M100), and by
+  `master` drawing before seven of its ten panes have a volume. Every other number of the
+  load is equal to or better than `master`'s.
 
 ## M95. The resize keeps its replay of the framing (task O18)
 
@@ -4406,7 +4480,7 @@ to take otherwise.
   each frame twice when the `Accept` header is quoted; set
   `omitQuotationForMultipartRequest: true` when the server takes the unquoted form, and a
   prefetch limit above 5 over HTTP/2.
-- **State:** fixed in task O20 (not committed yet).
+- **State:** fixed in task O20 (`7d7b04e53c`).
 
 ## M97. The decode workers start at the first frame the viewer decodes, not when it starts
 
@@ -4431,6 +4505,17 @@ to take otherwise.
   `dicomImageLoader` / `decodeTask`: about 110 ms each on 6.0, about 18 ms on 5.18.3.
 - **Fix, in OHIF:** none (rule 3; a dummy task at the start would be a workaround).
 - **State:** open, waits for cornerstone (lane FX24 works on row 340).
+- **Fixed in Cornerstone3D `bda7dafac` (lane FX24):** the pool option `createInstances`;
+  the DICOM image loader makes its workers `'whenIdle'`.
+- **Checked in task O21 (five loads each side, production and dev, lane O21
+  `measure/prod-final`, `dev-final`, traces of the worker threads):** the branch makes its
+  three decode workers at 280 ms in production (614 ms in dev), when the page is idle
+  after the start, and their scripts are evaluated in the worker threads by 380 ms, about
+  700 ms before the first decode; `master` makes them at 228 ms. The worker handles the
+  first task in about 6 ms on both sides. The first `decodeTask` still lasts 84 ms against
+  28 ms seen from the main thread: its answer waits while the main thread runs the mount
+  continuations and the first draw (M94, M99), not for the worker.
+- **State:** fixed in cornerstone `bda7dafac`, checked in task O21.
 
 ## M98. A sagittal or coronal pane of TMTV shows its first rows on the next 100 ms tick
 
@@ -4447,3 +4532,97 @@ to take otherwise.
   yet at once, and the next ones on the tick.
 - **Fix, in OHIF:** none (rule 3).
 - **State:** open, waits for cornerstone (small: a fifth of a second on the first rows).
+- **Fixed in Cornerstone3D `bda7dafac` (lane FX24):** the first delivery into a pane that
+  shows nothing draws at the next animation frame, the next ones on the tick.
+- **Checked in task O21 (five loads each side, lane O21 `measure/prod-final`,
+  `dev-final`):** every pane, the sagittal and coronal ones as the axial ones and the MIP,
+  draws 26 ms after the first frame is in the cache in production (36 ms in dev); no pane
+  waits for the 100 ms tick. `master` draws 3 ms after it (6 ms in dev): the branch waits
+  for the next animation frame, which lane FX24 kept on purpose (an update in a microtask
+  read a frame before its image replaced the copy).
+- **State:** fixed in cornerstone `bda7dafac`, checked in task O21.
+
+## M99. A planar pane of a volume samples its first slice at the mount, before any frame of the volume has arrived
+
+- **Seen (task O21, production builds, the DevTools trace with JS samples of one load
+  each side read through the source maps, lane O21 `scratch/attrib.mjs`, from the first
+  `enableViewport` to the first `IMAGE_RENDERED`):** the main thread runs 58.7 ms of
+  Cornerstone3D core against 22.2 ms on `master`; `utilities/sampleVolumeGrid.js` alone
+  takes 18.2 ms, then `Planar/PlanarViewport.js` 5.0 ms and `helpers/getOrCreateCanvas.js`
+  2.6 ms. The stack (dev profile): `addLoadedData` → `applyViewState` → `syncRenderCamera`
+  → `updateSlice` → `sample` → `gatherVolumeSlice` → `sampleStraightCutGrid` →
+  `sampleStraightCut`, once per planar pane. The first frame of the study arrives about
+  90 ms later: every value that the mount gathers is a zero.
+- **Why:** the CPU slice path gathers the slice of a pane from the frames of its volume at
+  the mount, whether a frame has arrived or not. 5.18.3 makes the actor of a volume
+  without reading its voxels.
+- **The smallest case, Cornerstone3D only:** a streaming volume of the TMTV CT (512 x 512
+  x 135) and one of its PET (128 x 128 x 135), not loaded; nine planar viewports on the
+  CPU slice path (axial, sagittal and coronal of the CT, of the PET, and of the CT with
+  the PET as an overlay); `setDisplaySets` on each and a profile of the mounts: the time
+  under `sampleVolumeGrid` is about 2 ms per pane in a production build.
+- **Proposal for Cornerstone3D:** skip the rows of frames that have not arrived at the
+  mount (they are gathered when they arrive, `invalidateFrames`, lane FX24), so that a
+  pane of a volume with no frame mounts without reading it.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone.
+
+## M100. `init()` of Cornerstone3D takes about 3 ms longer: the probe of the rendering capabilities
+
+- **Seen (task O21, production builds, five loads each side and one profiled load):** the
+  stage from the evaluation of the cornerstone extension to `window.services` (its
+  `init`: `cornerstone.init`, `cornerstoneTools.init`, the DICOM image loader) is 42
+  against 38 ms (+3 to +4 ms; +7 to +9 ms in dev); in it
+  `utilities/renderingCapabilities.js` takes 4.0 ms against 1.0 ms on 5.18.3, and
+  `utilities/textureSupport.js` 8.8 against 8.2 ms.
+- **The smallest case, Cornerstone3D only:** time `init()` in OHIF's bundle on 6.0 and
+  5.18.3 (lane FX24 `probe/bootTools.mjs`): 20 to 21 ms against 15 to 18 ms.
+- **Proposal for Cornerstone3D:** run the probe at the first use of what it decides, or
+  share the WebGL context of the texture support probe.
+- **Fix, in OHIF:** none (rule 3).
+- **State:** open, waits for cornerstone (small).
+
+## M101. The viewer ships a second copy of dcmjs and seven other libraries with a linked Cornerstone3D
+
+- **Seen (task O21, lane O21 `scratch/mapsize.mjs`, `modgroups.py`):** with
+  `node_modules/@cornerstonejs/*` linked to a checkout of Cornerstone3D (`cs3d:link`, the
+  setup of this branch), the bundle takes the dependencies of the linked packages from the
+  checkout's own `node_modules`: dcmjs, dicom-parser, gl-matrix, comlink, d3-array,
+  d3-interpolate, lodash.get and @kitware/vtk.js come twice, at the same versions. In
+  production 1.03 MB more JavaScript is loaded before the first picture (11.97 against
+  10.94 MB: dcmjs 704 kB, vtk.js 145 kB, dicom-parser 30 kB, gl-matrix 27 kB, ...;
+  Cornerstone3D's core itself is 27 kB smaller than 5.18.3's), and the initial scripts are
+  8.18 against 7.40 MB. In the dev build the modules evaluated before
+  `DOMContentLoaded` take 51 ms more (three loads each side, the module interceptor of the
+  dev runtime): dcmjs runs twice (18.5 and 16.6 ms against 22.8 ms).
+- **Why:** `.rspack/resolveConfig.js` forces one copy (`dedupeAlias`) of React, of
+  `@cornerstonejs/core` and `tools` and a few others for a linked build, but not of the
+  libraries that OHIF and Cornerstone3D both import. An installed Cornerstone3D gets
+  OHIF's copy from the hoisted `node_modules`.
+- **Fix, in OHIF (task O21):** `dedupeAlias` has those eight (vtk.js as a prefix: it is
+  imported by subpath only). Test `platform/app/src/__tests__/linkedCornerstoneSharedLibraries.test.js`:
+  each library resolves to one file from OHIF's code and from the Cornerstone3D package
+  that imports it, with OHIF's resolve settings; it failed first (8 of 8,
+  `lanes/O21/failfirst-linkedSharedLibraries.log`) and passes.
+- **After:** the production build has one dcmjs (dist 129.8 MB against 130.7 MB); the
+  initial scripts 7.39 against 7.40 MB on `master`, 11.03 against 10.94 MB before the
+  first picture; the stage to `DOMContentLoaded` +2 ms in production (was +13), +19 ms in
+  dev (was +51; module evaluation +6.8 ms, was +51.1).
+- **State:** fixed in task O21 (not committed yet).
+
+## M102. The panes of a camera position group computed the slice grid of every member at each mount
+
+- **Seen (task O21):** `getCameraPositionGroupInitialStart` asks
+  `utilities.getVolumeSliceGrid` for the grid of every volume of every member of the
+  groups of a pane, at the mount of each pane: 16 grids for the three panes of a TMTV
+  sagittal group where 2 differ, about 50 for the ten panes where 6 differ. OHIF's group
+  start (`_getCameraPositionGroupStart`) took 3 to 4 ms per load in production, about
+  7 ms of a profiled dev load, half of it in the grids.
+- **Fix, in OHIF (task O21):** the grid of a volume of the cache is computed once per
+  orientation and `rendering.sliceStepMeasure` (the grid reads it), kept on the volume
+  object, so a volume made again (M74) gets its own. Tests in `cameraPositionGroups.test.ts`:
+  the grids of a group are computed once per volume and orientation whichever pane asks,
+  and again for a volume made again and for another slice step measure; both failed first
+  (16 and 32 calls, `lanes/O21/failfirst-sliceGridMemo.log`).
+- **After:** the group start takes 1 to 3 ms per load in production.
+- **State:** fixed in task O21 (not committed yet).

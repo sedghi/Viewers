@@ -41,6 +41,14 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 // subpath aliases ('react-dom/client$', …); it's mitigated by the plugin
 // template's `autoInstallPeers: false` and the plugin doctor's
 // local-singleton warning.
+//
+// dcmjs, dicom-parser, gl-matrix, comlink, d3-array, d3-interpolate,
+// lodash.get and @kitware/vtk.js: libraries that OHIF and Cornerstone3D both
+// import. An installed Cornerstone3D finds them in the repo-root node_modules,
+// but a cs3d:link'ed checkout resolves them from its own node_modules, so the
+// viewer would ship and run a second copy of each (dcmjs alone is about
+// 700 kB of the production bundle before the first picture). vtk.js is
+// imported by subpath only, so its alias is a prefix (no `$`).
 const dedupeAlias = {
   'react$': path.join(REPO_ROOT, 'node_modules', 'react'),
   'react-dom$': path.join(REPO_ROOT, 'node_modules', 'react-dom'),
@@ -53,6 +61,14 @@ const dedupeAlias = {
   'react-router-dom$': path.join(REPO_ROOT, 'node_modules', 'react-router-dom'),
   'i18next$': path.join(REPO_ROOT, 'node_modules', 'i18next'),
   'react-i18next$': path.join(REPO_ROOT, 'node_modules', 'react-i18next'),
+  'dcmjs$': path.join(REPO_ROOT, 'node_modules', 'dcmjs'),
+  'dicom-parser$': path.join(REPO_ROOT, 'node_modules', 'dicom-parser'),
+  'gl-matrix$': path.join(REPO_ROOT, 'node_modules', 'gl-matrix'),
+  'comlink$': path.join(REPO_ROOT, 'node_modules', 'comlink'),
+  'd3-array$': path.join(REPO_ROOT, 'node_modules', 'd3-array'),
+  'd3-interpolate$': path.join(REPO_ROOT, 'node_modules', 'd3-interpolate'),
+  'lodash.get$': path.join(REPO_ROOT, 'node_modules', 'lodash.get'),
+  '@kitware/vtk.js': path.join(REPO_ROOT, 'node_modules', '@kitware', 'vtk.js'),
 };
 
 const alias = {

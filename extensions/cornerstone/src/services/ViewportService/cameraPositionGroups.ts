@@ -1,4 +1,4 @@
-import { cache, utilities as csUtils } from '@cornerstonejs/core';
+import { cache, getConfiguration, utilities as csUtils } from '@cornerstonejs/core';
 import type { Types } from '@cornerstonejs/core';
 import type { Synchronizer } from '@cornerstonejs/tools';
 
@@ -83,25 +83,51 @@ export interface CameraPositionGroupMember {
 }
 
 /**
+ * The slice grids of the volumes of the cache, per orientation and slice step
+ * measure: the panes of a group ask for the grids of every member at each
+ * mount, about fifty grids for the ten panes of TMTV where six differ. A
+ * volume made again is another object of the cache, so its grids are not
+ * taken from the one before.
+ */
+const sliceGridsOfCachedVolumes = new WeakMap<object, Map<string, VolumeSliceGrid | undefined>>();
+
+/**
  * The slice grid of the view of a volume in an orientation
  * (`utilities.getVolumeSliceGrid`), or undefined when it has none: a volume
  * that is not in the cache and whose images give no geometry, or an
- * orientation that depends on the view on display.
+ * orientation that depends on the view on display. The grid of a volume of
+ * the cache in a named orientation is computed once.
  */
 function getSliceGrid(
   volume: MountVolume,
   orientation?: VolumeSliceGridOrientation
 ): VolumeSliceGrid | undefined {
-  const source =
-    volume.volumeId && cache.getVolume(volume.volumeId)
-      ? { volumeId: volume.volumeId }
-      : { imageIds: volume.imageIds };
+  const cachedVolume = volume.volumeId ? cache.getVolume(volume.volumeId) : undefined;
+  const source = cachedVolume ? { volumeId: volume.volumeId } : { imageIds: volume.imageIds };
+  const key =
+    cachedVolume && typeof orientation !== 'object'
+      ? `${orientation ?? ''}:${getConfiguration().rendering?.sliceStepMeasure ?? ''}`
+      : undefined;
+  let grids = key ? sliceGridsOfCachedVolumes.get(cachedVolume) : undefined;
 
-  try {
-    return csUtils.getVolumeSliceGrid({ ...source, orientation });
-  } catch {
-    return undefined;
+  if (grids?.has(key)) {
+    return grids.get(key);
   }
+
+  let grid: VolumeSliceGrid | undefined;
+  try {
+    grid = csUtils.getVolumeSliceGrid({ ...source, orientation });
+  } catch {
+    grid = undefined;
+  }
+
+  if (key) {
+    grids ??= new Map();
+    grids.set(key, grid);
+    sliceGridsOfCachedVolumes.set(cachedVolume, grids);
+  }
+
+  return grid;
 }
 
 /**
