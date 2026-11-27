@@ -6,20 +6,18 @@ type SliceEvent = { type: string; viewportId: string; sliceIndex: number };
 
 /**
  * The CT of this study has 262 axial slices and 512 sagittal and coronal
- * slices. Cornerstone3D checks the slice index of the view reference that a
- * mount starts at against the slices of the acquisition plane (M91), so a
- * stored slice beyond 261 starts on the default slice until that is fixed.
+ * slices. A mount judges the slice index of the view reference that it
+ * starts at against the slices of the view that it shows, so a stored slice
+ * beyond 261 starts there too (M91, fixed in Cornerstone3D `be7cbd1c8`).
  */
 const CASES = [
   {
     title: 'within the slices of the acquisition plane',
     stored: { 'mpr-sagittal': 100, 'mpr-coronal': 200 },
-    fails: false,
   },
   {
     title: 'beyond the slices of the acquisition plane (M91)',
     stored: { 'mpr-sagittal': 300, 'mpr-coronal': 400 },
-    fails: true,
   },
 ];
 
@@ -28,13 +26,12 @@ const CASES = [
  * at it: each NEW_IMAGE and each drawn frame of the pane, from its mount on,
  * is of the stored slice, never of its default slice first.
  */
-for (const { title, stored: STORED, fails } of CASES) {
+for (const { title, stored: STORED } of CASES) {
   test(`the sagittal and the coronal pane of an MPR mount at their stored slice, ${title}`, async ({
     page,
     mainToolbarPageObject,
     rightPanelPageObject,
   }) => {
-    test.fail(fails);
     await visitStudy(page, studyInstanceUID, 'viewer', 2000);
     await rightPanelPageObject.toggle();
     await mainToolbarPageObject.layoutSelection.MPR.click();

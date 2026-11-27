@@ -6,17 +6,20 @@ import JumpPresets from '../../utils/JumpPresets';
 import * as viewportMounts from './viewportMounts';
 import * as cameraPositionGroups from './cameraPositionGroups';
 import {
+  getCameraPositionGroupInitialStart,
   getCameraPositionGroupStart,
   getCameraPositionSyncGroupIds,
+  getMountSliceStep,
   placeInCameraPositionGroups,
 } from './cameraPositionGroups';
+import type { CameraPositionGroupMember } from './cameraPositionGroups';
 
 jest.mock('@cornerstonejs/core', () => {
   const actual = jest.requireActual('@cornerstonejs/core');
 
   return {
     ...actual,
-    utilities: { ...actual.utilities, jumpToSlice: jest.fn() },
+    utilities: { ...actual.utilities, jumpToSlice: jest.fn(), getVolumeSliceGrid: jest.fn() },
   };
 });
 
@@ -113,20 +116,19 @@ function contextFor(
   };
 }
 
-/** Mounts a pane as a planar viewport mounts: held, on its default slice, then placed. */
+/** Mounts a pane as a planar viewport mounts: on its default slice, then placed. */
 function mountPane(
   pane: ReturnType<typeof makePane>,
   synchronizer: Synchronizer,
   panes: Record<string, ReturnType<typeof makePane>>
 ) {
-  const held = cameraPositionGroups.holdCameraPositionSync(pane as never, [synchronizer]);
   pane.mountAtDefault();
-  placeInCameraPositionGroups(pane as never, held, contextFor(synchronizer, panes));
+  placeInCameraPositionGroups(pane as never, contextFor(synchronizer, panes));
 }
 
 /**
- * Mounts a pane as the service mounts it: held, started at the position of
- * its group when it ranks after the panes placed so far (else on its default
+ * Mounts a pane as the service mounts it: started at the position of its
+ * group when it ranks after the panes placed so far (else on its default
  * slice), then placed.
  */
 function mountPaneAtGroupStart(
@@ -135,10 +137,9 @@ function mountPaneAtGroupStart(
   panes: Record<string, ReturnType<typeof makePane>>
 ) {
   const context = contextFor(synchronizer, panes);
-  const held = cameraPositionGroups.holdCameraPositionSync(pane as never, [synchronizer]);
-  const start = getCameraPositionGroupStart(pane.id, () => pane.step, context);
+  const start = getCameraPositionGroupStart(pane.id, pane.step, context);
   pane.mountAt(start);
-  placeInCameraPositionGroups(pane as never, held, context);
+  placeInCameraPositionGroups(pane as never, context);
   return start;
 }
 
@@ -216,7 +217,7 @@ describe('the panes of a camera position sync group open on one position', () =>
     expect(panes.pt.setViewReference).toHaveBeenCalledTimes(1);
   });
 
-  it('does not let a pane drive its group while it is moved to the group position', () => {
+  it('moves a pane to the group position while it stays a source of its group', () => {
     const { synchronizer, panes } = setUp();
     mountPane(panes.ct, synchronizer, panes);
     const sourcesWhileMoved: boolean[] = [];
@@ -226,17 +227,18 @@ describe('the panes of a camera position sync group open on one position', () =>
 
     mountPane(panes.pt, synchronizer, panes);
 
-    expect(sourcesWhileMoved).toEqual([false]);
-    expect(synchronizer.hasSourceViewport(ENGINE, 'pt')).toBe(true);
+    expect(sourcesWhileMoved).toEqual([true]);
+    expect(
+      (synchronizer as unknown as { removeSource: jest.Mock }).removeSource
+    ).not.toHaveBeenCalled();
   });
 
   it('keeps the stored position of a pane that is restored', () => {
     const { synchronizer, panes } = setUp();
     mountPane(panes.ct, synchronizer, panes);
-    const held = cameraPositionGroups.holdCameraPositionSync(panes.pt as never, [synchronizer]);
     panes.pt.mountAtDefault();
 
-    placeInCameraPositionGroups(panes.pt as never, held, contextFor(synchronizer, panes), true);
+    placeInCameraPositionGroups(panes.pt as never, contextFor(synchronizer, panes), true);
 
     expect(panes.pt.setViewReference).not.toHaveBeenCalled();
     expect(panes.pt.point()).toEqual(ptPoint);
@@ -270,31 +272,31 @@ describe('a pane of a camera position sync group starts at the position of its g
     const { synchronizer, panes } = setUp();
     mountPane(panes.ct, synchronizer, panes);
 
-    expect(
-      getCameraPositionGroupStart('pt', () => 4.6875, contextFor(synchronizer, panes))
-    ).toEqual(ctStart);
+    expect(getCameraPositionGroupStart('pt', 4.6875, contextFor(synchronizer, panes))).toEqual(
+      ctStart
+    );
   });
 
   it('starts a pane of the grid of the CT that comes later in the layout at the slice of the CT', () => {
     const { synchronizer, panes } = setUp();
     mountPane(panes.ct, synchronizer, panes);
 
-    expect(
-      getCameraPositionGroupStart('fusion', () => 0.977, contextFor(synchronizer, panes))
-    ).toEqual(ctStart);
+    expect(getCameraPositionGroupStart('fusion', 0.977, contextFor(synchronizer, panes))).toEqual(
+      ctStart
+    );
   });
 
   it('starts the first pane of a group, and a pane of a finer grid than the placed ones, on its own slice', () => {
     const { synchronizer, panes } = setUp();
 
     expect(
-      getCameraPositionGroupStart('ct', () => 0.977, contextFor(synchronizer, panes))
+      getCameraPositionGroupStart('ct', 0.977, contextFor(synchronizer, panes))
     ).toBeUndefined();
 
     mountPane(panes.pt, synchronizer, panes);
 
     expect(
-      getCameraPositionGroupStart('ct', () => 0.977, contextFor(synchronizer, panes))
+      getCameraPositionGroupStart('ct', 0.977, contextFor(synchronizer, panes))
     ).toBeUndefined();
   });
 
@@ -329,10 +331,9 @@ describe('a pane of a camera position sync group starts at the position of its g
     const { synchronizer, panes } = setUp();
     mountPane(panes.ct, synchronizer, panes);
     const context = contextFor(synchronizer, panes);
-    const held = cameraPositionGroups.holdCameraPositionSync(panes.pt as never, [synchronizer]);
     panes.pt.mountAtDefault();
 
-    placeInCameraPositionGroups(panes.pt as never, held, context);
+    placeInCameraPositionGroups(panes.pt as never, context);
 
     expect(panes.pt.setViewReference).toHaveBeenCalledTimes(1);
     expect(panes.pt.point()).toEqual(ctPoint);
@@ -426,10 +427,13 @@ describe('a volume mount of CornerstoneViewportService in a camera position grou
     return { synchronizer, ct, pt, mount, getMountSliceStep };
   }
 
-  it('does not drive the group while it mounts, then goes to the position of the group', async () => {
+  it('stays a source of its group while it mounts, then goes to the position of the group', async () => {
     const { synchronizer, ct, pt, mount } = await mountPtAfterCt(false);
 
-    expect(mount.drivingWhileMounted).toBe(false);
+    expect(mount.drivingWhileMounted).toBe(true);
+    expect(
+      (synchronizer as unknown as { removeSource: jest.Mock }).removeSource
+    ).not.toHaveBeenCalled();
     expect(pt.point()).toEqual([0, 0, 0]);
     expect(ct.setViewReference).not.toHaveBeenCalled();
     expect(synchronizer.hasSourceViewport(ENGINE, 'pt')).toBe(true);
@@ -438,7 +442,10 @@ describe('a volume mount of CornerstoneViewportService in a camera position grou
   it('starts a pane at the position of its group, and neither jumps nor moves it after the mount', async () => {
     const { synchronizer, ct, pt, mount, getMountSliceStep } = await mountPtAfterCt(true);
 
-    expect(getMountSliceStep).toHaveBeenCalledWith(['volume-pt'], SAGITTAL);
+    expect(getMountSliceStep).toHaveBeenCalledWith(
+      [{ volumeId: 'volume-pt', imageIds: ['image-0'] }],
+      'acquisition'
+    );
     expect(mount.initialViewReference).toEqual({
       FrameOfReferenceUID: 'frame-of-reference',
       viewPlaneNormal: SAGITTAL,
@@ -449,5 +456,265 @@ describe('a volume mount of CornerstoneViewportService in a camera position grou
     expect(utilities.jumpToSlice).not.toHaveBeenCalled();
     expect(ct.setViewReference).not.toHaveBeenCalled();
     expect(synchronizer.hasSourceViewport(ENGINE, 'pt')).toBe(true);
+  });
+});
+
+/**
+ * The slice grid of a sagittal view of a volume, as
+ * `utilities.getVolumeSliceGrid` gives it: slice k at x = (k - N / 2) * step.
+ */
+function makeGrid(
+  step: number,
+  numberOfSlices: number,
+  frameOfReferenceUID = 'frame-of-reference'
+) {
+  const pointOf = (sliceIndex: number): Point => [(sliceIndex - numberOfSlices / 2) * step, 0, 0];
+
+  return {
+    frameOfReferenceUID,
+    step,
+    numberOfSlices,
+    defaultSliceIndex: Math.floor(numberOfSlices / 2),
+    viewPlaneNormal: SAGITTAL,
+    getSliceWorldPoint: pointOf,
+    getViewReference: (sliceIndex: number) => ({
+      FrameOfReferenceUID: frameOfReferenceUID,
+      viewPlaneNormal: SAGITTAL,
+      cameraFocalPoint: pointOf(sliceIndex),
+    }),
+  };
+}
+
+const GRIDS = {
+  'ct-image': makeGrid(0.977, 512),
+  'pt-image': makeGrid(4.6875, 128),
+  'mr-image': makeGrid(0.5, 300, 'another-frame-of-reference'),
+};
+
+/** The slice grid of the first image id of a volume, or an error for an unknown one. */
+function mockSliceGrids() {
+  (utilities.getVolumeSliceGrid as jest.Mock).mockImplementation(({ imageIds }) => {
+    const grid = GRIDS[imageIds?.[0]];
+    if (!grid) {
+      throw new Error('no geometry');
+    }
+    return grid;
+  });
+}
+
+function member(
+  viewportId: string,
+  layoutIndex: number,
+  images: string[],
+  initialSliceIndex?: (numberOfSlices: number) => number
+): CameraPositionGroupMember {
+  return {
+    viewportId,
+    layoutIndex,
+    orientation: 'sagittal' as never,
+    volumes: images.map(image => ({ volumeId: `volume-${image}`, imageIds: [image] })),
+    getInitialSliceIndex: initialSliceIndex ?? (() => undefined),
+  };
+}
+
+describe('the panes of a camera position group that mount together start before any mount', () => {
+  beforeEach(mockSliceGrids);
+  afterEach(() => (utilities.getVolumeSliceGrid as jest.Mock).mockReset());
+
+  const tmtvSagittal = (ctInitial?: (numberOfSlices: number) => number) => [
+    member('ctSAGITTAL', 1, ['ct-image'], ctInitial),
+    member('ptSAGITTAL', 4, ['pt-image']),
+    member('fusionSAGITTAL', 7, ['ct-image', 'pt-image']),
+  ];
+
+  it('gives the step of the finest slice grid of the volumes of a pane', () => {
+    expect(
+      getMountSliceStep(
+        [
+          { volumeId: 'volume-ct', imageIds: ['ct-image'] },
+          { volumeId: 'volume-pt', imageIds: ['pt-image'] },
+        ],
+        'sagittal' as never
+      )
+    ).toBe(0.977);
+    expect(getMountSliceStep([{ imageIds: ['unknown'] }])).toBe(Infinity);
+  });
+
+  it.each(['ctSAGITTAL', 'ptSAGITTAL', 'fusionSAGITTAL'])(
+    'starts %s at the default slice of the CT, the finest grid, as a point and a plane',
+    viewportId => {
+      expect(getCameraPositionGroupInitialStart(viewportId, tmtvSagittal())).toEqual(
+        GRIDS['ct-image'].getViewReference(256)
+      );
+    }
+  );
+
+  it.each([
+    ['first', () => 0, 0],
+    ['last', (numberOfSlices: number) => numberOfSlices - 1, 511],
+    ['an index', () => 300, 300],
+  ])(
+    'starts every pane at the initial slice of the hanging protocol of the CT (%s)',
+    (_name, initialSliceIndex, expected) => {
+      const members = tmtvSagittal(initialSliceIndex);
+
+      members.forEach(({ viewportId }) =>
+        expect(getCameraPositionGroupInitialStart(viewportId, members)).toEqual(
+          GRIDS['ct-image'].getViewReference(expected as number)
+        )
+      );
+    }
+  );
+
+  it('takes the first pane in the layout among panes of the finest step', () => {
+    const members = [
+      member('fusionSAGITTAL', 7, ['ct-image', 'pt-image'], () => 10),
+      member('ctSAGITTAL', 1, ['ct-image'], () => 20),
+    ];
+
+    expect(getCameraPositionGroupInitialStart('fusionSAGITTAL', members)).toEqual(
+      GRIDS['ct-image'].getViewReference(20)
+    );
+  });
+
+  it('leaves out a pane without a slice grid and a pane of another frame of reference', () => {
+    const members = [
+      ...tmtvSagittal(),
+      member('unknown', 0, ['unknown']),
+      member('mr', 2, ['mr-image']),
+    ];
+
+    expect(getCameraPositionGroupInitialStart('ptSAGITTAL', members)).toEqual(
+      GRIDS['ct-image'].getViewReference(256)
+    );
+    expect(getCameraPositionGroupInitialStart('unknown', members)).toBeUndefined();
+  });
+});
+
+describe('a volume mount of CornerstoneViewportService in a camera position group that mounts together', () => {
+  beforeEach(mockSliceGrids);
+  afterEach(() => {
+    jest.restoreAllMocks();
+    (utilities.getVolumeSliceGrid as jest.Mock).mockReset();
+    (utilities.jumpToSlice as jest.Mock).mockClear();
+  });
+
+  const sagittalSync = [{ type: 'cameraPosition', id: 'sagittalSync', source: true, target: true }];
+  const gridViewports = new Map([
+    [
+      'ct',
+      {
+        viewportId: 'ct',
+        displaySetInstanceUIDs: ['ct-ds'],
+        viewportOptions: {
+          orientation: 'sagittal',
+          syncGroups: sagittalSync,
+          initialImageOptions: { preset: JumpPresets.Last },
+        },
+      },
+    ],
+    [
+      'pt',
+      {
+        viewportId: 'pt',
+        displaySetInstanceUIDs: ['pt-ds'],
+        viewportOptions: { orientation: 'sagittal', syncGroups: sagittalSync },
+      },
+    ],
+  ]);
+  const displaySets = {
+    'ct-ds': { displaySetInstanceUID: 'ct-ds', images: [{ imageId: 'ct-image' }] },
+    'pt-ds': { displaySetInstanceUID: 'pt-ds', images: [{ imageId: 'pt-image' }] },
+  };
+
+  /** Mounts one pane of the group while no pane of it is placed. */
+  async function mountFirst(viewportId: 'ct' | 'pt', options = {}) {
+    const synchronizer = makeSynchronizer();
+    const panes = {
+      ct: makePane('ct', 0.977, [0, 0, 0]),
+      pt: makePane('pt', 4.6875, [2.344, 0, 0]),
+    };
+    synchronizer.add({ renderingEngineId: ENGINE, viewportId: 'ct' });
+    synchronizer.add({ renderingEngineId: ENGINE, viewportId: 'pt' });
+
+    const servicesManager = {
+      services: {
+        displaySetService: { getDisplaySetByUID: jest.fn(uid => displaySets[uid] ?? {}) },
+        segmentationService: { clearSegmentationRepresentations: jest.fn() },
+        syncGroupService: {
+          getSynchronizersForViewport: jest.fn().mockReturnValue([synchronizer]),
+          getSynchronizer: jest.fn().mockReturnValue(synchronizer),
+        },
+        viewportGridService: {
+          getDisplaySetsUIDsForViewport: jest.fn().mockReturnValue([`${viewportId}-ds`]),
+          getState: () => ({ viewports: gridViewports }),
+        },
+      },
+    } as unknown as AppTypes.ServicesManager;
+    const service = new CornerstoneViewportService(servicesManager);
+    service.enableViewport(viewportId, { clientWidth: 100, clientHeight: 100 } as HTMLDivElement);
+    const viewportInfo = service.getViewportInfo(viewportId);
+    viewportInfo.setPublicViewportOptions(
+      { viewportType: 'volume', ...gridViewports.get(viewportId).viewportOptions } as never,
+      'planar'
+    );
+    viewportInfo.setViewportData({
+      viewportType: 'planar',
+      dataShapeType: 'volume',
+      data: [{ displaySetInstanceUID: `${viewportId}-ds`, imageIds: [`${viewportId}-image`] }],
+    } as never);
+
+    const mount: { initialViewReference?: unknown } = {};
+    jest.spyOn(viewportMounts, 'mountVolumes').mockImplementation(async (_viewport, context) => {
+      mount.initialViewReference = context.initialViewReference;
+      panes[viewportId].mountAt(context.initialViewReference as never);
+    });
+    jest
+      .spyOn(
+        service as unknown as { _processExtraDisplaySetsForViewport: () => unknown[] },
+        '_processExtraDisplaySetsForViewport'
+      )
+      .mockReturnValue([]);
+    jest
+      .spyOn(service, 'getCornerstoneViewport')
+      .mockImplementation(id => panes[id] as unknown as PlanarViewport);
+
+    await service.setVolumesForViewport(
+      panes[viewportId] as unknown as PlanarViewport,
+      [
+        {
+          volumeId: `volume-${viewportId}`,
+          displaySetInstanceUID: `${viewportId}-ds`,
+          imageIds: [`${viewportId}-image`],
+        },
+      ],
+      options
+    );
+
+    return { pane: panes[viewportId], mount };
+  }
+
+  it.each(['ct', 'pt'] as const)(
+    'starts %s at the initial slice of the CT before any pane is placed, with no jump after the mount',
+    async viewportId => {
+      const { pane, mount } = await mountFirst(viewportId);
+
+      expect(mount.initialViewReference).toEqual(GRIDS['ct-image'].getViewReference(511));
+      expect(utilities.jumpToSlice).not.toHaveBeenCalled();
+      expect(pane.setViewReference).not.toHaveBeenCalled();
+    }
+  );
+
+  it('starts a pane with a stored position at that position, not at the group', async () => {
+    const viewReference = {
+      FrameOfReferenceUID: 'frame-of-reference',
+      viewPlaneNormal: SAGITTAL,
+      cameraFocalPoint: [12, 0, 0],
+    };
+    const { mount } = await mountFirst('pt', {
+      positionPresentation: { viewportType: 'volume', viewReference },
+    });
+
+    expect(mount.initialViewReference).toEqual(viewReference);
   });
 });

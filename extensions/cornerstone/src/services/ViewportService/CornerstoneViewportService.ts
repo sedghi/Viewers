@@ -19,6 +19,7 @@ import { RENDERING_ENGINE_ID } from './constants';
 import { VOLUME_LOADER_SCHEME } from '../../constants';
 import ViewportInfo, {
   DisplaySetOptions,
+  InitialImageOptions,
   PublicViewportOptions,
   ViewportOptions,
   getDisplaySetOptionsAppearance,
@@ -46,17 +47,18 @@ import {
 import { BlendModes } from '@cornerstonejs/core/enums';
 import { isAutoHydrateViewportType } from '../../utils/autoHydrateViewportTypes';
 import { getViewportDataShape } from '../../utils/viewportDataShape';
+import type { ViewportShape } from '../../utils/viewportDataShape';
 import { mountStack, mountVolumes } from './viewportMounts';
 import { viewportOperations } from './viewportOperations';
 import {
-  driveCameraPositionSync,
+  getCameraPositionGroupInitialStart,
   getCameraPositionGroupStart,
   getCameraPositionSyncGroupIds,
   getMountSliceStep,
   getViewSliceStep,
-  holdCameraPositionSync,
   placeInCameraPositionGroups,
 } from './cameraPositionGroups';
+import type { CameraPositionGroupMember, MountVolume } from './cameraPositionGroups';
 import {
   WITH_ORIENTATION,
   getLutPresentation,
@@ -95,6 +97,7 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
   viewportsById: Map<string, ViewportInfo> = new Map();
   viewportGridResizeObserver: ResizeObserver | null;
   viewportsDisplaySets: Map<string, string[]> = new Map();
+  shownPositions: Map<string, ShownPosition> = new Map();
   beforeResizePositionPresentations: Map<string, PositionPresentation> = new Map();
 
   // Some configs
@@ -274,6 +277,11 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     const presentationIds = this.getPresentationIds(viewportId);
     const { syncGroupService } = this.servicesManager.services;
     const synchronizers = syncGroupService.getSynchronizersForViewport(viewportId);
+    const shownPosition = this._getShownPosition(viewportId);
+
+    if (shownPosition) {
+      this.shownPositions.set(viewportId, shownPosition);
+    }
 
     if (!presentationIds || Object.keys(presentationIds).length === 0) {
       return null;
@@ -345,6 +353,78 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     }
 
     return viewportInfo.getPresentationIds();
+  }
+
+  /**
+   * The presentations of a mount, with the position that the pane shows now
+   * when the mount shows the same source display set as the pane, in the same
+   * orientation, and brings no position that the pane can start at: an
+   * RTSTRUCT or a SEG loaded into the pane mounts it again with the display
+   * set that it references, and the pane keeps its slice, its zoom and its
+   * pan. A position that the mount brings wins: a stored position of the
+   * pane, or the first segmented slice that an RT or a SEG viewport gives a
+   * stack. The bare image of that slice is not a position of a volume pane
+   * (`getPositionViewReference`), so an MPR pane keeps its own.
+   */
+  private _withShownPosition(
+    viewportId: string,
+    viewportData: StackViewportData | VolumeViewportData,
+    publicViewportOptions: PublicViewportOptions,
+    presentations: Presentations = {}
+  ): Presentations {
+    const shape = getViewportDataShape(viewportData);
+
+    if (
+      (shape !== 'stack' && shape !== 'volume') ||
+      isPositionForMount(presentations.positionPresentation, shape, viewportData)
+    ) {
+      return presentations;
+    }
+
+    const { displaySetService } = this.servicesManager.services;
+    const source = viewportData.data.find(
+      ({ displaySetInstanceUID }) =>
+        !displaySetService.getDisplaySetByUID(displaySetInstanceUID)?.isOverlayDisplaySet
+    )?.displaySetInstanceUID;
+    const shown = this._getShownPosition(viewportId) ?? this.shownPositions.get(viewportId);
+    const orientation = publicViewportOptions?.orientation ?? shown?.orientation;
+
+    if (
+      !source ||
+      shown?.sourceDisplaySetInstanceUID !== source ||
+      shown.shape !== shape ||
+      (shape === 'volume' && orientation !== shown.orientation)
+    ) {
+      return presentations;
+    }
+
+    return { ...presentations, positionPresentation: shown.positionPresentation };
+  }
+
+  /**
+   * What a pane shows now: its source display set, its orientation, the shape
+   * of its data and its position. A pane whose element is released keeps the
+   * last one in `shownPositions` (`storePresentation` writes it), since an
+   * RTSTRUCT or a SEG loaded into a pane replaces the component of the pane,
+   * whose element is released before the new one mounts.
+   */
+  private _getShownPosition(viewportId: string): ShownPosition | undefined {
+    const viewportInfo = this.viewportsById.get(viewportId);
+    const sourceDisplaySetInstanceUID = this.viewportsDisplaySets.get(viewportId)?.[0];
+    const positionPresentation = sourceDisplaySetInstanceUID
+      ? this._getPositionPresentation(viewportId)
+      : undefined;
+
+    if (!positionPresentation) {
+      return;
+    }
+
+    return {
+      sourceDisplaySetInstanceUID,
+      orientation: viewportInfo.getOrientation(),
+      shape: viewportInfo.getDataShape(),
+      positionPresentation,
+    };
   }
 
   private _getPositionPresentation(viewportId: string): PositionPresentation {
@@ -425,6 +505,12 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
     // This is the old viewportInfo, which may have old options but we might be
     // using its viewport (same viewportId as the new viewportInfo)
     const viewportInfo = this.viewportsById.get(viewportId);
+    const mountPresentations = this._withShownPosition(
+      viewportId,
+      viewportData,
+      publicViewportOptions,
+      presentations
+    );
 
     // We should store the presentation for the current viewport since we can't only
     // rely to store it WHEN the viewport is disabled since we might keep around the
@@ -495,7 +581,7 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
       viewport,
       viewportData,
       viewportInfo,
-      presentations
+      mountPresentations
     );
 
     // The broadcast event here ensures that listeners have a valid, up to date
@@ -1064,53 +1150,111 @@ class CornerstoneViewportService extends PubSubService implements IViewportServi
   }
 
   /**
-   * Mounts the volumes of a planar or a 3D viewport. A pane of a camera
-   * position sync group does not drive the group while it mounts. A pane
-   * that ranks after the panes of its groups placed so far starts at their
-   * position (`getCameraPositionGroupStart`, the `initialViewReference` of the
-   * mount), so it draws no other slice first; a pane that ranks before them
-   * mounts on its own initial slice and takes them to it
-   * (`placeInCameraPositionGroups`). The panes open on one slice whatever the
-   * order of their mounts.
+   * Mounts the volumes of a planar or a 3D viewport. A pane of camera
+   * position sync groups starts at the position of its groups (the
+   * `initialViewReference` of the mount), so it draws no other slice first:
+   * the position of the placed panes when it ranks after them
+   * (`getCameraPositionGroupStart`), else the initial slice of the finest
+   * pane of its groups, which the slice grids give before any pane mounts
+   * (`getCameraPositionGroupInitialStart`). A pane that ranks before the
+   * placed panes takes them to its slice (`placeInCameraPositionGroups`). The
+   * panes open on one slice whatever the order of their mounts.
    */
   public async setVolumesForViewport(viewport, volumeInputArray, presentations) {
     const synchronizers = this._getCameraPositionSynchronizers(viewport.id);
-    const held = holdCameraPositionSync(viewport, synchronizers);
     const groupContext = {
       synchronizers,
       getViewport: viewportId => this.getCornerstoneViewport(viewportId),
       getLayoutIndex: viewportId => this._getLayoutIndex(viewportId),
       getSliceStep: getViewSliceStep,
     };
-    const mountedVolumeIds = volumeInputArray
-      .filter(volumeInput => this._isMountedVolumeInput(volumeInput))
-      .map(({ volumeId }) => volumeId);
-    const groupStart = presentations?.positionPresentation
-      ? undefined
-      : getCameraPositionGroupStart(
-          viewport.id,
-          viewPlaneNormal => getMountSliceStep(mountedVolumeIds, viewPlaneNormal),
-          groupContext
-        );
+    const groupStart =
+      presentations?.positionPresentation || !synchronizers.length
+        ? undefined
+        : this._getCameraPositionGroupStart(viewport.id, volumeInputArray, groupContext);
 
-    try {
-      await this._mountVolumesForViewport(viewport, volumeInputArray, presentations, groupStart);
-    } catch (error) {
-      driveCameraPositionSync(viewport, held);
-      throw error;
-    }
+    await this._mountVolumesForViewport(viewport, volumeInputArray, presentations, groupStart);
 
     if (this.getCornerstoneViewport(viewport.id) !== viewport) {
-      driveCameraPositionSync(viewport, held);
       return;
     }
 
     placeInCameraPositionGroups(
       viewport,
-      held,
       groupContext,
       Boolean(presentations?.positionPresentation)
     );
+  }
+
+  /**
+   * The position at which a pane of camera position sync groups starts: the
+   * position of the placed panes of its groups when it ranks after them,
+   * else the initial slice of the finest pane of its groups.
+   */
+  private _getCameraPositionGroupStart(
+    viewportId: string,
+    volumeInputArray,
+    groupContext
+  ): Types.ViewReference | undefined {
+    const volumes: MountVolume[] = volumeInputArray
+      .filter(volumeInput => this._isMountedVolumeInput(volumeInput))
+      .map(({ volumeId, imageIds }) => ({ volumeId, imageIds }));
+    const orientation = this.getViewportInfo(viewportId)?.getOrientation() as never;
+
+    return (
+      getCameraPositionGroupStart(
+        viewportId,
+        getMountSliceStep(volumes, orientation),
+        groupContext
+      ) ??
+      getCameraPositionGroupInitialStart(
+        viewportId,
+        this._getCameraPositionGroupMembers(viewportId)
+      )
+    );
+  }
+
+  /**
+   * The panes of the viewport grid that drive a camera position sync group of
+   * a pane, the pane among them, with what their mounts take: the orientation,
+   * the volumes of their display sets (their source first) and the initial
+   * slice of their hanging protocol.
+   */
+  private _getCameraPositionGroupMembers(viewportId: string): CameraPositionGroupMember[] {
+    const { viewportGridService, displaySetService } = this.servicesManager.services;
+    const groupIds = new Set(
+      getCameraPositionSyncGroupIds(this.getViewportInfo(viewportId)?.getSyncGroups())
+    );
+    const gridViewports = [...(viewportGridService.getState()?.viewports?.values() ?? [])];
+
+    return gridViewports
+      .filter(({ viewportOptions }) =>
+        getCameraPositionSyncGroupIds(
+          viewportOptions?.syncGroups as Parameters<typeof getCameraPositionSyncGroupIds>[0]
+        ).some(id => groupIds.has(id))
+      )
+      .map(({ viewportId: memberId, viewportOptions, displaySetInstanceUIDs = [] }) => ({
+        viewportId: memberId,
+        layoutIndex: this._getLayoutIndex(memberId),
+        orientation: viewportOptions?.orientation as CameraPositionGroupMember['orientation'],
+        volumes: displaySetInstanceUIDs
+          .map(uid => displaySetService.getDisplaySetByUID(uid))
+          .filter(displaySet => displaySet && !displaySet.isOverlayDisplaySet)
+          .map(displaySet => ({
+            volumeId: `${displaySet.volumeLoaderSchema ?? VOLUME_LOADER_SCHEME}:${displaySet.displaySetInstanceUID}`,
+            imageIds: (displaySet as { isDynamicVolume?: boolean }).isDynamicVolume
+              ? undefined
+              : (displaySet.imageIds ??
+                displaySet.images?.map(image => (image as { imageId: string }).imageId)),
+          })),
+        getInitialSliceIndex: numberOfSlices => {
+          const { index, preset } = (viewportOptions?.initialImageOptions ??
+            {}) as InitialImageOptions;
+          return index === undefined && !preset
+            ? undefined
+            : this._getInitialImageIndex(numberOfSlices, index, preset);
+        },
+      }));
   }
 
   /**
@@ -1792,6 +1936,40 @@ function getPositionViewReference(
 ): Types.ViewReference | undefined {
   const viewReference = positionPresentation?.viewReference;
   return viewReference?.FrameOfReferenceUID ? viewReference : undefined;
+}
+
+/**
+ * What a pane shows: its source display set, its orientation, the shape of
+ * its data and its position presentation.
+ */
+type ShownPosition = {
+  sourceDisplaySetInstanceUID: string;
+  orientation: csEnums.OrientationAxis;
+  shape: ViewportShape;
+  positionPresentation: PositionPresentation;
+};
+
+/**
+ * Whether a mount brings a position that the pane can start at: for a stack
+ * an index or an image of the stack, for a volume a view reference of its
+ * frame of reference (`getPositionViewReference`).
+ */
+function isPositionForMount(
+  positionPresentation: PositionPresentation | undefined,
+  shape: 'stack' | 'volume',
+  viewportData: StackViewportData | VolumeViewportData
+): boolean {
+  if (shape === 'volume') {
+    return Boolean(getPositionViewReference(positionPresentation));
+  }
+
+  const referencedImageId = positionPresentation?.viewReference?.referencedImageId;
+  const imageIds = (viewportData.data[0] as { imageIds?: string[] })?.imageIds;
+
+  return (
+    positionPresentation?.initialImageIndex != null ||
+    Boolean(referencedImageId && imageIds?.includes(referencedImageId))
+  );
 }
 
 export default CornerstoneViewportService;

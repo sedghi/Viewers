@@ -58,52 +58,67 @@ export function getViewSliceStep(viewport: Types.IViewport): number {
   }
 }
 
+type VolumeSliceGrid = ReturnType<typeof csUtils.getVolumeSliceGrid>;
+type VolumeSliceGridOrientation = Parameters<typeof csUtils.getVolumeSliceGrid>[0]['orientation'];
+
 /**
- * The step of the slice grid of a pane along a view plane normal, from the
- * volumes that it is about to mount: the finest of them, as
- * `getViewSliceStep` gives it once they are mounted. It is the thickness of
- * one voxel along the normal (`utilities.voxelSlab.getVoxelThicknessAlongNormal`),
- * the step of Cornerstone3D's default `rendering.sliceStepMeasure` ('l1'),
- * which OHIF keeps.
+ * A volume that a pane mounts, as `utilities.getVolumeSliceGrid` takes it:
+ * its id when it is in the cache, else its image ids.
  */
-export function getMountSliceStep(volumeIds: string[], viewPlaneNormal: Types.Point3): number {
-  const steps = volumeIds
-    .map(volumeId => cache.getVolume(volumeId))
-    .filter(Boolean)
-    .map(volume => csUtils.voxelSlab.getVoxelThicknessAlongNormal(volume, viewPlaneNormal));
+export type MountVolume = { volumeId?: string; imageIds?: string[] };
+
+/**
+ * A pane of a camera position group as the viewport grid holds it, before
+ * its mount: its place in the layout, the orientation of its view, the
+ * volumes that it mounts (its source first) and the initial slice of its
+ * hanging protocol on a grid of a number of slices (undefined: the default
+ * slice of the view).
+ */
+export interface CameraPositionGroupMember {
+  viewportId: string;
+  layoutIndex: number;
+  orientation?: VolumeSliceGridOrientation;
+  volumes: MountVolume[];
+  getInitialSliceIndex: (numberOfSlices: number) => number | undefined;
+}
+
+/**
+ * The slice grid of the view of a volume in an orientation
+ * (`utilities.getVolumeSliceGrid`), or undefined when it has none: a volume
+ * that is not in the cache and whose images give no geometry, or an
+ * orientation that depends on the view on display.
+ */
+function getSliceGrid(
+  volume: MountVolume,
+  orientation?: VolumeSliceGridOrientation
+): VolumeSliceGrid | undefined {
+  const source =
+    volume.volumeId && cache.getVolume(volume.volumeId)
+      ? { volumeId: volume.volumeId }
+      : { imageIds: volume.imageIds };
+
+  try {
+    return csUtils.getVolumeSliceGrid({ ...source, orientation });
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The step of the slice grid of a pane, from the volumes that it is about to
+ * mount: the finest of their grids in its orientation
+ * (`utilities.getVolumeSliceGrid`), the step that `getViewSliceStep` gives
+ * once they are mounted.
+ */
+export function getMountSliceStep(
+  volumes: MountVolume[],
+  orientation?: VolumeSliceGridOrientation
+): number {
+  const steps = volumes
+    .map(volume => getSliceGrid(volume, orientation)?.step)
+    .filter(step => step > 0);
 
   return steps.length ? Math.min(...steps) : Infinity;
-}
-
-/**
- * Stops a pane from driving its camera position synchronizers while it
- * mounts, so its first slice, which is its own default, does not move the
- * panes of its groups. It stays a target. Returns the synchronizers to give
- * back with `drive`.
- */
-export function holdCameraPositionSync(
-  viewport: Types.IViewport,
-  synchronizers: Synchronizer[]
-): Synchronizer[] {
-  const self = { renderingEngineId: viewport.renderingEngineId, viewportId: viewport.id };
-
-  return synchronizers.filter(synchronizer => {
-    if (!synchronizer.hasSourceViewport(self.renderingEngineId, self.viewportId)) {
-      return false;
-    }
-    synchronizer.removeSource(self);
-    return true;
-  });
-}
-
-/** Lets a pane drive the synchronizers that `holdCameraPositionSync` took from it. */
-export function driveCameraPositionSync(
-  viewport: Types.IViewport,
-  synchronizers: Synchronizer[]
-): void {
-  const self = { renderingEngineId: viewport.renderingEngineId, viewportId: viewport.id };
-
-  synchronizers.forEach(synchronizer => synchronizer.addSource(self));
 }
 
 /** Whether a pane shows data, so it has a slice that the others can go to. */
@@ -161,22 +176,18 @@ function isOnPlaneOf(viewport: Types.IViewport, reference: Types.ViewReference):
 
 /**
  * Puts a pane on the slice through a point, as a view reference of a point
- * and a plane, without driving its synchronizers, so the move stays its own.
- * A pane that is on that plane already is not moved.
+ * and a plane. A pane that is on that plane already is not moved. The pane
+ * drives its synchronizers with the move: the camera position synchronizer
+ * gives another pane a slice only when the source moved along its normal, the
+ * slice of its own grid nearest to that point, so a pane on that point stays.
  */
-function moveToPoint(
-  viewport: Types.IViewport,
-  reference: Types.ViewReference,
-  synchronizers: Synchronizer[]
-): void {
+function moveToPoint(viewport: Types.IViewport, reference: Types.ViewReference): void {
   if (isOnPlaneOf(viewport, reference)) {
     return;
   }
 
-  const held = holdCameraPositionSync(viewport, synchronizers);
   viewport.setViewReference(toPointReference(reference));
   viewport.render();
-  driveCameraPositionSync(viewport, held);
 }
 
 /** The panes of the groups of a pane, other than itself, that show a position. */
@@ -219,23 +230,21 @@ function getAnchor(
 }
 
 /**
- * The position at which a volume pane of camera position sync groups starts,
- * as the `initialViewReference` of its mount, so that it draws no other
- * slice first: the point and the plane of the slice of its groups (the
- * placed pane of the finest slice grid, the first in the layout among panes
- * of one step), when the pane ranks after that pane. A pane that ranks
- * before it, or the first pane of its groups, starts on its own initial
- * slice and gets undefined; `placeInCameraPositionGroups` then takes the
- * others to it after its mount.
+ * The position at which a volume pane joins camera position sync groups whose
+ * panes are placed, as the `initialViewReference` of its mount, so that it
+ * draws no other slice first: the point and the plane of the slice of its
+ * groups (the placed pane of the finest slice grid, the first in the layout
+ * among panes of one step), when the pane ranks after that pane. A pane that
+ * ranks before it, or a pane of groups with no placed pane, gets undefined.
  *
  * @param viewportId - The pane that is about to mount.
- * @param getSliceStep - The step of the slice grid of the pane along a view
- * plane normal, from the volumes that it mounts (`getMountSliceStep`).
+ * @param sliceStep - The step of the slice grid of the pane, from the
+ * volumes that it mounts (`getMountSliceStep`).
  * @param context - The groups and the panes.
  */
 export function getCameraPositionGroupStart(
   viewportId: string,
-  getSliceStep: (viewPlaneNormal: Types.Point3) => number,
+  sliceStep: number,
   context: CameraPositionGroupContext
 ): Types.ViewReference | undefined {
   const placed = getPlacedPanes(viewportId, context);
@@ -245,19 +254,54 @@ export function getCameraPositionGroupStart(
   }
 
   const { anchor, rank } = getAnchor(placed, context);
-  const reference = anchor.getViewReference();
-  const ownRank = getRank(
-    getSliceStep(reference.viewPlaneNormal),
-    context.getLayoutIndex(viewportId)
-  );
+  const ownRank = getRank(sliceStep, context.getLayoutIndex(viewportId));
 
-  return ranksBefore(ownRank, rank) ? undefined : toPointReference(reference);
+  return ranksBefore(ownRank, rank) ? undefined : toPointReference(anchor.getViewReference());
+}
+
+/**
+ * The position at which the panes of camera position sync groups start when
+ * they mount together, before any of them mounts: the initial slice of the
+ * member whose slice grid is the finest (the CT of a PET/CT), the first in the
+ * layout among members of one step, as a point and a plane
+ * (`getViewReference` of the slice grid of its source,
+ * `utilities.getVolumeSliceGrid`). Its initial slice is that of its hanging
+ * protocol (`'first'`, `'last'`, `'middle'`, an index), else the default
+ * slice of its view. Every member mounts there and shows its own slice
+ * nearest to that point, so no pane draws another slice first. Members of
+ * another frame of reference than the pane that mounts are left out.
+ *
+ * @param viewportId - The pane that is about to mount, one of the members.
+ * @param members - The panes of its groups, as the viewport grid holds them.
+ */
+export function getCameraPositionGroupInitialStart(
+  viewportId: string,
+  members: CameraPositionGroupMember[]
+): Types.ViewReference | undefined {
+  const ranked = members
+    .map(member => {
+      const grids = member.volumes.map(volume => getSliceGrid(volume, member.orientation));
+      const steps = grids.map(grid => grid?.step).filter(step => step > 0);
+      return { member, grid: grids[0], rank: getRank(Math.min(...steps), member.layoutIndex) };
+    })
+    .filter(({ grid }) => grid);
+  const own = ranked.find(({ member }) => member.viewportId === viewportId);
+
+  if (!own) {
+    return;
+  }
+
+  const { member, grid } = ranked
+    .filter(({ grid }) => grid.frameOfReferenceUID === own.grid.frameOfReferenceUID)
+    .reduce((best, entry) => (ranksBefore(entry.rank, best.rank) ? entry : best));
+  const sliceIndex = member.getInitialSliceIndex(grid.numberOfSlices) ?? grid.defaultSliceIndex;
+
+  return grid.getViewReference(sliceIndex);
 }
 
 /**
  * Puts a volume pane that has just mounted on the one position of its camera
- * position sync groups, and lets it drive them again (`held`: what
- * `holdCameraPositionSync` took from it before the mount).
+ * position sync groups.
  *
  * The panes of a group open on the initial slice of the pane whose slice grid
  * is the finest along the view (the CT of a PET/CT), the first in the layout
@@ -266,20 +310,20 @@ export function getCameraPositionGroupStart(
  * not depend on the order of the mounts: a pane that ranks before the panes
  * placed so far takes them to its slice, one move each, and a pane that ranks
  * after them goes to their position. A pane on that position already, as one
- * that started there (`getCameraPositionGroupStart`), is not moved. A pane
- * restored from its own stored position (`keepOwnPosition`) keeps it.
+ * that started there (`getCameraPositionGroupStart`,
+ * `getCameraPositionGroupInitialStart`), is not moved. A pane restored from
+ * its own stored position (`keepOwnPosition`) keeps it. A pane stays a source
+ * of its groups while it mounts: its mount changes no camera of the group.
  */
 export function placeInCameraPositionGroups(
   viewport: Types.IViewport,
-  held: Synchronizer[],
   context: CameraPositionGroupContext,
   keepOwnPosition = false
 ): void {
-  const { synchronizers, getLayoutIndex, getSliceStep = getViewSliceStep } = context;
+  const { getLayoutIndex, getSliceStep = getViewSliceStep } = context;
   const placed = getPlacedPanes(viewport.id, context);
 
   if (keepOwnPosition || !placed.size) {
-    driveCameraPositionSync(viewport, held);
     return;
   }
 
@@ -287,11 +331,9 @@ export function placeInCameraPositionGroups(
 
   if (ranksBefore(getRank(getSliceStep(viewport), getLayoutIndex(viewport.id)), rank)) {
     const reference = viewport.getViewReference();
-    placed.forEach(member => moveToPoint(member, reference, synchronizers));
-    driveCameraPositionSync(viewport, held);
+    placed.forEach(member => moveToPoint(member, reference));
     return;
   }
 
-  moveToPoint(viewport, anchor.getViewReference(), []);
-  driveCameraPositionSync(viewport, held);
+  moveToPoint(viewport, anchor.getViewReference());
 }

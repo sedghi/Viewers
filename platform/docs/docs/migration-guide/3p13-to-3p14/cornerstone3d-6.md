@@ -103,8 +103,20 @@ guide.
 - The panes of one camera position sync group (the axial, the sagittal and the
   coronal panes of TMTV) open on the slice of the CT, whatever the order in
   which their volumes load; a PET pane shows its slice nearest to it, as in
-  3.13. A series dropped into one pane of a group whose panes already show a
-  slice opens on the slice of the group, with no other slice first.
+  3.13. Each pane draws that slice first and no other: the position of the
+  group is known from the geometry of the series before any pane mounts. A
+  series dropped into one pane of a group whose panes already show a slice
+  opens on the slice of the group, with no other slice first.
+- The panes of one camera position sync group show one scale, as in 3.13: a
+  PET pane next to a CT pane draws the body at the size of the CT pane. The
+  scale is the fit of the pane that mounts first (the CT of TMTV), 0.3% larger
+  than the fit of the fusion pane that 3.13 gave the group. A zoom, a pan or a
+  resize of one pane moves no slice of another pane; a scroll moves the panes
+  of the group to their slice nearest to the new position.
+- An RTSTRUCT or a SEG loaded into a pane of an MPR keeps the slice, the zoom
+  and the pan of the pane, through the load and through its hydration. 3.13
+  took the pane to the middle of the volume at the load. Loaded into a stack,
+  it goes to its first segmented slice, as in 3.13.
 - A PET (or another volume) added over a pane from the data overlay menu shows
   nothing on the slice of the pane until its own image of that slice has
   loaded, and then that image. 3.13 first showed a copy of another slice of the

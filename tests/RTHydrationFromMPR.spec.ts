@@ -1,4 +1,12 @@
-import { checkForGridScreenshot, screenShotPaths, test, visitStudy } from './utils';
+import {
+  checkForGridScreenshot,
+  screenShotPaths,
+  test,
+  visitStudy,
+  waitForContourCuts,
+} from './utils';
+
+const MPR_PANES = ['mpr-axial', 'mpr-sagittal', 'mpr-coronal'];
 
 test.beforeEach(async ({ page }) => {
   const studyInstanceUID = '1.3.6.1.4.1.5962.99.1.2968617883.1314880426.1493322302363.3.0';
@@ -38,7 +46,7 @@ test('should hydrate an RTSTRUCT from MPR', async ({
 
   await DOMOverlayPageObject.viewport.segmentationHydration.yes.click();
 
-  await page.waitForTimeout(5000);
+  await waitForContourCuts(page, { viewportIds: MPR_PANES });
 
   await checkForGridScreenshot({
     page,
@@ -47,6 +55,8 @@ test('should hydrate an RTSTRUCT from MPR', async ({
   });
 
   await mainToolbarPageObject.layoutSelection.axialPrimary.click();
+
+  await waitForContourCuts(page, { minimumPanes: 3 });
 
   await checkForGridScreenshot({
     page,

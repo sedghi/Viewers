@@ -7,6 +7,7 @@ import {
   visitStudy,
   waitForViewportRenderCycle,
   waitForViewportsRendered,
+  waitForContourCuts,
 } from './utils';
 
 test.beforeEach(async ({ page }) => {
@@ -62,6 +63,8 @@ test('should hydrate an RTSTRUCT and then launch MPR', async ({
   await viewportRenderAfterLayoutChange;
 
   await waitForViewportsRendered(page, { timeout: volumeLoadTimeout });
+
+  await waitForContourCuts(page, { minimumPanes: 3 });
 
   await checkForGridScreenshot({
     page,

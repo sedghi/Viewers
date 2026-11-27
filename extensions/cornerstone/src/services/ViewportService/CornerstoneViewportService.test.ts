@@ -528,6 +528,133 @@ describe('CornerstoneViewportService and the shape of the data', () => {
     });
   });
 
+  describe('a pane that mounts again the display set that it shows (an RTSTRUCT or a SEG loaded into it)', () => {
+    const shownReference = {
+      FrameOfReferenceUID: 'frame-of-reference',
+      viewPlaneNormal: [0, 0, 1],
+      cameraFocalPoint: [0, 0, -22],
+      sliceIndex: 100,
+      referencedImageId: 'image-1',
+    };
+    const shownFraming = { zoom: 1.5, pan: [10, 0] };
+    const firstSegmentedSlice = { viewReference: { referencedImageId: 'image-3' } };
+
+    /**
+     * A service whose pane shows the display set `ct` at `shownReference`, and
+     * the presentations that the mount of `nextData` is given.
+     */
+    function mountAgain({
+      shape = 'volume' as ViewportShape,
+      orientation = 'axial',
+      nextOrientation = orientation,
+      nextDisplaySets = ['ct', 'rt'],
+      presentations = {},
+      released = false,
+    } = {}) {
+      const { service } = makeServiceWithViewport(shape, { viewportType: shape, orientation });
+      const displaySetService = service.servicesManager.services.displaySetService as unknown as {
+        getDisplaySetByUID: jest.Mock;
+      };
+      displaySetService.getDisplaySetByUID.mockImplementation(uid => ({
+        displaySetInstanceUID: uid,
+        isOverlayDisplaySet: uid === 'rt',
+      }));
+      service.viewportsDisplaySets.set('viewport-1', ['ct']);
+      const shownViewport = {
+        id: 'viewport-1',
+        type: ViewportType.PLANAR,
+        getViewReference: () => shownReference,
+        getViewFraming: () => shownFraming,
+      };
+      const getCornerstoneViewport = jest
+        .spyOn(service, 'getCornerstoneViewport')
+        .mockReturnValue(shownViewport as never);
+      jest.spyOn(service, 'getRenderingEngine').mockReturnValue({
+        id: 'engine',
+        enableElement: jest.fn(),
+        getViewport: jest.fn(),
+      } as never);
+
+      if (released) {
+        service.storePresentation({ viewportId: 'viewport-1' });
+        service.disableElement('viewport-1');
+        getCornerstoneViewport.mockReturnValue(null);
+        service.enableViewport('viewport-1', makeElement());
+      }
+      const setDisplaySets = jest
+        .spyOn(
+          service as unknown as { _setDisplaySets: (...args: unknown[]) => Promise<void> },
+          '_setDisplaySets'
+        )
+        .mockResolvedValue(undefined);
+
+      service.setViewportData(
+        'viewport-1',
+        {
+          viewportType: ViewportType.PLANAR,
+          dataShapeType: shape,
+          data: nextDisplaySets.map(displaySetInstanceUID => ({
+            displaySetInstanceUID,
+            imageIds,
+          })),
+        } as never,
+        { viewportType: shape, orientation: nextOrientation } as never,
+        [{ voiInverted: false }],
+        presentations
+      );
+
+      return (setDisplaySets.mock.calls[0][3] as { positionPresentation?: unknown })
+        .positionPresentation;
+    }
+
+    const shownPosition = expect.objectContaining({
+      viewReference: shownReference,
+      viewFraming: shownFraming,
+    });
+
+    it.each(['axial', 'sagittal', 'coronal'])(
+      'an MPR pane (%s) keeps the slice and the framing that it shows',
+      orientation => {
+        expect(mountAgain({ orientation })).toEqual(shownPosition);
+      }
+    );
+
+    it('a pane whose element was released for the component of the RT or SEG keeps its position', () => {
+      expect(mountAgain({ released: true })).toEqual(shownPosition);
+      expect(mountAgain({ shape: 'stack', released: true })).toEqual(shownPosition);
+    });
+
+    it('an MPR pane keeps its position over the first segmented slice, which names an image only', () => {
+      expect(mountAgain({ presentations: { positionPresentation: firstSegmentedSlice } })).toEqual(
+        shownPosition
+      );
+    });
+
+    it('a stored position of the pane wins', () => {
+      const stored = {
+        viewportType: 'volume',
+        viewReference: { ...shownReference, sliceIndex: 7 },
+      };
+
+      expect(mountAgain({ presentations: { positionPresentation: stored } })).toBe(stored);
+    });
+
+    it('a stack pane keeps its image when the mount brings no position', () => {
+      expect(mountAgain({ shape: 'stack' })).toEqual(shownPosition);
+    });
+
+    it('a stack pane goes to the first segmented slice that the RT or SEG viewport asks for', () => {
+      expect(
+        mountAgain({ shape: 'stack', presentations: { positionPresentation: firstSegmentedSlice } })
+      ).toBe(firstSegmentedSlice);
+    });
+
+    it('a pane that mounts another display set, or another orientation, does not keep its position', () => {
+      expect(mountAgain({ nextDisplaySets: ['mr'] })).toBeUndefined();
+      expect(mountAgain({ nextOrientation: 'sagittal' })).toBeUndefined();
+    });
+  });
+
   describe('a viewport that could show a measurement as a volume', () => {
     const measurementMetadata = {
       volumeId: 'cornerstoneStreamingImageVolume:measured',

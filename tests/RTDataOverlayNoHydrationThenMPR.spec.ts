@@ -5,6 +5,7 @@ import {
   visitStudy,
   waitForViewportRenderCycle,
   waitForViewportsRendered,
+  waitForContourCuts,
 } from './utils';
 import { assertNumberOfModalityLoadBadges } from './utils/assertions';
 
@@ -51,6 +52,8 @@ test('should launch MPR with unhydrated RTSTRUCT chosen from the data overlay me
   await viewportRenderAfterLayoutChange;
 
   await waitForViewportsRendered(page, { timeout: volumeLoadTimeout });
+
+  await waitForContourCuts(page, { minimumPanes: 3 });
 
   await checkForGridScreenshot({
     page,
